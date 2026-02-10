@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ClinicianHome } from "./ClinicianHome";
 import { UserHome } from "./UserHome";
 
-const STAFF_ROLES = ["front_desk", "clinician"] as const;
+const STAFF_ROLES = ["admin", "clinician"] as const;
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -29,7 +29,7 @@ export default async function HomePage() {
     return (
       <ClinicianHome
         fullName={fullName}
-        role={role as "front_desk" | "clinician"}
+        role={role as "admin" | "clinician"}
       />
     );
   }

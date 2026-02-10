@@ -2,29 +2,54 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
-import { signIn } from "./actions";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { handleClinicianAuth } from "./actions";
 
-export default function ClinicianAuthPage() {
+function ClinicianAuthForm() {
+  const searchParams = useSearchParams();
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<{
+    password?: string;
+    confirmPassword?: string;
+    auth?: string;
+  }>({});
   const [isPending, setIsPending] = useState(false);
+
+  const message = searchParams.get("message");
+  const errorParam = searchParams.get("error");
+
+  const validatePassword = (value: string) => {
+    if (value.length < 8) return "Password must be at least 8 characters";
+    return "";
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
     const password = formData.get("password") as string;
+    const confirmPassword = formData.get("confirmPassword") as string | null;
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters");
-      return;
+    const newErrors: { password?: string; confirmPassword?: string } = {};
+    const pwdError = validatePassword(password);
+    if (pwdError) newErrors.password = pwdError;
+    if (mode === "signup" && confirmPassword !== password) {
+      newErrors.confirmPassword = "Passwords do not match";
     }
-    setError("");
-    setIsPending(true);
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
 
-    const authError = await signIn(formData);
+    setIsPending(true);
+    formData.set("mode", mode);
+    if (mode === "signup") {
+      formData.set("role", "clinician");
+    }
+
+    const authError = await handleClinicianAuth(formData);
     if (authError) {
-      setError(authError.message);
+      setErrors({ auth: authError.message });
       setIsPending(false);
     }
   };
@@ -75,15 +100,54 @@ export default function ClinicianAuthPage() {
                 Clinician &amp; Staff Portal
               </p>
               <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-                Sign In
+                {mode === "signin" ? "Sign In" : "Create Account"}
               </h1>
               <p className="mt-2 text-sm text-slate-600">
-                Access the clinical dashboard with your organization credentials.
+                {mode === "signin"
+                  ? "Access the clinical dashboard with your organization credentials."
+                  : "Register for the clinician and staff portal."}
               </p>
 
+              {message === "check_email" && (
+                <p className="mt-4 rounded-lg bg-[#E6E15A]/20 p-3 text-sm text-[#1F5F2E]">
+                  Check your email for a confirmation link to complete sign up.
+                </p>
+              )}
+              {errorParam === "invalid_confirmation" && (
+                <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                  Invalid or expired confirmation link. Please try signing up again.
+                </p>
+              )}
+              {errors.auth && (
+                <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                  {errors.auth}
+                </p>
+              )}
+
               <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
+                {mode === "signup" && (
+                  <div>
+                    <label
+                      htmlFor="name"
+                      className="block text-sm font-medium text-slate-700"
+                    >
+                      Full name
+                    </label>
+                    <input
+                      id="name"
+                      name="name"
+                      type="text"
+                      autoComplete="name"
+                      placeholder="Jane Doe"
+                      className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
+                    />
+                  </div>
+                )}
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-slate-700">
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-slate-700"
+                  >
                     Work email
                   </label>
                   <input
@@ -96,24 +160,61 @@ export default function ClinicianAuthPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-slate-700">
-                    Password
+                  <label
+                    htmlFor="password"
+                    className="block text-sm font-medium text-slate-700"
+                  >
+                    Password{" "}
+                    {mode === "signup" && (
+                      <span className="text-slate-400">(min 8 characters)</span>
+                    )}
                   </label>
                   <input
                     id="password"
                     name="password"
                     type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
+                    autoComplete={
+                      mode === "signin" ? "current-password" : "new-password"
+                    }
                     placeholder="••••••••"
                     minLength={8}
                     className={`mt-1.5 w-full rounded-lg border bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 ${
-                      error
+                      errors.password
                         ? "border-red-400 focus:border-red-500 focus:ring-red-500"
                         : "border-slate-200 focus:border-[#1F5F2E] focus:ring-[#1F5F2E]"
                     }`}
                   />
-                  {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+                  {errors.password && (
+                    <p className="mt-1 text-xs text-red-600">{errors.password}</p>
+                  )}
                 </div>
+                {mode === "signup" && (
+                  <div>
+                    <label
+                      htmlFor="confirmPassword"
+                      className="block text-sm font-medium text-slate-700"
+                    >
+                      Confirm password
+                    </label>
+                    <input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      placeholder="••••••••"
+                      className={`mt-1.5 w-full rounded-lg border bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 ${
+                        errors.confirmPassword
+                          ? "border-red-400 focus:border-red-500 focus:ring-red-500"
+                          : "border-slate-200 focus:border-[#1F5F2E] focus:ring-[#1F5F2E]"
+                      }`}
+                    />
+                    {errors.confirmPassword && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {errors.confirmPassword}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <label className="flex cursor-pointer items-center gap-3">
                   <input
@@ -125,18 +226,24 @@ export default function ClinicianAuthPage() {
                   <span className="text-sm text-slate-600">Show password</span>
                 </label>
 
-                <p className="text-center text-xs text-slate-500">
-                  <button type="button" className="hover:text-[#1F5F2E]">
-                    Forgot your password?
-                  </button>
-                </p>
+                {mode === "signin" && (
+                  <p className="text-center text-xs text-slate-500">
+                    <button type="button" className="hover:text-[#1F5F2E]">
+                      Forgot your password?
+                    </button>
+                  </p>
+                )}
 
                 <button
                   type="submit"
                   disabled={isPending}
                   className="w-full rounded-full bg-[#1F5F2E] py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#174622] disabled:opacity-70"
                 >
-                  {isPending ? "Signing in..." : "Sign In"}
+                  {isPending
+                    ? "Please wait..."
+                    : mode === "signin"
+                      ? "Sign In"
+                      : "Create Account"}
                 </button>
               </form>
 
@@ -171,14 +278,25 @@ export default function ClinicianAuthPage() {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                Sign in with Google
+                {mode === "signin"
+                  ? "Sign in with Google"
+                  : "Sign up with Google"}
               </button>
 
-              <p className="mt-6 text-center text-xs text-slate-500">
-                Need an account?{" "}
-                <span className="text-slate-700">
-                  Contact your organization administrator.
-                </span>
+              <p className="mt-6 text-center text-sm text-slate-600">
+                {mode === "signin"
+                  ? "Don't have an account?"
+                  : "Already have an account?"}{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode(mode === "signin" ? "signup" : "signin");
+                    setErrors({});
+                  }}
+                  className="font-semibold text-[#1F5F2E]"
+                >
+                  {mode === "signin" ? "Sign Up" : "Sign In"}
+                </button>
               </p>
             </div>
 
@@ -191,22 +309,45 @@ export default function ClinicianAuthPage() {
               </div>
 
               <div className="relative z-10">
-                <h2 className="text-3xl font-semibold text-white">Welcome Back</h2>
+                <h2 className="text-3xl font-semibold text-white">
+                  {mode === "signin" ? "Welcome Back" : "Join the Team"}
+                </h2>
                 <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/80">
-                  Sign in to access patient communication, appointment schedules, and your
-                  team&apos;s shared dashboard.
+                  {mode === "signin"
+                    ? "Sign in to access patient communication, appointment schedules, and your team's shared dashboard."
+                    : "Create your account to access the clinician and staff portal."}
                 </p>
-                <Link
-                  href="/user"
-                  className="mt-8 inline-block rounded-full border border-white/60 px-10 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-                >
-                  I&apos;m a Patient
-                </Link>
+                <div className="mt-8 flex flex-col items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode(mode === "signin" ? "signup" : "signin");
+                      setErrors({});
+                    }}
+                    className="rounded-full border border-white/60 px-10 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                  >
+                    {mode === "signin" ? "Sign Up" : "Sign In"}
+                  </button>
+                  <Link
+                    href="/user"
+                    className="text-sm text-white/80 underline hover:text-white"
+                  >
+                    I&apos;m a Patient
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
         </section>
       </main>
     </div>
+  );
+}
+
+export default function ClinicianAuthPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <ClinicianAuthForm />
+    </Suspense>
   );
 }

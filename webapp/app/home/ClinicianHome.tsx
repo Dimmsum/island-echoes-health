@@ -3,12 +3,12 @@ import Link from "next/link";
 
 type Props = {
   fullName: string | null;
-  role: "front_desk" | "clinician";
+  role: "admin" | "clinician";
 };
 
 export function ClinicianHome({ fullName, role }: Props) {
   const greeting = fullName ? `Welcome back, ${fullName}` : "Welcome back";
-  const roleLabel = role === "clinician" ? "Clinician" : "Front desk";
+  const roleLabel = role === "clinician" ? "Clinician" : "Admin";
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-white">
