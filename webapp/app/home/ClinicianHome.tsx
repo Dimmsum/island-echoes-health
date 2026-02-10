@@ -32,6 +32,11 @@ export function ClinicianHome({ fullName, role }: Props) {
           </Link>
 
           <nav className="flex items-center gap-4 text-sm font-medium text-slate-900 sm:gap-6">
+            {role === "admin" && (
+              <Link href="/admin" className="hover:text-[#1F5F2E]">
+                Admin
+              </Link>
+            )}
             <Link href="/about" className="hover:text-[#1F5F2E]">
               About
             </Link>
