@@ -2,19 +2,26 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { handleUserAuth } from "./actions";
 
-export default function UserAuthPage() {
+function UserAuthForm() {
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string }>({});
+  const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string; auth?: string }>({});
+  const [isPending, setIsPending] = useState(false);
+
+  const message = searchParams.get("message");
+  const errorParam = searchParams.get("error");
 
   const validatePassword = (value: string) => {
     if (value.length < 8) return "Password must be at least 8 characters";
     return "";
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form);
@@ -28,8 +35,15 @@ export default function UserAuthPage() {
       newErrors.confirmPassword = "Passwords do not match";
     }
     setErrors(newErrors);
-    if (Object.keys(newErrors).length === 0) {
-      // Ready for Supabase integration
+    if (Object.keys(newErrors).length > 0) return;
+
+    setIsPending(true);
+    formData.set("mode", mode);
+
+    const authError = await handleUserAuth(formData);
+    if (authError) {
+      setErrors({ auth: authError.message });
+      setIsPending(false);
     }
   };
 
@@ -79,6 +93,22 @@ export default function UserAuthPage() {
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
             {mode === "signin" ? "Sign In" : "Create Account"}
           </h1>
+
+          {message === "check_email" && (
+            <p className="mt-4 rounded-lg bg-[#E6E15A]/20 p-3 text-sm text-[#1F5F2E]">
+              Check your email for a confirmation link to complete sign up.
+            </p>
+          )}
+          {errorParam === "invalid_confirmation" && (
+            <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+              Invalid or expired confirmation link. Please try signing up again.
+            </p>
+          )}
+          {errors.auth && (
+            <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+              {errors.auth}
+            </p>
+          )}
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             {mode === "signup" && (
@@ -178,9 +208,10 @@ export default function UserAuthPage() {
 
             <button
               type="submit"
-              className="w-full rounded-full bg-[#1F5F2E] py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#174622]"
+              disabled={isPending}
+              className="w-full rounded-full bg-[#1F5F2E] py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#174622] disabled:opacity-70"
             >
-              {mode === "signin" ? "Sign In" : "Create Account"}
+              {isPending ? "Please wait..." : mode === "signin" ? "Sign In" : "Create Account"}
             </button>
           </form>
 
@@ -267,5 +298,13 @@ export default function UserAuthPage() {
         </section>
       </main>
     </div>
+  );
+}
+
+export default function UserAuthPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <UserAuthForm />
+    </Suspense>
   );
 }

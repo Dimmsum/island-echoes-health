@@ -3,12 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { signIn } from "./actions";
 
 export default function ClinicianAuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isPending, setIsPending] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const password = formData.get("password") as string;
@@ -18,7 +20,13 @@ export default function ClinicianAuthPage() {
       return;
     }
     setError("");
-    // Ready for Supabase integration
+    setIsPending(true);
+
+    const authError = await signIn(formData);
+    if (authError) {
+      setError(authError.message);
+      setIsPending(false);
+    }
   };
 
   return (
@@ -125,9 +133,10 @@ export default function ClinicianAuthPage() {
 
                 <button
                   type="submit"
-                  className="w-full rounded-full bg-[#1F5F2E] py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#174622]"
+                  disabled={isPending}
+                  className="w-full rounded-full bg-[#1F5F2E] py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#174622] disabled:opacity-70"
                 >
-                  Sign In
+                  {isPending ? "Signing in..." : "Sign In"}
                 </button>
               </form>
 
