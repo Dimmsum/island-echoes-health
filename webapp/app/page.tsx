@@ -30,16 +30,6 @@ export default function Home() {
             <Link href="/pricing" className="hover:text-[#1F5F2E]">
               Pricing
             </Link>
-            <div className="hidden h-6 w-px bg-slate-300/70 sm:block" />
-            <Link href="/login" className="text-slate-800 hover:text-[#1F5F2E]">
-              Log in
-            </Link>
-            <Link
-              href="/signup"
-              className="hidden rounded-full bg-[#1F5F2E] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#174622] sm:inline-block"
-            >
-              Sign up
-            </Link>
           </nav>
         </header>
 
@@ -65,9 +55,12 @@ export default function Home() {
               >
                 I am a User
               </Link>
-              <button className="rounded-full border border-[#1F5F2E] bg-white px-8 py-3 text-sm font-semibold text-[#1F5F2E] shadow-sm transition hover:bg-[#E6E15A]/10">
+              <Link
+                href="/clinician"
+                className="rounded-full border border-[#1F5F2E] bg-white px-8 py-3 text-sm font-semibold text-[#1F5F2E] shadow-sm transition hover:bg-[#E6E15A]/10"
+              >
                 I am a Clinician
-              </button>
+              </Link>
             </div>
           </div>
 
