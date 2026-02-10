@@ -59,9 +59,12 @@ export default function Home() {
 
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
             <div className="flex items-center gap-6">
-              <button className="rounded-full bg-[#1F5F2E] px-8 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#174622]">
+              <Link
+                href="/user"
+                className="rounded-full bg-[#1F5F2E] px-8 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#174622]"
+              >
                 I am a User
-              </button>
+              </Link>
               <button className="rounded-full border border-[#1F5F2E] bg-white px-8 py-3 text-sm font-semibold text-[#1F5F2E] shadow-sm transition hover:bg-[#E6E15A]/10">
                 I am a Clinician
               </button>
