@@ -162,6 +162,16 @@ function UserAuthForm() {
               {errors.password && (
                 <p className="mt-1 text-xs text-red-600">{errors.password}</p>
               )}
+              {mode === "signin" && (
+                <p className="mt-1">
+                  <Link
+                    href="/auth/forgot-password?from=user"
+                    className="text-sm text-[#1F5F2E] hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                </p>
+              )}
             </div>
             {mode === "signup" && (
               <div>

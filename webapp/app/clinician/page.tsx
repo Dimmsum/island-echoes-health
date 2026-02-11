@@ -259,6 +259,14 @@ function ClinicianAuthForm() {
                     {errors.password && (
                       <p className="mt-1 text-xs text-red-600">{errors.password}</p>
                     )}
+                    <p className="mt-1">
+                      <Link
+                        href="/auth/forgot-password?from=clinician"
+                        className="text-sm text-[#1F5F2E] hover:underline"
+                      >
+                        Forgot password?
+                      </Link>
+                    </p>
                   </div>
                 )}
 
