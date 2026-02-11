@@ -198,14 +198,6 @@ function UserAuthForm() {
               <span className="text-sm text-slate-600">Show password</span>
             </label>
 
-            {mode === "signin" && (
-              <p className="text-center text-xs text-slate-500">
-                <button type="button" className="hover:text-[#1F5F2E]">
-                  Forgot your password?
-                </button>
-              </p>
-            )}
-
             <button
               type="submit"
               disabled={isPending}
