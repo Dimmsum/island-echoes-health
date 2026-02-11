@@ -2,6 +2,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createClientAdmin } from "@/lib/supabase/admin";
+import {
+  PendingRequestsTable,
+  type PendingRequest,
+} from "./PendingRequestsTable";
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -31,6 +36,36 @@ export default async function AdminPage() {
   }
 
   const clinicianList = clinicians ?? [];
+
+  const admin = createClientAdmin();
+  const { data: pendingList, error: pendingError } = await admin
+    .from("clinician_signup_requests")
+    .select("id, email, full_name, license_number, specialty, institution_or_clinic_name, license_image_path, created_at")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (pendingError) {
+    console.error("Failed to fetch pending clinician requests:", pendingError);
+  }
+
+  const pendingRows = pendingList ?? [];
+  let pendingWithUrls: PendingRequest[] = [];
+  if (pendingRows.length > 0) {
+    pendingWithUrls = await Promise.all(
+      pendingRows.map(
+        async (row): Promise<PendingRequest> => {
+          let license_image_url: string | null = null;
+          if (row.license_image_path) {
+            const { data } = await admin.storage
+              .from("clinician-licenses")
+              .createSignedUrl(row.license_image_path, 3600);
+            license_image_url = data?.signedUrl ?? null;
+          }
+          return { ...row, license_image_url };
+        }
+      )
+    );
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-white">
@@ -83,7 +118,20 @@ export default async function AdminPage() {
             Manage clinician and staff accounts.
           </p>
 
-          <div className="mt-12 overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur">
+          <h2 className="mt-10 text-xl font-semibold text-slate-900">
+            Pending requests
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Review and approve or reject new clinician sign-ups.
+          </p>
+          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur">
+            <PendingRequestsTable requests={pendingWithUrls} />
+          </div>
+
+          <h2 className="mt-12 text-xl font-semibold text-slate-900">
+            Approved clinicians
+          </h2>
+          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur">
             {clinicianList.length === 0 ? (
               <div className="px-6 py-12 text-center text-slate-500">
                 No clinician users yet.
