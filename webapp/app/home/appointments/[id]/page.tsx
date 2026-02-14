@@ -34,10 +34,12 @@ export default async function AppointmentDetailPage({ params }: Props) {
 
   const [
     { data: patient },
+    { data: clinician },
     { data: notes },
     { data: services },
   ] = await Promise.all([
     supabase.from("profiles").select("id, full_name").eq("id", appointment.patient_id).single(),
+    supabase.from("profiles").select("id, full_name").eq("id", appointment.clinician_id).single(),
     supabase
       .from("appointment_notes")
       .select("id, content, created_at")
@@ -79,7 +81,7 @@ export default async function AppointmentDetailPage({ params }: Props) {
         <section className="mt-10">
           <h1 className="text-2xl font-semibold text-slate-900">Appointment</h1>
           <p className="mt-1 text-slate-600">
-            {patient?.full_name ?? "Patient"} —{" "}
+            {patient?.full_name ?? "Patient"} with {clinician?.full_name ?? "Clinician"} —{" "}
             {new Date(appointment.scheduled_at).toLocaleString()} —{" "}
             <span className="capitalize">{appointment.status}</span>
           </p>

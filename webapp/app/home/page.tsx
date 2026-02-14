@@ -42,7 +42,7 @@ export default async function HomePage() {
       patientIds.length > 0
         ? await supabase
             .from("appointments")
-            .select("patient_id, scheduled_at")
+            .select("patient_id, scheduled_at, clinician_id")
             .in("patient_id", patientIds)
             .eq("status", "scheduled")
             .gte("scheduled_at", new Date().toISOString())
@@ -52,22 +52,31 @@ export default async function HomePage() {
     const nextByPatient = (nextAppointments ?? []).reduce(
       (acc, a) => {
         const current = acc[a.patient_id];
-        if (!current || new Date(a.scheduled_at) < new Date(current))
-          acc[a.patient_id] = a.scheduled_at;
+        if (!current || new Date(a.scheduled_at) < new Date(current.scheduled_at))
+          acc[a.patient_id] = { scheduled_at: a.scheduled_at, clinician_id: a.clinician_id };
         return acc;
       },
-      {} as Record<string, string>
+      {} as Record<string, { scheduled_at: string; clinician_id: string }>
     );
+
+    const nextClinicianIds = [...new Set(Object.values(nextByPatient).map((n) => n.clinician_id).filter(Boolean))];
+    const { data: nextClinicianProfiles } =
+      nextClinicianIds.length > 0
+        ? await supabase.from("profiles").select("id, full_name").in("id", nextClinicianIds)
+        : { data: [] };
 
     const patientsWithPlans = patientIds.map((pid) => {
       const link = plansWithPatients?.find((p) => p.patient_id === pid);
       const profile = patientProfiles?.find((p) => p.id === pid);
       const plan = carePlans?.find((p) => p.id === link?.care_plan_id);
+      const next = nextByPatient[pid];
+      const nextClinician = next ? nextClinicianProfiles?.find((p) => p.id === next.clinician_id) : null;
       return {
         patient_id: pid,
         patient_name: profile?.full_name ?? "Patient",
         plan_name: plan?.name ?? "Plan",
-        next_appointment: nextByPatient[pid] ?? null,
+        next_appointment: next?.scheduled_at ?? null,
+        next_appointment_clinician: nextClinician?.full_name ?? null,
       };
     });
 
@@ -97,7 +106,7 @@ export default async function HomePage() {
         .order("created_at", { ascending: false }),
       supabase
         .from("appointments")
-        .select("id, scheduled_at, status")
+        .select("id, scheduled_at, status, clinician_id")
         .eq("patient_id", user.id)
         .gte("scheduled_at", new Date().toISOString())
         .order("scheduled_at", { ascending: true })
@@ -148,7 +157,16 @@ export default async function HomePage() {
     };
   });
 
-  const upcomingAppointments = appointmentsResult.data ?? [];
+  const rawAppointments = appointmentsResult.data ?? [];
+  const clinicianIds = [...new Set(rawAppointments.map((a) => a.clinician_id).filter(Boolean))];
+  const { data: clinicianProfiles } =
+    clinicianIds.length > 0
+      ? await supabase.from("profiles").select("id, full_name").in("id", clinicianIds)
+      : { data: [] };
+  const upcomingAppointments = rawAppointments.map((a) => ({
+    ...a,
+    clinician_name: clinicianProfiles?.find((p) => p.id === a.clinician_id)?.full_name ?? null,
+  }));
   const notifications = notificationsResult.data ?? [];
 
   return (

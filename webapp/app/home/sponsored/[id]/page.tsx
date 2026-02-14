@@ -37,7 +37,7 @@ export default async function SponsoredPatientPage({ params }: Props) {
       .limit(20),
     supabase
       .from("appointments")
-      .select("id, scheduled_at, status")
+      .select("id, scheduled_at, status, clinician_id")
       .eq("patient_id", link.patient_id)
       .order("scheduled_at", { ascending: false })
       .limit(30),
@@ -46,7 +46,17 @@ export default async function SponsoredPatientPage({ params }: Props) {
   const patient = patientResult.data;
   const plan = planResult.data;
   const metrics = metricsResult.data ?? [];
-  const appointments = appointmentsResult.data ?? [];
+  const rawAppointments = appointmentsResult.data ?? [];
+
+  const clinicianIds = [...new Set(rawAppointments.map((a) => a.clinician_id).filter(Boolean))];
+  const { data: clinicianProfiles } =
+    clinicianIds.length > 0
+      ? await supabase.from("profiles").select("id, full_name").in("id", clinicianIds)
+      : { data: [] };
+  const appointments = rawAppointments.map((a) => ({
+    ...a,
+    clinician_name: clinicianProfiles?.find((p) => p.id === a.clinician_id)?.full_name ?? null,
+  }));
 
   const appointmentIds = appointments.map((a) => a.id);
   const { data: notes } =
@@ -157,6 +167,11 @@ export default async function SponsoredPatientPage({ params }: Props) {
                     >
                       <span className="text-sm font-medium text-slate-900">
                         {new Date(apt.scheduled_at).toLocaleString()}
+                        {apt.clinician_name && (
+                          <span className="ml-2 font-normal text-slate-600">
+                            with {apt.clinician_name}
+                          </span>
+                        )}
                       </span>
                       <span className="text-xs capitalize text-slate-500">
                         {apt.status}

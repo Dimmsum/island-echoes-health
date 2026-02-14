@@ -6,6 +6,7 @@ type PatientWithPlan = {
   patient_name: string | null;
   plan_name: string;
   next_appointment: string | null;
+  next_appointment_clinician: string | null;
 };
 
 type Props = {
@@ -123,9 +124,18 @@ export function ClinicianHome({
                           {row.plan_name}
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-600">
-                          {row.next_appointment
-                            ? new Date(row.next_appointment).toLocaleString()
-                            : "—"}
+                          {row.next_appointment ? (
+                            <>
+                              {new Date(row.next_appointment).toLocaleString()}
+                              {row.next_appointment_clinician && (
+                                <span className="ml-1 text-slate-500">
+                                  ({row.next_appointment_clinician})
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <Link

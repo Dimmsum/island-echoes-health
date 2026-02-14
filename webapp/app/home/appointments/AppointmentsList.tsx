@@ -14,6 +14,7 @@ type Appointment = {
   scheduled_at: string;
   status: string;
   patient_name: string | null;
+  clinician_name: string | null;
 };
 
 type Patient = {
@@ -122,6 +123,7 @@ export function AppointmentsList({ appointments, patients }: Props) {
               <thead>
                 <tr className="border-b border-slate-200 text-left text-slate-600">
                   <th className="pb-2 pr-4">Patient</th>
+                  <th className="pb-2 pr-4">Clinician</th>
                   <th className="pb-2 pr-4">Scheduled</th>
                   <th className="pb-2 pr-4">Status</th>
                   <th className="pb-2 text-right">Actions</th>
@@ -132,6 +134,9 @@ export function AppointmentsList({ appointments, patients }: Props) {
                   <tr key={apt.id} className="border-b border-slate-100">
                     <td className="py-3 pr-4 font-medium text-slate-900">
                       {apt.patient_name ?? "—"}
+                    </td>
+                    <td className="py-3 pr-4 text-slate-600">
+                      {apt.clinician_name ?? "—"}
                     </td>
                     <td className="py-3 pr-4 text-slate-700">
                       {new Date(apt.scheduled_at).toLocaleString()}

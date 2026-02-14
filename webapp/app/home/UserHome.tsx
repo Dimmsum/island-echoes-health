@@ -22,6 +22,7 @@ type Appointment = {
   id: string;
   scheduled_at: string;
   status: string;
+  clinician_name: string | null;
 };
 
 type Notification = {
@@ -168,6 +169,9 @@ export function UserHome({
                   >
                     <span className="text-sm text-slate-900">
                       {new Date(apt.scheduled_at).toLocaleString()}
+                      {apt.clinician_name && (
+                        <span className="ml-2 text-slate-600">with {apt.clinician_name}</span>
+                      )}
                     </span>
                     <span className="text-xs text-slate-500 capitalize">{apt.status}</span>
                   </li>

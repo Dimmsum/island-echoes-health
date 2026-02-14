@@ -27,14 +27,20 @@ export default async function ClinicianAppointmentsPage() {
     .order("scheduled_at", { ascending: true });
 
   const patientIds = [...new Set((appointments ?? []).map((a) => a.patient_id))];
+  const clinicianIds = [...new Set((appointments ?? []).map((a) => a.clinician_id))];
   const { data: patientProfiles } =
     patientIds.length > 0
       ? await supabase.from("profiles").select("id, full_name").in("id", patientIds)
+      : { data: [] };
+  const { data: clinicianProfiles } =
+    clinicianIds.length > 0
+      ? await supabase.from("profiles").select("id, full_name").in("id", clinicianIds)
       : { data: [] };
 
   const appointmentsWithNames = (appointments ?? []).map((a) => ({
     ...a,
     patient_name: patientProfiles?.find((p) => p.id === a.patient_id)?.full_name ?? "Patient",
+    clinician_name: clinicianProfiles?.find((p) => p.id === a.clinician_id)?.full_name ?? "Clinician",
   }));
 
   const { data: plansWithPatients } = await supabase
