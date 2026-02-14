@@ -1,12 +1,66 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ConsentRequestCards } from "./ConsentRequestCards";
+import { NotificationList } from "./NotificationList";
+import { PurchasePlanForm } from "./PurchasePlanForm";
+
+type LinkedPatient = {
+  id: string;
+  started_at: string;
+  care_plan: { id: string; name: string; slug: string; price_cents: number } | null;
+  patient: { id: string; full_name: string | null } | null;
+};
+
+type PendingConsent = {
+  id: string;
+  patient_email: string;
+  care_plan: { id: string; name: string } | null;
+  sponsor_name: string;
+};
+
+type Appointment = {
+  id: string;
+  scheduled_at: string;
+  status: string;
+};
+
+type Notification = {
+  id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  read_at: string | null;
+  created_at: string;
+  reference_id: string | null;
+};
+
+type CarePlan = {
+  id: string;
+  slug: string;
+  name: string;
+  price_cents: number;
+  features: string[] | null;
+};
 
 type Props = {
   fullName: string | null;
+  linkedPatients: LinkedPatient[];
+  pendingConsents: PendingConsent[];
+  upcomingAppointments: Appointment[];
+  notifications: Notification[];
+  carePlans: CarePlan[];
 };
 
-export function UserHome({ fullName }: Props) {
+export function UserHome({
+  fullName,
+  linkedPatients,
+  pendingConsents,
+  upcomingAppointments,
+  notifications,
+  carePlans,
+}: Props) {
   const greeting = fullName ? `Welcome back, ${fullName}` : "Welcome back";
+  const hasLinkedPatients = linkedPatients.length > 0;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-white">
@@ -18,7 +72,7 @@ export function UserHome({ fullName }: Props) {
       </div>
 
       <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-6 sm:px-8 sm:py-8">
-        <header className="flex items-center justify-between">
+        <header className="flex items-center justify-between gap-4">
           <Link href="/home" className="flex items-center gap-3">
             <Image
               src="/island-echoes-health.svg"
@@ -30,6 +84,7 @@ export function UserHome({ fullName }: Props) {
           </Link>
 
           <nav className="flex items-center gap-4 text-sm font-medium text-slate-900 sm:gap-6">
+            <NotificationList notifications={notifications} />
             <Link href="/about" className="hover:text-[#1F5F2E]">
               About
             </Link>
@@ -38,10 +93,7 @@ export function UserHome({ fullName }: Props) {
             </Link>
             <form action="/auth/signout" method="post">
               <input type="hidden" name="redirectTo" value="/" />
-              <button
-                type="submit"
-                className="hover:text-[#1F5F2E]"
-              >
+              <button type="submit" className="hover:text-[#1F5F2E]">
                 Sign out
               </button>
             </form>
@@ -56,34 +108,72 @@ export function UserHome({ fullName }: Props) {
             {greeting}
           </h1>
           <p className="mt-4 max-w-2xl text-slate-600">
-            Stay connected with your care team. View upcoming appointments, messages, and your plan of care.
+            Stay connected with your care team. View upcoming appointments and your plan of care.
           </p>
 
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Upcoming appointments
-              </h2>
-              <p className="mt-2 text-sm text-slate-600">
-                Your next visit will appear here.
-              </p>
+          {pendingConsents.length > 0 && (
+            <div className="mt-10 rounded-2xl border border-amber-200 bg-amber-50/50 p-6">
+              <ConsentRequestCards requests={pendingConsents} />
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur">
+          )}
+
+          {!hasLinkedPatients && (
+            <div className="mt-10 rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur">
               <h2 className="text-lg font-semibold text-slate-900">
-                Messages
+                Purchase a plan for a patient
               </h2>
-              <p className="mt-2 text-sm text-slate-600">
-                Communicate securely with your care team.
-              </p>
+              <div className="mt-4">
+                <PurchasePlanForm carePlans={carePlans} />
+              </div>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Plan of care
-              </h2>
-              <p className="mt-2 text-sm text-slate-600">
-                View and follow your care plan.
+          )}
+
+          {hasLinkedPatients && (
+            <div className="mt-10">
+              <h2 className="text-lg font-semibold text-slate-900">Linked patients</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                View metrics, appointments, and visit summaries for patients you sponsor.
               </p>
+              <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {linkedPatients.map((link) => (
+                  <li key={link.id}>
+                    <Link
+                      href={`/home/sponsored/${link.id}`}
+                      className="block rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur transition hover:border-[#1F5F2E]/30 hover:shadow-md"
+                    >
+                      <h3 className="font-semibold text-slate-900">
+                        {link.patient?.full_name ?? "Patient"}
+                      </h3>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {link.care_plan?.name ?? "Plan"}
+                      </p>
+                      <p className="mt-2 text-xs text-[#1F5F2E]">View details →</p>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </div>
+          )}
+
+          <div className="mt-10">
+            <h2 className="text-lg font-semibold text-slate-900">Upcoming appointments</h2>
+            {upcomingAppointments.length === 0 ? (
+              <p className="mt-2 text-sm text-slate-600">No upcoming appointments.</p>
+            ) : (
+              <ul className="mt-4 space-y-2">
+                {upcomingAppointments.map((apt) => (
+                  <li
+                    key={apt.id}
+                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-white/80 px-4 py-3"
+                  >
+                    <span className="text-sm text-slate-900">
+                      {new Date(apt.scheduled_at).toLocaleString()}
+                    </span>
+                    <span className="text-xs text-slate-500 capitalize">{apt.status}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </section>
       </main>

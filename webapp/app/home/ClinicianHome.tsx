@@ -1,12 +1,24 @@
 import Image from "next/image";
 import Link from "next/link";
 
+type PatientWithPlan = {
+  patient_id: string;
+  patient_name: string | null;
+  plan_name: string;
+  next_appointment: string | null;
+};
+
 type Props = {
   fullName: string | null;
   role: "admin" | "clinician";
+  patientsWithPlans: PatientWithPlan[];
 };
 
-export function ClinicianHome({ fullName, role }: Props) {
+export function ClinicianHome({
+  fullName,
+  role,
+  patientsWithPlans,
+}: Props) {
   const greeting = fullName ? `Welcome back, ${fullName}` : "Welcome back";
   const roleLabel = role === "clinician" ? "Clinician" : "Admin";
 
@@ -32,6 +44,9 @@ export function ClinicianHome({ fullName, role }: Props) {
           </Link>
 
           <nav className="flex items-center gap-4 text-sm font-medium text-slate-900 sm:gap-6">
+            <Link href="/home/appointments" className="hover:text-[#1F5F2E]">
+              Appointments
+            </Link>
             {role === "admin" && (
               <Link href="/admin" className="hover:text-[#1F5F2E]">
                 Admin
@@ -45,10 +60,7 @@ export function ClinicianHome({ fullName, role }: Props) {
             </Link>
             <form action="/auth/signout" method="post">
               <input type="hidden" name="redirectTo" value="/" />
-              <button
-                type="submit"
-                className="hover:text-[#1F5F2E]"
-              >
+              <button type="submit" className="hover:text-[#1F5F2E]">
                 Sign out
               </button>
             </form>
@@ -63,34 +75,72 @@ export function ClinicianHome({ fullName, role }: Props) {
             {greeting}
           </h1>
           <p className="mt-4 max-w-2xl text-slate-600">
-            Access patient communication, appointment schedules, and your team&apos;s shared dashboard.
+            Manage patients and appointments. View today&apos;s schedule and patient plans.
           </p>
 
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur">
+          <div className="mt-10">
+            <div className="flex items-center justify-between gap-4">
               <h2 className="text-lg font-semibold text-slate-900">
-                Today&apos;s schedule
+                Current patients and plans
               </h2>
-              <p className="mt-2 text-sm text-slate-600">
-                View and manage today&apos;s appointments.
-              </p>
+              <Link
+                href="/home/appointments"
+                className="rounded-full bg-[#1F5F2E] px-4 py-2 text-sm font-medium text-white hover:bg-[#174622]"
+              >
+                Manage appointments
+              </Link>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Patients
-              </h2>
-              <p className="mt-2 text-sm text-slate-600">
-                Manage patient records and communication.
+            {patientsWithPlans.length === 0 ? (
+              <p className="mt-4 text-sm text-slate-500">
+                No patients with active plans yet. When sponsors purchase plans and patients accept, they will appear here.
               </p>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Team dashboard
-              </h2>
-              <p className="mt-2 text-sm text-slate-600">
-                Collaborate with your care team.
-              </p>
-            </div>
+            ) : (
+              <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/80">
+                      <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        Patient
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        Plan
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        Next appointment
+                      </th>
+                      <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {patientsWithPlans.map((row) => (
+                      <tr key={row.patient_id} className="transition hover:bg-slate-50/50">
+                        <td className="px-6 py-4 text-sm font-medium text-slate-900">
+                          {row.patient_name ?? "—"}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-600">
+                          {row.plan_name}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-600">
+                          {row.next_appointment
+                            ? new Date(row.next_appointment).toLocaleString()
+                            : "—"}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <Link
+                            href={`/home/appointments?patient=${row.patient_id}`}
+                            className="text-sm font-medium text-[#1F5F2E] hover:underline"
+                          >
+                            Schedule
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </section>
       </main>

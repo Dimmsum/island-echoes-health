@@ -3,10 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordForm() {
   const searchParams = useSearchParams();
   const from = searchParams.get("from") as "user" | "clinician" | null;
   const [email, setEmail] = useState("");
@@ -146,5 +146,13 @@ export default function ForgotPasswordPage() {
         </section>
       </main>
     </div>
+  );
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <ForgotPasswordForm />
+    </Suspense>
   );
 }
