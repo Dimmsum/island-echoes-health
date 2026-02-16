@@ -1,8 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ConsentRequestCards } from "./ConsentRequestCards";
-import { NotificationList } from "./NotificationList";
 import { PurchasePlanForm } from "./PurchasePlanForm";
+import { UserNavbar } from "./UserNavbar";
 
 type LinkedPatient = {
   id: string;
@@ -83,33 +82,7 @@ export function UserHome({
       </div>
 
       <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-6 sm:px-8 sm:py-8">
-        <header className="flex items-center justify-between gap-4">
-          <Link href="/home" className="flex items-center gap-3">
-            <Image
-              src="/island-echoes-health.svg"
-              alt="Island Echoes Health"
-              width={140}
-              height={50}
-              priority
-            />
-          </Link>
-
-          <nav className="flex items-center gap-4 text-sm font-medium text-slate-900 sm:gap-6">
-            <NotificationList notifications={notifications} />
-            <Link href="/about" className="hover:text-[#1F5F2E]">
-              About
-            </Link>
-            <Link href="/pricing" className="hover:text-[#1F5F2E]">
-              Pricing
-            </Link>
-            <form action="/auth/signout" method="post">
-              <input type="hidden" name="redirectTo" value="/" />
-              <button type="submit" className="hover:text-[#1F5F2E]">
-                Sign out
-              </button>
-            </form>
-          </nav>
-        </header>
+        <UserNavbar fullName={fullName} notifications={notifications} />
 
         <section className="mt-16 flex w-full flex-1 flex-col md:mt-20">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#1F5F2E]">
