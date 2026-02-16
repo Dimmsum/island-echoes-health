@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { markNotificationRead } from "./actions";
+import { clearAllNotifications, markNotificationRead } from "./actions";
 
 const BellIcon = () => (
   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -48,12 +48,22 @@ export function UserNavbar({
 }: Props) {
   const [notifications, setNotifications] = useState(initial);
   const [notifsOpen, setNotifsOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   async function markRead(id: string) {
     await markNotificationRead(id);
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n))
     );
+  }
+
+  async function handleClearAll() {
+    setClearing(true);
+    const result = await clearAllNotifications();
+    setClearing(false);
+    if (!result.error) {
+      setNotifications([]);
+    }
   }
 
   const unreadCount = notifications.filter((n) => !n.read_at).length;
@@ -106,8 +116,18 @@ export function UserNavbar({
                 aria-hidden
               />
               <div className="absolute right-0 top-full z-50 mt-1 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
-                <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
+                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-3">
                   <h3 className="font-semibold text-slate-900">Notifications</h3>
+                  {notifications.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearAll}
+                      disabled={clearing}
+                      className="text-xs font-medium text-slate-500 hover:text-slate-700 disabled:opacity-50"
+                    >
+                      {clearing ? "Clearing…" : "Clear all"}
+                    </button>
+                  )}
                 </div>
                 <div className="max-h-72 overflow-y-auto">
                   {notifications.length === 0 ? (

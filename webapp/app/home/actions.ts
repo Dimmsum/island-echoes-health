@@ -223,3 +223,24 @@ export async function markNotificationRead(
   revalidatePath("/home");
   return { error: null };
 }
+
+export async function clearAllNotifications(): Promise<HomeActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const { error } = await supabase
+    .from("notifications")
+    .delete()
+    .eq("user_id", user.id);
+
+  if (error) {
+    console.error("Clear notifications failed:", error);
+    return { error: "Failed to clear notifications." };
+  }
+
+  revalidatePath("/home", "layout");
+  return { error: null };
+}
