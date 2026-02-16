@@ -90,12 +90,18 @@ export default async function HomePage() {
   }
 
   // User (sponsor/patient) data
-  const [linkedPlansResult, pendingConsentResult, appointmentsResult, notificationsResult, carePlansResult] =
+  const [linkedPlansResult, plansWherePatientResult, pendingConsentResult, appointmentsResult, notificationsResult, carePlansResult] =
     await Promise.all([
       supabase
         .from("sponsor_patient_plans")
         .select("id, started_at, care_plan_id, patient_id")
         .eq("sponsor_id", user.id)
+        .is("ended_at", null)
+        .order("started_at", { ascending: false }),
+      supabase
+        .from("sponsor_patient_plans")
+        .select("id, started_at, care_plan_id, sponsor_id")
+        .eq("patient_id", user.id)
         .is("ended_at", null)
         .order("started_at", { ascending: false }),
       supabase
@@ -121,28 +127,54 @@ export default async function HomePage() {
     ]);
 
   const linkedPlans = linkedPlansResult.data ?? [];
+  const plansWherePatient = plansWherePatientResult.data ?? [];
   const pendingConsents = pendingConsentResult.data ?? [];
   const carePlans = carePlansResult.data ?? [];
 
   const patientIds = [...new Set(linkedPlans.map((p) => p.patient_id))];
   const sponsorIds = [...new Set(pendingConsents.map((c) => c.sponsor_id))];
+  const mySponsorIds = [...new Set(plansWherePatient.map((p) => p.sponsor_id))];
   const { data: patientProfiles } =
     patientIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name").in("id", patientIds)
+      ? await supabase.from("profiles").select("id, full_name, date_of_birth").in("id", patientIds)
       : { data: [] };
   const { data: sponsorProfiles } =
     sponsorIds.length > 0
       ? await supabase.from("profiles").select("id, full_name").in("id", sponsorIds)
       : { data: [] };
+  const { data: mySponsorProfiles } =
+    mySponsorIds.length > 0
+      ? await supabase.from("profiles").select("id, full_name").in("id", mySponsorIds)
+      : { data: [] };
+
+  const mySponsors = plansWherePatient.map((p) => {
+    const plan = carePlans.find((c) => c.id === p.care_plan_id);
+    const sponsor = mySponsorProfiles?.find((pr) => pr.id === p.sponsor_id);
+    return {
+      id: p.id,
+      started_at: p.started_at,
+      care_plan: plan ? { id: plan.id, name: plan.name } : null,
+      sponsor: sponsor ? { id: sponsor.id, full_name: sponsor.full_name } : null,
+    };
+  });
 
   const linkedPatients = linkedPlans.map((p) => {
     const plan = carePlans.find((c) => c.id === p.care_plan_id);
     const patient = patientProfiles?.find((pr) => pr.id === p.patient_id);
+    const dob = patient?.date_of_birth;
+    const age =
+      dob != null
+        ? Math.floor(
+            (Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+          )
+        : null;
     return {
       id: p.id,
       started_at: p.started_at,
       care_plan: plan ? { id: plan.id, name: plan.name, slug: plan.slug, price_cents: plan.price_cents } : null,
-      patient: patient ? { id: patient.id, full_name: patient.full_name } : null,
+      patient: patient
+        ? { id: patient.id, full_name: patient.full_name, age }
+        : null,
     };
   });
 
@@ -173,6 +205,7 @@ export default async function HomePage() {
     <UserHome
       fullName={fullName}
       linkedPatients={linkedPatients}
+      mySponsors={mySponsors}
       pendingConsents={pendingConsentsWithDetails}
       upcomingAppointments={upcomingAppointments}
       notifications={notifications}

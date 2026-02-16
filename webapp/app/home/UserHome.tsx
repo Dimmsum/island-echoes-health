@@ -8,7 +8,14 @@ type LinkedPatient = {
   id: string;
   started_at: string;
   care_plan: { id: string; name: string; slug: string; price_cents: number } | null;
-  patient: { id: string; full_name: string | null } | null;
+  patient: { id: string; full_name: string | null; age: number | null } | null;
+};
+
+type MySponsor = {
+  id: string;
+  started_at: string;
+  care_plan: { id: string; name: string } | null;
+  sponsor: { id: string; full_name: string | null } | null;
 };
 
 type PendingConsent = {
@@ -46,6 +53,7 @@ type CarePlan = {
 type Props = {
   fullName: string | null;
   linkedPatients: LinkedPatient[];
+  mySponsors: MySponsor[];
   pendingConsents: PendingConsent[];
   upcomingAppointments: Appointment[];
   notifications: Notification[];
@@ -55,6 +63,7 @@ type Props = {
 export function UserHome({
   fullName,
   linkedPatients,
+  mySponsors,
   pendingConsents,
   upcomingAppointments,
   notifications,
@@ -62,6 +71,7 @@ export function UserHome({
 }: Props) {
   const greeting = fullName ? `Welcome back, ${fullName}` : "Welcome back";
   const hasLinkedPatients = linkedPatients.length > 0;
+  const hasSponsors = mySponsors.length > 0;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-white">
@@ -118,6 +128,32 @@ export function UserHome({
             </div>
           )}
 
+          {hasSponsors && (
+            <div className="mt-10 rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur">
+              <h2 className="text-lg font-semibold text-slate-900">Your sponsors</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                People supporting your care through purchased plans.
+              </p>
+              <ul className="mt-4 flex flex-wrap gap-3">
+                {mySponsors.map((link) => (
+                  <li
+                    key={link.id}
+                    className="rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm"
+                  >
+                    <span className="font-medium text-slate-900">
+                      {link.sponsor?.full_name ?? "Sponsor"}
+                    </span>
+                    {link.care_plan && (
+                      <span className="ml-2 text-sm text-slate-600">
+                        — {link.care_plan.name}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {!hasLinkedPatients && (
             <div className="mt-10 rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur">
               <h2 className="text-lg font-semibold text-slate-900">
@@ -144,6 +180,11 @@ export function UserHome({
                     >
                       <h3 className="font-semibold text-slate-900">
                         {link.patient?.full_name ?? "Patient"}
+                        {link.patient?.age != null && (
+                          <span className="ml-2 font-normal text-slate-500">
+                            ({link.patient.age} years)
+                          </span>
+                        )}
                       </h3>
                       <p className="mt-1 text-sm text-slate-600">
                         {link.care_plan?.name ?? "Plan"}

@@ -27,7 +27,7 @@ export default async function SponsoredPatientPage({ params }: Props) {
   if (linkError || !link) redirect("/home");
 
   const [patientResult, planResult, metricsResult, appointmentsResult] = await Promise.all([
-    supabase.from("profiles").select("id, full_name").eq("id", link.patient_id).single(),
+    supabase.from("profiles").select("id, full_name, date_of_birth").eq("id", link.patient_id).single(),
     supabase.from("care_plans").select("id, name").eq("id", link.care_plan_id).single(),
     supabase
       .from("patient_metrics")
@@ -78,6 +78,12 @@ export default async function SponsoredPatientPage({ params }: Props) {
   );
 
   const patientName = patient?.full_name ?? "Patient";
+  const patientAge =
+    patient?.date_of_birth != null
+      ? Math.floor(
+          (Date.now() - new Date(patient.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+        )
+      : null;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-white">
@@ -108,6 +114,22 @@ export default async function SponsoredPatientPage({ params }: Props) {
         <section className="mt-10">
           <h1 className="text-2xl font-semibold text-slate-900">{patientName}</h1>
           <p className="mt-1 text-slate-600">{plan?.name ?? "Care plan"}</p>
+
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur">
+            <h2 className="text-lg font-semibold text-slate-900">Patient information</h2>
+            <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wider text-slate-500">Name</dt>
+                <dd className="mt-0.5 text-sm font-medium text-slate-900">{patientName}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wider text-slate-500">Age</dt>
+                <dd className="mt-0.5 text-sm font-medium text-slate-900">
+                  {patientAge != null ? `${patientAge} years` : "—"}
+                </dd>
+              </div>
+            </dl>
+          </div>
 
           <div className="mt-10 grid gap-8 lg:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur">
