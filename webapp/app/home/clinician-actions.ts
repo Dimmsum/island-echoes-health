@@ -69,6 +69,8 @@ export async function createAppointment(
 
   revalidatePath("/home");
   revalidatePath("/home/appointments");
+  revalidatePath("/clinician-portal");
+  revalidatePath("/clinician-portal/appointments");
   return { error: null };
 }
 
@@ -118,6 +120,8 @@ export async function updateAppointmentStatus(
 
   revalidatePath("/home");
   revalidatePath("/home/appointments");
+  revalidatePath("/clinician-portal");
+  revalidatePath("/clinician-portal/appointments");
   return { error: null };
 }
 
@@ -141,6 +145,8 @@ export async function rescheduleAppointment(
 
   revalidatePath("/home");
   revalidatePath("/home/appointments");
+  revalidatePath("/clinician-portal");
+  revalidatePath("/clinician-portal/appointments");
   return { error: null };
 }
 
@@ -165,6 +171,8 @@ export async function addAppointmentNote(
 
   revalidatePath("/home/appointments");
   revalidatePath("/home/appointments/" + appointmentId);
+  revalidatePath("/clinician-portal/appointments");
+  revalidatePath("/clinician-portal/appointments/" + appointmentId);
   return { error: null };
 }
 
@@ -201,6 +209,8 @@ export async function addAppointmentService(
 
   revalidatePath("/home/appointments");
   revalidatePath("/home/appointments/" + appointmentId);
+  revalidatePath("/clinician-portal/appointments");
+  revalidatePath("/clinician-portal/appointments/" + appointmentId);
   return { error: null };
 }
 
@@ -235,5 +245,7 @@ export async function recordPatientMetrics(params: {
 
   revalidatePath("/home/appointments");
   revalidatePath("/home/appointments/" + params.appointmentId);
+  revalidatePath("/clinician-portal/appointments");
+  revalidatePath("/clinician-portal/appointments/" + params.appointmentId);
   return { error: null };
 }

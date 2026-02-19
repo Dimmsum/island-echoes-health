@@ -26,6 +26,11 @@ export default async function HomePage() {
   const fullName = profile?.full_name ?? null;
 
   if (role && STAFF_ROLES.includes(role as (typeof STAFF_ROLES)[number])) {
+    redirect("/clinician-portal");
+  }
+
+  // Legacy code below - kept for reference but should not execute
+  if (false && role && STAFF_ROLES.includes(role as (typeof STAFF_ROLES)[number])) {
     const { data: plansWithPatients } = await supabase
       .from("sponsor_patient_plans")
       .select("patient_id, care_plan_id")

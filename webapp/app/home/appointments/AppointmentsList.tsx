@@ -146,7 +146,7 @@ export function AppointmentsList({ appointments, patients }: Props) {
                     </td>
                     <td className="py-3 text-right">
                       <Link
-                        href={`/home/appointments/${apt.id}`}
+                        href={`/clinician-portal/appointments/${apt.id}`}
                         className="mr-2 text-[#1F5F2E] hover:underline"
                       >
                         Details

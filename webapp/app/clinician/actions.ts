@@ -145,7 +145,7 @@ export async function signIn(formData: FormData): Promise<AuthError | null> {
   }
 
   revalidatePath("/", "layout");
-  redirect("/home");
+  redirect("/clinician-portal");
 }
 
 export async function handleClinicianAuth(
