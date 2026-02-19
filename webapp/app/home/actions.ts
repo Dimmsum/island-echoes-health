@@ -17,7 +17,7 @@ async function createNotification(
   type: NotificationType,
   title: string,
   body: string | null,
-  referenceId: string | null
+  referenceId: string | null,
 ) {
   const admin = createClientAdmin();
   await admin.from("notifications").insert({
@@ -31,7 +31,7 @@ async function createNotification(
 
 export async function purchasePlanForPatient(
   patientEmail: string,
-  carePlanId: string
+  carePlanId: string,
 ): Promise<HomeActionResult> {
   const supabase = await createClient();
   const {
@@ -87,7 +87,7 @@ export async function purchasePlanForPatient(
       "consent_request",
       `${sponsorName} wants to sponsor your care`,
       `${sponsorName} has purchased the ${plan.name} plan for you. Accept to allow them to see your health information and appointment schedules.`,
-      consentRequest.id
+      consentRequest.id,
     );
   }
 
@@ -96,7 +96,7 @@ export async function purchasePlanForPatient(
 }
 
 export async function acceptConsentRequest(
-  consentRequestId: string
+  consentRequestId: string,
 ): Promise<HomeActionResult> {
   const supabase = await createClient();
   const {
@@ -129,12 +129,14 @@ export async function acceptConsentRequest(
     return { error: "Failed to accept." };
   }
 
-  const { error: linkError } = await supabase.from("sponsor_patient_plans").insert({
-    sponsor_id: request.sponsor_id,
-    patient_id: request.patient_id,
-    care_plan_id: request.care_plan_id,
-    consent_request_id: consentRequestId,
-  });
+  const { error: linkError } = await supabase
+    .from("sponsor_patient_plans")
+    .insert({
+      sponsor_id: request.sponsor_id,
+      patient_id: request.patient_id,
+      care_plan_id: request.care_plan_id,
+      consent_request_id: consentRequestId,
+    });
 
   if (linkError) {
     console.error("Insert sponsor_patient_plans failed:", linkError);
@@ -153,7 +155,7 @@ export async function acceptConsentRequest(
     "sponsorship_accepted",
     "Sponsorship accepted",
     `${patientName} accepted your care plan sponsorship. You can now view their metrics and appointments.`,
-    consentRequestId
+    consentRequestId,
   );
 
   revalidatePath("/home");
@@ -162,7 +164,7 @@ export async function acceptConsentRequest(
 
 export async function declineConsentRequest(
   consentRequestId: string,
-  declineReason?: string
+  declineReason?: string,
 ): Promise<HomeActionResult> {
   const supabase = await createClient();
   const {
@@ -201,7 +203,7 @@ export async function declineConsentRequest(
 }
 
 export async function markNotificationRead(
-  notificationId: string
+  notificationId: string,
 ): Promise<HomeActionResult> {
   const supabase = await createClient();
   const {
