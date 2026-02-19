@@ -41,13 +41,9 @@ function ClinicianAuthForm() {
     }
 
     const password = formData.get("password") as string;
-    const confirmPassword = formData.get("confirmPassword") as string | null;
     const newErrors: { password?: string; confirmPassword?: string } = {};
     const pwdError = validatePassword(password);
     if (pwdError) newErrors.password = pwdError;
-    if (confirmPassword !== password) {
-      newErrors.confirmPassword = "Passwords do not match";
-    }
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
 

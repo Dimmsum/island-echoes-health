@@ -57,7 +57,7 @@ function AuthConfirmHandler() {
     const token_hash = params.get("token_hash");
     if (token_hash && type) {
       createClient()
-        .auth.verifyOtp({ token_hash, type })
+        .auth.verifyOtp({ token_hash, type: type as "signup" | "recovery" | "invite" | "magiclink" })
         .then(({ error }) => {
           if (error) {
             setStatus("error");
