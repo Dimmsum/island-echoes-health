@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { AppointmentsList } from "../../home/appointments/AppointmentsList";
+import { AppointmentsList } from "./AppointmentsList";
 
 export default async function ClinicianPortalAppointmentsPage() {
   const supabase = await createClient();
@@ -30,18 +30,22 @@ export default async function ClinicianPortalAppointmentsPage() {
   const clinicianIds = [...new Set((appointments ?? []).map((a) => a.clinician_id))];
   const { data: patientProfiles } =
     patientIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name").in("id", patientIds)
+      ? await supabase.from("profiles").select("id, full_name, avatar_url").in("id", patientIds)
       : { data: [] };
   const { data: clinicianProfiles } =
     clinicianIds.length > 0
       ? await supabase.from("profiles").select("id, full_name").in("id", clinicianIds)
       : { data: [] };
 
-  const appointmentsWithNames = (appointments ?? []).map((a) => ({
-    ...a,
-    patient_name: patientProfiles?.find((p) => p.id === a.patient_id)?.full_name ?? "Patient",
-    clinician_name: clinicianProfiles?.find((p) => p.id === a.clinician_id)?.full_name ?? "Clinician",
-  }));
+  const appointmentsWithNames = (appointments ?? []).map((a) => {
+    const patient = patientProfiles?.find((p) => p.id === a.patient_id);
+    return {
+      ...a,
+      patient_name: patient?.full_name ?? "Patient",
+      patient_avatar: patient?.avatar_url ?? null,
+      clinician_name: clinicianProfiles?.find((p) => p.id === a.clinician_id)?.full_name ?? "Clinician",
+    };
+  });
 
   const { data: plansWithPatients } = await supabase
     .from("sponsor_patient_plans")
@@ -80,19 +84,12 @@ export default async function ClinicianPortalAppointmentsPage() {
           </Link>
         </header>
 
-        <section className="mt-10">
-          <h1 className="text-3xl font-bold text-slate-900">Appointments</h1>
-          <p className="mt-2 text-slate-600">
-            Create, reschedule, cancel, and mark attendance.
-          </p>
-
-          <div className="mt-8">
-            <AppointmentsList
-              appointments={appointmentsWithNames}
-              patients={activePatients ?? []}
-            />
-          </div>
-        </section>
+        <div className="mt-8">
+          <AppointmentsList
+            appointments={appointmentsWithNames}
+            patients={activePatients ?? []}
+          />
+        </div>
       </main>
     </div>
   );

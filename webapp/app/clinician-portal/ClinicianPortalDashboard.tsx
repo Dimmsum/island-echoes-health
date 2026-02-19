@@ -186,7 +186,7 @@ export function ClinicianPortalDashboard({
         {/* Stats Cards */}
         <div className="mb-8 grid gap-4 sm:grid-cols-3">
           <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur transition hover:shadow-md">
-            <div className="absolute right-4 top-4 rounded-full bg-[#1F5F2E]/10 p-3">
+            <div className="absolute right-4 top-4 rounded-full bg-[#1F5F2E]/10 p-3 text-[#1F5F2E]">
               <UsersIcon />
             </div>
             <div className="relative">
@@ -197,7 +197,7 @@ export function ClinicianPortalDashboard({
           </div>
 
           <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur transition hover:shadow-md">
-            <div className="absolute right-4 top-4 rounded-full bg-[#9CCB4A]/10 p-3">
+            <div className="absolute right-4 top-4 rounded-full bg-[#1F5F2E]/10 p-3 text-[#1F5F2E]">
               <CalendarIcon />
             </div>
             <div className="relative">
@@ -208,7 +208,7 @@ export function ClinicianPortalDashboard({
           </div>
 
           <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur transition hover:shadow-md">
-            <div className="absolute right-4 top-4 rounded-full bg-[#E6E15A]/10 p-3">
+            <div className="absolute right-4 top-4 rounded-full bg-[#1F5F2E]/10 p-3 text-[#1F5F2E]">
               <ClockIcon />
             </div>
             <div className="relative">
