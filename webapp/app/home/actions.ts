@@ -246,3 +246,78 @@ export async function clearAllNotifications(): Promise<HomeActionResult> {
   revalidatePath("/home", "layout");
   return { error: null };
 }
+
+export async function updateProfile(fullName: string | null): Promise<HomeActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      full_name: fullName?.trim() || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", user.id);
+
+  if (error) {
+    console.error("Profile update failed:", error);
+    return { error: "Failed to update profile." };
+  }
+  revalidatePath("/home/profile");
+  revalidatePath("/home");
+  revalidatePath("/clinician-portal/profile");
+  revalidatePath("/clinician-portal");
+  return { error: null };
+}
+
+export async function uploadAvatar(formData: FormData): Promise<HomeActionResult & { url?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const file = formData.get("avatar") as File | null;
+  if (!file || !file.size) return { error: "Please select an image." };
+
+  const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (!allowed.includes(file.type)) return { error: "Invalid file type. Use JPEG, PNG, WebP, or GIF." };
+  if (file.size > 2 * 1024 * 1024) return { error: "Image must be under 2 MB." };
+
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `${user.id}/avatar.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(path, file, { upsert: true });
+
+  if (uploadError) {
+    console.error("Avatar upload failed:", uploadError);
+    return { error: "Failed to upload image. Please try again." };
+  }
+
+  const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+  const avatarUrl = urlData.publicUrl;
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({
+      avatar_url: avatarUrl,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", user.id);
+
+  if (updateError) {
+    console.error("Profile avatar_url update failed:", updateError);
+    return { error: "Image uploaded but failed to save. Please try again." };
+  }
+
+  revalidatePath("/home/profile");
+  revalidatePath("/home");
+  revalidatePath("/clinician-portal/profile");
+  revalidatePath("/clinician-portal");
+  return { error: null, url: avatarUrl };
+}

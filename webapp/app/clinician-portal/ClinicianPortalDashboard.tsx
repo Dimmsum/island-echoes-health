@@ -151,7 +151,7 @@ export function ClinicianPortalDashboard({
               </Link>
             )}
             <Link
-              href="/home/profile"
+              href="/clinician-portal/profile"
               className="rounded-lg px-3 py-2 transition hover:bg-slate-100 hover:text-slate-900"
             >
               Profile
