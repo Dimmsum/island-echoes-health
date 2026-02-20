@@ -141,15 +141,15 @@ export default async function HomePage() {
   const mySponsorIds = [...new Set(plansWherePatient.map((p) => p.sponsor_id))];
   const { data: patientProfiles } =
     patientIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name, date_of_birth").in("id", patientIds)
+      ? await supabase.from("profiles").select("id, full_name, date_of_birth, avatar_url").in("id", patientIds)
       : { data: [] };
   const { data: sponsorProfiles } =
     sponsorIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name").in("id", sponsorIds)
+      ? await supabase.from("profiles").select("id, full_name, avatar_url").in("id", sponsorIds)
       : { data: [] };
   const { data: mySponsorProfiles } =
     mySponsorIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name").in("id", mySponsorIds)
+      ? await supabase.from("profiles").select("id, full_name, avatar_url").in("id", mySponsorIds)
       : { data: [] };
 
   const mySponsors = plansWherePatient.map((p) => {
@@ -159,7 +159,7 @@ export default async function HomePage() {
       id: p.id,
       started_at: p.started_at,
       care_plan: plan ? { id: plan.id, name: plan.name } : null,
-      sponsor: sponsor ? { id: sponsor.id, full_name: sponsor.full_name } : null,
+      sponsor: sponsor ? { id: sponsor.id, full_name: sponsor.full_name, avatar_url: sponsor.avatar_url ?? null } : null,
     };
   });
 
@@ -178,7 +178,7 @@ export default async function HomePage() {
       started_at: p.started_at,
       care_plan: plan ? { id: plan.id, name: plan.name, slug: plan.slug, price_cents: plan.price_cents } : null,
       patient: patient
-        ? { id: patient.id, full_name: patient.full_name, age }
+        ? { id: patient.id, full_name: patient.full_name, age, avatar_url: patient.avatar_url ?? null }
         : null,
     };
   });
@@ -198,12 +198,16 @@ export default async function HomePage() {
   const clinicianIds = [...new Set(rawAppointments.map((a) => a.clinician_id).filter(Boolean))];
   const { data: clinicianProfiles } =
     clinicianIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name").in("id", clinicianIds)
+      ? await supabase.from("profiles").select("id, full_name, avatar_url").in("id", clinicianIds)
       : { data: [] };
-  const upcomingAppointments = rawAppointments.map((a) => ({
-    ...a,
-    clinician_name: clinicianProfiles?.find((p) => p.id === a.clinician_id)?.full_name ?? null,
-  }));
+  const upcomingAppointments = rawAppointments.map((a) => {
+    const clinician = clinicianProfiles?.find((p) => p.id === a.clinician_id);
+    return {
+      ...a,
+      clinician_name: clinician?.full_name ?? null,
+      clinician_avatar_url: clinician?.avatar_url ?? null,
+    };
+  });
   const notifications = notificationsResult.data ?? [];
 
   return (

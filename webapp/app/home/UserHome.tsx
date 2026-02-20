@@ -43,14 +43,14 @@ type LinkedPatient = {
   id: string;
   started_at: string;
   care_plan: { id: string; name: string; slug: string; price_cents: number } | null;
-  patient: { id: string; full_name: string | null; age: number | null } | null;
+  patient: { id: string; full_name: string | null; age: number | null; avatar_url: string | null } | null;
 };
 
 type MySponsor = {
   id: string;
   started_at: string;
   care_plan: { id: string; name: string } | null;
-  sponsor: { id: string; full_name: string | null } | null;
+  sponsor: { id: string; full_name: string | null; avatar_url: string | null } | null;
 };
 
 type PendingConsent = {
@@ -65,6 +65,7 @@ type Appointment = {
   scheduled_at: string;
   status: string;
   clinician_name: string | null;
+  clinician_avatar_url: string | null;
 };
 
 type Notification = {
@@ -158,8 +159,12 @@ export function UserHome({
                     className="group rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:border-[#1F5F2E]/30 hover:shadow-md"
                   >
                     <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 shrink-0 rounded-full bg-[#1F5F2E]/10 flex items-center justify-center">
-                        <HeartIcon className="h-4 w-4 text-[#1F5F2E]" />
+                      <div className="h-8 w-8 shrink-0 rounded-full bg-[#1F5F2E]/10 flex items-center justify-center overflow-hidden">
+                        {link.sponsor?.avatar_url ? (
+                          <img src={link.sponsor.avatar_url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <HeartIcon className="h-4 w-4 text-[#1F5F2E]" />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-slate-900">
@@ -218,8 +223,12 @@ export function UserHome({
                       className="group block rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur transition hover:border-[#1F5F2E]/30 hover:shadow-lg"
                     >
                       <div className="flex items-start gap-4">
-                        <div className="h-12 w-12 shrink-0 rounded-xl bg-gradient-to-br from-[#1F5F2E]/20 to-[#9CCB4A]/20 flex items-center justify-center">
-                          <UsersIcon className="h-6 w-6 text-[#1F5F2E]" />
+                        <div className="h-12 w-12 shrink-0 rounded-xl bg-gradient-to-br from-[#1F5F2E]/20 to-[#9CCB4A]/20 flex items-center justify-center overflow-hidden">
+                          {link.patient?.avatar_url ? (
+                            <img src={link.patient.avatar_url} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <UsersIcon className="h-6 w-6 text-[#1F5F2E]" />
+                          )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <h3 className="font-semibold text-slate-900">
@@ -274,8 +283,12 @@ export function UserHome({
                       key={apt.id}
                       className="group flex items-center gap-4 rounded-xl border border-slate-200 bg-white/90 p-4 shadow-sm transition hover:border-[#1F5F2E]/30 hover:shadow-md"
                     >
-                      <div className="h-12 w-12 shrink-0 rounded-xl bg-[#1F5F2E]/10 flex items-center justify-center">
-                        <CalendarIcon className="h-6 w-6 text-[#1F5F2E]" />
+                      <div className="h-12 w-12 shrink-0 rounded-xl bg-[#1F5F2E]/10 flex items-center justify-center overflow-hidden">
+                        {apt.clinician_avatar_url ? (
+                          <img src={apt.clinician_avatar_url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <CalendarIcon className="h-6 w-6 text-[#1F5F2E]" />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">

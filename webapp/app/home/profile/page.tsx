@@ -104,11 +104,11 @@ export default async function ProfilePage() {
 
   const { data: patientProfiles } =
     patientIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name, date_of_birth").in("id", patientIds)
+      ? await supabase.from("profiles").select("id, full_name, date_of_birth, avatar_url").in("id", patientIds)
       : { data: [] };
   const { data: mySponsorProfiles } =
     mySponsorIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name").in("id", mySponsorIds)
+      ? await supabase.from("profiles").select("id, full_name, avatar_url").in("id", mySponsorIds)
       : { data: [] };
 
   const linkedPatients = linkedPlans.map((p) => {
@@ -125,7 +125,7 @@ export default async function ProfilePage() {
       id: p.id,
       started_at: p.started_at,
       care_plan: plan ? { id: plan.id, name: plan.name, slug: plan.slug, price_cents: plan.price_cents } : null,
-      patient: patient ? { id: patient.id, full_name: patient.full_name, age } : null,
+      patient: patient ? { id: patient.id, full_name: patient.full_name, age, avatar_url: patient.avatar_url ?? null } : null,
     };
   });
 
@@ -136,7 +136,7 @@ export default async function ProfilePage() {
       id: p.id,
       started_at: p.started_at,
       care_plan: plan ? { id: plan.id, name: plan.name } : null,
-      sponsor: sponsor ? { id: sponsor.id, full_name: sponsor.full_name } : null,
+      sponsor: sponsor ? { id: sponsor.id, full_name: sponsor.full_name, avatar_url: sponsor.avatar_url ?? null } : null,
     };
   });
 
@@ -247,8 +247,12 @@ export default async function ProfilePage() {
                           href={`/home/sponsored/${link.id}`}
                           className="group/item flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-3 transition hover:border-[#1F5F2E]/30 hover:bg-white"
                         >
-                          <div className="h-10 w-10 shrink-0 rounded-lg bg-gradient-to-br from-[#1F5F2E]/20 to-[#9CCB4A]/20 flex items-center justify-center">
-                            <UsersIcon className="h-5 w-5 text-[#1F5F2E]" />
+                          <div className="h-10 w-10 shrink-0 rounded-lg bg-gradient-to-br from-[#1F5F2E]/20 to-[#9CCB4A]/20 flex items-center justify-center overflow-hidden">
+                            {link.patient?.avatar_url ? (
+                              <img src={link.patient.avatar_url} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <UsersIcon className="h-5 w-5 text-[#1F5F2E]" />
+                            )}
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-slate-900">
@@ -300,8 +304,12 @@ export default async function ProfilePage() {
                         key={link.id}
                         className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-3"
                       >
-                        <div className="h-10 w-10 shrink-0 rounded-lg bg-gradient-to-br from-[#E6E15A]/20 to-[#9CCB4A]/20 flex items-center justify-center">
-                          <HeartIcon className="h-5 w-5 text-[#1F5F2E]" />
+                        <div className="h-10 w-10 shrink-0 rounded-lg bg-gradient-to-br from-[#E6E15A]/20 to-[#9CCB4A]/20 flex items-center justify-center overflow-hidden">
+                          {link.sponsor?.avatar_url ? (
+                            <img src={link.sponsor.avatar_url} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <HeartIcon className="h-5 w-5 text-[#1F5F2E]" />
+                          )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-slate-900">
