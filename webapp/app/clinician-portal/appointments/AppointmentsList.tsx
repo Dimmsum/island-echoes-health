@@ -45,17 +45,6 @@ const SearchIcon = () => (
   </svg>
 );
 
-const FilterIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-    />
-  </svg>
-);
-
 const ListViewIcon = () => (
   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path
@@ -85,17 +74,6 @@ const CalendarIcon = () => (
       strokeLinejoin="round"
       strokeWidth={2}
       d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-    />
-  </svg>
-);
-
-const MoreVerticalIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
     />
   </svg>
 );
@@ -151,13 +129,158 @@ const getStatusText = (status: string) => {
     case "cancelled":
       return "Canceled";
     case "scheduled":
-      return "Active";
+      return "Scheduled";
     case "no_show":
-      return "Upcoming";
+      return "No show";
     default:
       return status.charAt(0).toUpperCase() + status.slice(1);
   }
 };
+
+const getStatusStyles = (status: string) => {
+  switch (status) {
+    case "completed":
+      return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+    case "cancelled":
+      return "bg-red-500/20 text-red-400 border-red-500/30";
+    case "scheduled":
+      return "bg-[#1F5F2E]/30 text-[#9CCB4A] border-[#1F5F2E]/40";
+    case "no_show":
+      return "bg-amber-500/20 text-amber-400 border-amber-500/30";
+    default:
+      return "bg-slate-500/20 text-slate-400 border-slate-500/30";
+  }
+};
+
+const ArrowRightIcon = () => (
+  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+  </svg>
+);
+
+type AppointmentCardProps = {
+  apt: Appointment;
+  onStatus: (id: string, status: "completed" | "no_show" | "cancelled") => void;
+  pendingId: string | null;
+};
+
+function AppointmentCard({ apt, onStatus, pendingId }: AppointmentCardProps) {
+  const date = new Date(apt.scheduled_at);
+  const isToday = date.toDateString() === new Date().toDateString();
+  const isPast = date < new Date() && apt.status === "scheduled";
+
+  return (
+    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#1a1f26] transition hover:border-[#1F5F2E]/40 hover:shadow-lg hover:shadow-[#1F5F2E]/5">
+      {isToday && apt.status === "scheduled" && (
+        <div className="absolute right-0 top-0 rounded-bl-xl bg-[#1F5F2E] px-3 py-1.5 text-xs font-semibold text-white">
+          Today
+        </div>
+      )}
+      {isPast && (
+        <div className="absolute right-0 top-0 rounded-bl-xl bg-amber-500/90 px-3 py-1.5 text-xs font-semibold text-white">
+          Past
+        </div>
+      )}
+
+      <div className="flex flex-1 flex-col p-5">
+        <div className="flex items-start gap-4">
+          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/15 bg-white/5">
+            {apt.patient_avatar ? (
+              <img src={apt.patient_avatar} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-400">
+                {getInitials(apt.patient_name)}
+              </div>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-base font-semibold text-white">
+              {apt.patient_name ?? "Patient"}
+            </h3>
+            <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-400">
+              <UserIcon />
+              {apt.clinician_name ?? "Clinician"}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+          <div className="rounded-lg bg-[#1F5F2E]/20 p-2 text-[#9CCB4A]">
+            <CalendarIcon />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-white">
+              {date.toLocaleDateString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </p>
+            <p className="text-sm text-slate-400">
+              {date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusStyles(apt.status)}`}
+          >
+            {getStatusDot(apt.status)}
+            {getStatusText(apt.status)}
+          </span>
+          <span className="text-xs text-slate-500">#{apt.id.slice(0, 8)}</span>
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-white/10 pt-4">
+          {apt.status === "scheduled" && (
+            <>
+              <button
+                type="button"
+                onClick={() => onStatus(apt.id, "completed")}
+                disabled={pendingId !== null && pendingId !== apt.id}
+                className="rounded-lg bg-emerald-500/20 px-3 py-2 text-xs font-medium text-emerald-400 transition hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {pendingId === apt.id ? (
+                  <span className="flex items-center gap-1">
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+                    ...
+                  </span>
+                ) : (
+                  "Complete"
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => onStatus(apt.id, "no_show")}
+                disabled={pendingId !== null && pendingId !== apt.id}
+                className="rounded-lg bg-amber-500/20 px-3 py-2 text-xs font-medium text-amber-400 transition hover:bg-amber-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                No show
+              </button>
+              <button
+                type="button"
+                onClick={() => onStatus(apt.id, "cancelled")}
+                disabled={pendingId !== null && pendingId !== apt.id}
+                className="rounded-lg bg-red-500/20 px-3 py-2 text-xs font-medium text-red-400 transition hover:bg-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+            </>
+          )}
+          <Link
+            href={`/clinician-portal/appointments/${apt.id}`}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-[#1F5F2E]/20 px-3 py-2 text-sm font-medium text-[#9CCB4A] transition hover:bg-[#1F5F2E]/30"
+          >
+            View details
+            <ArrowRightIcon />
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function AppointmentsList({ appointments, patients }: Props) {
   const [creating, setCreating] = useState(false);
@@ -165,11 +288,12 @@ export function AppointmentsList({ appointments, patients }: Props) {
   const [scheduledAt, setScheduledAt] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
-  const itemsPerPage = 15;
+  const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
+  const itemsPerPage = 12;
   const hasPatients = patients.length > 0;
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -220,7 +344,6 @@ export function AppointmentsList({ appointments, patients }: Props) {
   const filteredAppointments = useMemo(() => {
     let filtered = appointments;
 
-    // Search filter
     if (searchQuery) {
       filtered = filtered.filter(
         (apt) =>
@@ -229,13 +352,19 @@ export function AppointmentsList({ appointments, patients }: Props) {
       );
     }
 
-    // Status filter
+    if (dateFilter) {
+      filtered = filtered.filter((apt) => {
+        const d = new Date(apt.scheduled_at);
+        return d.toISOString().slice(0, 10) === dateFilter;
+      });
+    }
+
     if (statusFilter !== "all") {
       filtered = filtered.filter((apt) => apt.status === statusFilter);
     }
 
     return filtered;
-  }, [appointments, searchQuery, statusFilter]);
+  }, [appointments, searchQuery, dateFilter, statusFilter]);
 
   // Pagination
   const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
@@ -254,139 +383,60 @@ export function AppointmentsList({ appointments, patients }: Props) {
   const selectedStatusLabel = statusOptions.find((opt) => opt.value === statusFilter)?.label ?? "All Status";
 
   return (
-    <div className="space-y-6">
-      {/* Header with New Appointment Button */}
+    <div className="space-y-8">
+      {/* Toolbar: New appointment + filters */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">Appointments</h2>
-        </div>
-        {hasPatients && (
-          <button
-            type="button"
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 hover:shadow-md"
-          >
-            <PlusIcon />
-            New Appointment
-          </button>
-        )}
-      </div>
-
-      {/* Create Appointment Form */}
-      {showCreateForm && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-6 text-lg font-semibold text-slate-900">Create New Appointment</h3>
-          <form onSubmit={handleCreate} className="space-y-6">
-            <div className="grid gap-6 sm:grid-cols-2">
-              <div>
-                <label htmlFor="patient" className="mb-2 block text-sm font-medium text-slate-700">
-                  Patient
-                </label>
-                <select
-                  id="patient"
-                  value={patientId}
-                  onChange={(e) => setPatientId(e.target.value)}
-                  required
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-[#1F5F2E] focus:outline-none focus:ring-2 focus:ring-[#1F5F2E]/20"
-                >
-                  {patients.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.full_name ?? p.id.slice(0, 8)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="scheduled_at" className="mb-2 block text-sm font-medium text-slate-700">
-                  Date & Time
-                </label>
-                <input
-                  id="scheduled_at"
-                  type="datetime-local"
-                  value={scheduledAt}
-                  onChange={(e) => setScheduledAt(e.target.value)}
-                  required
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-[#1F5F2E] focus:outline-none focus:ring-2 focus:ring-[#1F5F2E]/20"
-                />
-              </div>
-            </div>
-            {error && (
-              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
-            )}
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="submit"
-                disabled={creating}
-                className="flex items-center gap-2 rounded-lg bg-[#1F5F2E] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#174622] disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {creating ? (
-                  <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <PlusIcon />
-                    Create Appointment
-                  </>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCreateForm(false);
-                  setError(null);
-                }}
-                className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Filters and Controls */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5">
-          <CalendarIcon />
-          <input
-            type="date"
-            className="border-none bg-transparent text-sm text-slate-700 focus:outline-none"
-            onChange={(e) => {
-              // Date filter logic can be added here
-            }}
-          />
-        </div>
-        <div className="relative flex-1 min-w-[200px]">
-          <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-            <SearchIcon />
+        <div className="flex flex-wrap items-center gap-3">
+          {hasPatients && (
+            <button
+              type="button"
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#1F5F2E] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#1F5F2E]/25 transition hover:bg-[#174622] hover:shadow-[#1F5F2E]/30"
+            >
+              <PlusIcon />
+              New appointment
+            </button>
+          )}
+          <div className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2">
+            <CalendarIcon />
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => {
+                setDateFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="border-none bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none [color-scheme:dark]"
+            />
           </div>
-          <input
-            type="text"
-            placeholder="Search appointments..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full rounded-lg border border-slate-300 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-2 focus:ring-[#1F5F2E]/20"
-          />
-        </div>
-        {/* Custom Status Filter Dropdown */}
-        <div className="relative" ref={statusDropdownRef}>
-          <button
-            type="button"
-            onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-            className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:border-[#1F5F2E] focus:outline-none focus:ring-2 focus:ring-[#1F5F2E]/20"
-            aria-expanded={showStatusDropdown}
-            aria-haspopup="true"
-          >
-            <span>{selectedStatusLabel}</span>
-            <ChevronDownIcon />
-          </button>
-          {showStatusDropdown && (
-            <div className="absolute right-0 top-full z-20 mt-1 w-48 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+          <div className="relative flex-1 min-w-[180px] sm:max-w-[240px]">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+              <SearchIcon />
+            </span>
+            <input
+              type="text"
+              placeholder="Search patient or clinician..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full rounded-xl border border-white/15 bg-white/5 pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
+            />
+          </div>
+          <div className="relative" ref={statusDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+              className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-white/10"
+              aria-expanded={showStatusDropdown}
+              aria-haspopup="true"
+            >
+              <span>{selectedStatusLabel}</span>
+              <ChevronDownIcon />
+            </button>
+            {showStatusDropdown && (
+              <div className="absolute left-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-white/15 bg-[#1a1f26] shadow-xl">
                 {statusOptions.map((option) => (
                   <button
                     key={option.value}
@@ -399,216 +449,171 @@ export function AppointmentsList({ appointments, patients }: Props) {
                     className={`w-full px-4 py-2.5 text-left text-sm transition ${
                       statusFilter === option.value
                         ? "bg-[#1F5F2E] text-white"
-                        : "text-slate-700 hover:bg-slate-50"
+                        : "text-slate-300 hover:bg-white/10"
                     }`}
                   >
                     {option.label}
                   </button>
                 ))}
               </div>
-          )}
-        </div>
-        <button
-          type="button"
-          className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:border-[#1F5F2E] focus:outline-none focus:ring-2 focus:ring-[#1F5F2E]/20"
-        >
-          <FilterIcon />
-          Filter
-        </button>
-        <div className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white p-1">
-          <button
-            type="button"
-            onClick={() => setViewMode("list")}
-            className={`rounded p-1.5 transition ${
-              viewMode === "list"
-                ? "bg-[#1F5F2E] text-white"
-                : "text-slate-600 hover:bg-slate-100"
-            }`}
-            aria-label="List view"
-          >
-            <ListViewIcon />
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("grid")}
-            className={`rounded p-1.5 transition ${
-              viewMode === "grid"
-                ? "bg-[#1F5F2E] text-white"
-                : "text-slate-600 hover:bg-slate-100"
-            }`}
-            aria-label="Grid view"
-          >
-            <GridViewIcon />
-          </button>
+            )}
+          </div>
+          <div className="flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={`rounded-lg p-2 transition ${
+                viewMode === "list" ? "bg-[#1F5F2E] text-white" : "text-slate-400 hover:text-white"
+              }`}
+              aria-label="List view"
+            >
+              <ListViewIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("grid")}
+              className={`rounded-lg p-2 transition ${
+                viewMode === "grid" ? "bg-[#1F5F2E] text-white" : "text-slate-400 hover:text-white"
+              }`}
+              aria-label="Grid view"
+            >
+              <GridViewIcon />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Appointments Table */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
-                  ID
-                </th>
-                <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+      {/* Create Appointment Form */}
+      {showCreateForm && (
+        <div className="rounded-2xl border border-white/10 bg-[#1a1f26] p-6 shadow-xl">
+          <h3 className="mb-6 text-lg font-semibold text-white">Create new appointment</h3>
+          <form onSubmit={handleCreate} className="space-y-6">
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div>
+                <label htmlFor="patient" className="mb-2 block text-sm font-medium text-slate-300">
                   Patient
-                </th>
-                <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
-                  Doctor
-                </th>
-                <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
-                  Time
-                </th>
-                <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
-                  Status
-                </th>
-                <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-600">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {paginatedAppointments.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center text-sm text-slate-500">
-                    No appointments found
-                  </td>
-                </tr>
-              ) : (
-                paginatedAppointments.map((apt) => (
-                  <tr key={apt.id} className="transition hover:bg-slate-50/50">
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
-                      {apt.id.slice(0, 8)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-slate-200 bg-slate-100">
-                          {apt.patient_avatar ? (
-                            <img
-                              src={apt.patient_avatar}
-                              alt=""
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-slate-100 text-xs font-semibold text-slate-600">
-                              {getInitials(apt.patient_name)}
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium text-slate-900">
-                            {apt.patient_name ?? "Patient"}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
-                      {apt.clinician_name ?? "—"}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <div className="text-sm text-slate-600">
-                        {new Date(apt.scheduled_at).toLocaleTimeString("en-US", {
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        {new Date(apt.scheduled_at).toLocaleDateString("en-US", {
-                          month: "2-digit",
-                          day: "2-digit",
-                        })}
-                      </div>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        {getStatusDot(apt.status)}
-                        <span className="text-sm text-slate-600">{getStatusText(apt.status)}</span>
-                      </div>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {apt.status === "scheduled" && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleStatus(apt.id, "completed")}
-                              disabled={pendingId !== null && pendingId !== apt.id}
-                              className="rounded-lg bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 transition hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {pendingId === apt.id ? (
-                                <span className="flex items-center gap-1">
-                                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-green-700 border-t-transparent" />
-                                  Processing...
-                                </span>
-                              ) : (
-                                "Complete"
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleStatus(apt.id, "no_show")}
-                              disabled={pendingId !== null && pendingId !== apt.id}
-                              className="rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 transition hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {pendingId === apt.id ? "..." : "No Show"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleStatus(apt.id, "cancelled")}
-                              disabled={pendingId !== null && pendingId !== apt.id}
-                              className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {pendingId === apt.id ? "..." : "Cancel"}
-                            </button>
-                          </>
-                        )}
-                        <Link
-                          href={`/clinician-portal/appointments/${apt.id}`}
-                          className="rounded-lg p-1.5 text-slate-600 transition hover:bg-slate-100"
-                          aria-label="View appointment details"
-                        >
-                          <MoreVerticalIcon />
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                </label>
+                <select
+                  id="patient"
+                  value={patientId}
+                  onChange={(e) => setPatientId(e.target.value)}
+                  required
+                  className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
+                >
+                  {patients.map((p) => (
+                    <option key={p.id} value={p.id} className="bg-[#1a1f26] text-white">
+                      {p.full_name ?? p.id.slice(0, 8)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="scheduled_at" className="mb-2 block text-sm font-medium text-slate-300">
+                  Date & time
+                </label>
+                <input
+                  id="scheduled_at"
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={(e) => setScheduledAt(e.target.value)}
+                  required
+                  className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E] [color-scheme:dark]"
+                />
+              </div>
+            </div>
+            {error && (
+              <div className="rounded-xl bg-red-500/15 border border-red-500/30 p-3 text-sm text-red-300">{error}</div>
+            )}
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="submit"
+                disabled={creating}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#1F5F2E] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#174622] disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {creating ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <PlusIcon />
+                    Create appointment
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setError(null);
+                }}
+                className="rounded-xl border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
         </div>
+      )}
+
+      {/* Appointments cards */}
+      <div className="space-y-6">
+        {paginatedAppointments.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-16 text-center">
+            <span className="inline-flex rounded-full bg-white/10 p-5 text-slate-500">
+              <CalendarIcon />
+            </span>
+            <p className="mt-4 text-base font-medium text-white">No appointments found</p>
+            <p className="mt-1 text-sm text-slate-400">
+              {searchQuery || statusFilter !== "all" || dateFilter
+                ? "Try adjusting your search, date, or status filter."
+                : "Create a new appointment to get started."}
+            </p>
+          </div>
+        ) : (
+          <div
+            className={
+              viewMode === "grid"
+                ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+                : "grid gap-4 sm:grid-cols-1 lg:max-w-2xl"
+            }
+          >
+            {paginatedAppointments.map((apt) => (
+              <AppointmentCard
+                key={apt.id}
+                apt={apt}
+                onStatus={handleStatus}
+                pendingId={pendingId}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex flex-col gap-4 border-t border-slate-200 bg-slate-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm text-slate-600">
-              Showing <span className="font-medium">{startIndex + 1}</span>-
-              <span className="font-medium">{Math.min(endIndex, filteredAppointments.length)}</span> of{" "}
-              <span className="font-medium">{filteredAppointments.length}</span> appointments
-            </div>
+          <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-[#1a1f26] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-slate-400">
+              Showing <span className="font-medium text-white">{startIndex + 1}</span>–
+              <span className="font-medium text-white">{Math.min(endIndex, filteredAppointments.length)}</span> of{" "}
+              <span className="font-medium text-white">{filteredAppointments.length}</span> appointments
+            </p>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+                className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
               <div className="flex items-center gap-1">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
+                  if (totalPages <= 5) pageNum = i + 1;
+                  else if (currentPage <= 3) pageNum = i + 1;
+                  else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                  else pageNum = currentPage - 2 + i;
                   return (
                     <button
                       key={pageNum}
@@ -617,7 +622,7 @@ export function AppointmentsList({ appointments, patients }: Props) {
                       className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                         currentPage === pageNum
                           ? "bg-[#1F5F2E] text-white"
-                          : "bg-white text-slate-700 hover:bg-slate-50"
+                          : "text-slate-400 hover:bg-white/10 hover:text-white"
                       }`}
                       aria-label={`Go to page ${pageNum}`}
                       aria-current={currentPage === pageNum ? "page" : undefined}
@@ -631,7 +636,7 @@ export function AppointmentsList({ appointments, patients }: Props) {
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+                className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
               </button>

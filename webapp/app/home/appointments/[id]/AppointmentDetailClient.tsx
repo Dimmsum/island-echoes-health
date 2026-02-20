@@ -24,13 +24,33 @@ type Props = {
   patientId: string;
   notes: Note[];
   services: Service[];
+  variant?: "light" | "dark";
 };
+
+const cardClass = (v: "light" | "dark") =>
+  v === "dark"
+    ? "rounded-xl border border-white/10 bg-white/5 p-5"
+    : "rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur";
+
+const headingClass = (v: "light" | "dark") =>
+  v === "dark" ? "text-base font-semibold text-white" : "text-lg font-semibold text-slate-900";
+
+const inputClass = (v: "light" | "dark") =>
+  v === "dark"
+    ? "rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
+    : "rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]";
+
+const btnClass = (v: "light" | "dark") =>
+  v === "dark"
+    ? "rounded-xl bg-[#1F5F2E] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#174622] disabled:opacity-70"
+    : "rounded-full bg-[#1F5F2E] px-4 py-2 text-sm font-medium text-white hover:bg-[#174622] disabled:opacity-70";
 
 export function AppointmentDetailClient({
   appointmentId,
   patientId,
   notes,
   services,
+  variant = "light",
 }: Props) {
   const router = useRouter();
   const [noteContent, setNoteContent] = useState("");
@@ -101,25 +121,25 @@ export function AppointmentDetailClient({
   }
 
   return (
-    <div className="mt-8 grid gap-8 lg:grid-cols-2">
-      <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur">
-        <h2 className="text-lg font-semibold text-slate-900">Notes</h2>
+    <div className="grid gap-8 lg:grid-cols-2">
+      <div className={cardClass(variant)}>
+        <h2 className={headingClass(variant)}>Notes</h2>
         {notes.length > 0 ? (
           <ul className="mt-4 space-y-2">
             {notes.map((n) => (
               <li
                 key={n.id}
-                className="rounded-lg border border-slate-100 bg-white p-3 text-sm text-slate-700"
+                className={variant === "dark" ? "rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-slate-300" : "rounded-lg border border-slate-100 bg-white p-3 text-sm text-slate-700"}
               >
                 {n.content}
-                <p className="mt-1 text-xs text-slate-400">
+                <p className={variant === "dark" ? "mt-1 text-xs text-slate-500" : "mt-1 text-xs text-slate-400"}>
                   {new Date(n.created_at).toLocaleString()}
                 </p>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-sm text-slate-500">No notes yet.</p>
+          <p className={variant === "dark" ? "mt-2 text-sm text-slate-500" : "mt-2 text-sm text-slate-500"}>No notes yet.</p>
         )}
         <form onSubmit={handleAddNote} className="mt-4">
           <textarea
@@ -127,30 +147,26 @@ export function AppointmentDetailClient({
             onChange={(e) => setNoteContent(e.target.value)}
             placeholder="Visit summary, next steps…"
             rows={3}
-            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
+            className={`w-full ${inputClass(variant)}`}
           />
-          <button
-            type="submit"
-            disabled={pending !== null}
-            className="mt-2 rounded-full bg-[#1F5F2E] px-4 py-2 text-sm font-medium text-white hover:bg-[#174622] disabled:opacity-70"
-          >
+          <button type="submit" disabled={pending !== null} className={`mt-2 ${btnClass(variant)}`}>
             {pending === "note" ? "Adding…" : "Add note"}
           </button>
         </form>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur">
-        <h2 className="text-lg font-semibold text-slate-900">Services used</h2>
+      <div className={cardClass(variant)}>
+        <h2 className={headingClass(variant)}>Services used</h2>
         {services.length > 0 ? (
           <ul className="mt-4 space-y-2">
             {services.map((s) => (
               <li
                 key={s.id}
-                className="flex items-center justify-between rounded-lg border border-slate-100 bg-white px-3 py-2 text-sm"
+                className={variant === "dark" ? "flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-300" : "flex items-center justify-between rounded-lg border border-slate-100 bg-white px-3 py-2 text-sm"}
               >
-                <span className="capitalize text-slate-800">{s.service_type.replace("_", " ")}</span>
+                <span className="capitalize">{s.service_type.replace("_", " ")}</span>
                 {s.details && (
-                  <span className="text-slate-500">{s.details}</span>
+                  <span className={variant === "dark" ? "text-slate-500" : "text-slate-500"}>{s.details}</span>
                 )}
               </li>
             ))}
@@ -162,10 +178,10 @@ export function AppointmentDetailClient({
           <select
             value={serviceType}
             onChange={(e) => setServiceType(e.target.value as (typeof SERVICE_TYPES)[number])}
-            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900"
+            className={inputClass(variant)}
           >
             {SERVICE_TYPES.map((t) => (
-              <option key={t} value={t}>
+              <option key={t} value={t} className={variant === "dark" ? "bg-[#1a1f26] text-white" : ""}>
                 {t.replace("_", " ")}
               </option>
             ))}
@@ -175,91 +191,49 @@ export function AppointmentDetailClient({
             value={serviceDetails}
             onChange={(e) => setServiceDetails(e.target.value)}
             placeholder="Details (optional)"
-            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 placeholder:text-slate-400"
+            className={inputClass(variant)}
           />
-          <button
-            type="submit"
-            disabled={pending !== null}
-            className="rounded-full bg-[#1F5F2E] px-4 py-2 text-sm font-medium text-white hover:bg-[#174622] disabled:opacity-70"
-          >
+          <button type="submit" disabled={pending !== null} className={btnClass(variant)}>
             {pending === "service" ? "Adding…" : "Add service"}
           </button>
         </form>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur lg:col-span-2">
-        <h2 className="text-lg font-semibold text-slate-900">Record metrics</h2>
-        <p className="mt-1 text-sm text-slate-600">
+      <div className={`${cardClass(variant)} lg:col-span-2`}>
+        <h2 className={headingClass(variant)}>Record metrics</h2>
+        <p className={variant === "dark" ? "mt-1 text-sm text-slate-400" : "mt-1 text-sm text-slate-600"}>
           Blood pressure, weight, A1C, medication adherence for this visit.
         </p>
         {error && (
-          <p className="mt-2 text-sm text-red-600">{error}</p>
+          <p className="mt-2 text-sm text-red-500">{error}</p>
         )}
         <form onSubmit={handleRecordMetrics} className="mt-4 flex flex-wrap gap-4">
           <div>
-            <label className="block text-xs font-medium text-slate-600">BP (systolic)</label>
-            <input
-              type="number"
-              value={bpSystolic}
-              onChange={(e) => setBpSystolic(e.target.value)}
-              placeholder="120"
-              min={1}
-              max={300}
-              className="mt-1 w-24 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-            />
+            <label className={variant === "dark" ? "block text-xs font-medium text-slate-400" : "block text-xs font-medium text-slate-600"}>BP (systolic)</label>
+            <input type="number" value={bpSystolic} onChange={(e) => setBpSystolic(e.target.value)} placeholder="120" min={1} max={300} className={`mt-1 w-24 ${inputClass(variant)}`} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600">BP (diastolic)</label>
-            <input
-              type="number"
-              value={bpDiastolic}
-              onChange={(e) => setBpDiastolic(e.target.value)}
-              placeholder="80"
-              min={1}
-              max={200}
-              className="mt-1 w-24 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-            />
+            <label className={variant === "dark" ? "block text-xs font-medium text-slate-400" : "block text-xs font-medium text-slate-600"}>BP (diastolic)</label>
+            <input type="number" value={bpDiastolic} onChange={(e) => setBpDiastolic(e.target.value)} placeholder="80" min={1} max={200} className={`mt-1 w-24 ${inputClass(variant)}`} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600">Weight (kg)</label>
-            <input
-              type="number"
-              step="0.1"
-              value={weightKg}
-              onChange={(e) => setWeightKg(e.target.value)}
-              placeholder="70"
-              className="mt-1 w-24 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-            />
+            <label className={variant === "dark" ? "block text-xs font-medium text-slate-400" : "block text-xs font-medium text-slate-600"}>Weight (kg)</label>
+            <input type="number" step="0.1" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} placeholder="70" className={`mt-1 w-24 ${inputClass(variant)}`} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600">A1C</label>
-            <input
-              type="number"
-              step="0.1"
-              value={a1c}
-              onChange={(e) => setA1c(e.target.value)}
-              placeholder="5.7"
-              className="mt-1 w-24 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-            />
+            <label className={variant === "dark" ? "block text-xs font-medium text-slate-400" : "block text-xs font-medium text-slate-600"}>A1C</label>
+            <input type="number" step="0.1" value={a1c} onChange={(e) => setA1c(e.target.value)} placeholder="5.7" className={`mt-1 w-24 ${inputClass(variant)}`} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600">Medication adherence</label>
-            <select
-              value={adherence}
-              onChange={(e) => setAdherence(e.target.value as "good" | "fair" | "poor" | "")}
-              className="mt-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
-            >
+            <label className={variant === "dark" ? "block text-xs font-medium text-slate-400" : "block text-xs font-medium text-slate-600"}>Medication adherence</label>
+            <select value={adherence} onChange={(e) => setAdherence(e.target.value as "good" | "fair" | "poor" | "")} className={`mt-1 ${inputClass(variant)}`}>
               <option value="">—</option>
               <option value="good">Good</option>
               <option value="fair">Fair</option>
               <option value="poor">Poor</option>
             </select>
           </div>
-          <button
-            type="submit"
-            disabled={pending !== null}
-            className="self-end rounded-full bg-[#1F5F2E] px-4 py-2 text-sm font-medium text-white hover:bg-[#174622] disabled:opacity-70"
-          >
+          <button type="submit" disabled={pending !== null} className={`self-end ${btnClass(variant)}`}>
             {pending === "metrics" ? "Saving…" : "Save metrics"}
           </button>
         </form>
