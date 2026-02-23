@@ -66,6 +66,7 @@ type Appointment = {
   status: string;
   clinician_name: string | null;
   clinician_avatar_url: string | null;
+  patient_name: string | null;
 };
 
 type Notification = {
@@ -305,7 +306,7 @@ export function UserHome({
                             )}
                           </p>
                         </div>
-                        <div className="mt-1 flex items-center gap-2 text-sm text-slate-600">
+                        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-slate-600">
                           <ClockIcon />
                           <span>
                             {date.toLocaleTimeString("en-US", {
@@ -317,6 +318,12 @@ export function UserHome({
                             <>
                               <span className="text-slate-400">•</span>
                               <span>with {apt.clinician_name}</span>
+                            </>
+                          )}
+                          {apt.patient_name && (
+                            <>
+                              <span className="text-slate-400">•</span>
+                              <span>for {apt.patient_name}</span>
                             </>
                           )}
                         </div>

@@ -194,7 +194,26 @@ export default async function HomePage() {
     };
   });
 
-  const rawAppointments = appointmentsResult.data ?? [];
+  const ownAppointments = appointmentsResult.data ?? [];
+
+  const { data: sponsoredAppointments } =
+    patientIds.length > 0
+      ? await supabase
+          .from("appointments")
+          .select("id, scheduled_at, status, clinician_id, patient_id")
+          .in("patient_id", patientIds)
+          .gte("scheduled_at", new Date().toISOString())
+          .order("scheduled_at", { ascending: true })
+          .limit(10)
+      : { data: [] };
+
+  const rawAppointments = [
+    ...ownAppointments.map((a) => ({ ...a, patient_id: user.id as string })),
+    ...(sponsoredAppointments ?? []).filter(
+      (sa) => !ownAppointments.some((oa) => oa.id === sa.id)
+    ),
+  ].sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+
   const clinicianIds = [...new Set(rawAppointments.map((a) => a.clinician_id).filter(Boolean))];
   const { data: clinicianProfiles } =
     clinicianIds.length > 0
@@ -202,10 +221,13 @@ export default async function HomePage() {
       : { data: [] };
   const upcomingAppointments = rawAppointments.map((a) => {
     const clinician = clinicianProfiles?.find((p) => p.id === a.clinician_id);
+    const patient = patientProfiles?.find((p) => p.id === a.patient_id);
+    const isOwn = a.patient_id === user.id;
     return {
       ...a,
       clinician_name: clinician?.full_name ?? null,
       clinician_avatar_url: clinician?.avatar_url ?? null,
+      patient_name: isOwn ? null : (patient?.full_name ?? "Patient"),
     };
   });
   const notifications = notificationsResult.data ?? [];
