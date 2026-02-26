@@ -15,26 +15,26 @@ type Props = {
   carePlans: CarePlan[];
 };
 
-const CheckIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+const CheckIcon = ({ className }: { className?: string }) => (
+  <svg className={className || "h-5 w-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
   </svg>
 );
 
-const UserIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+const UserIcon = ({ className }: { className?: string }) => (
+  <svg className={className || "h-5 w-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
   </svg>
 );
 
-const ArrowLeftIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+const ArrowLeftIcon = ({ className }: { className?: string }) => (
+  <svg className={className || "h-5 w-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
   </svg>
 );
 
-const MailIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+const MailIcon = ({ className }: { className?: string }) => (
+  <svg className={className || "h-5 w-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
   </svg>
 );
