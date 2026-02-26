@@ -80,26 +80,13 @@ export function UserNavbar({
         />
       </Link>
 
-      <nav className="flex items-center gap-2 sm:gap-4">
-        <Link
-          href="/about"
-          className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900"
-        >
-          About
-        </Link>
-        <Link
-          href="/pricing"
-          className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900"
-        >
-          Pricing
-        </Link>
-
+      <nav className="flex items-center gap-2 sm:gap-3">
         {/* Notifications dropdown */}
         <div className="relative">
           <button
             type="button"
             onClick={() => setNotifsOpen(!notifsOpen)}
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
           >
             <BellIcon />
             {unreadCount > 0 && (
@@ -107,6 +94,7 @@ export function UserNavbar({
                 {unreadCount}
               </span>
             )}
+            <span className="hidden sm:inline">Notifications</span>
           </button>
           {notifsOpen && (
             <>
@@ -174,12 +162,10 @@ export function UserNavbar({
         {/* Profile link */}
         <Link
           href="/home/profile"
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
         >
           <UserIcon />
-          <span className="hidden text-sm font-medium sm:inline">
-            {fullName ?? "Profile"}
-          </span>
+          <span className="hidden sm:inline">{fullName ?? "Profile"}</span>
         </Link>
       </nav>
     </header>

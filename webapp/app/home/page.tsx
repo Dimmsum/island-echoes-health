@@ -26,6 +26,11 @@ export default async function HomePage() {
   const fullName = profile?.full_name ?? null;
 
   if (role && STAFF_ROLES.includes(role as (typeof STAFF_ROLES)[number])) {
+    redirect("/clinician-portal");
+  }
+
+  // Legacy code below - kept for reference but should not execute
+  if (false && role && STAFF_ROLES.includes(role as (typeof STAFF_ROLES)[number])) {
     const { data: plansWithPatients } = await supabase
       .from("sponsor_patient_plans")
       .select("patient_id, care_plan_id")
@@ -136,15 +141,15 @@ export default async function HomePage() {
   const mySponsorIds = [...new Set(plansWherePatient.map((p) => p.sponsor_id))];
   const { data: patientProfiles } =
     patientIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name, date_of_birth").in("id", patientIds)
+      ? await supabase.from("profiles").select("id, full_name, date_of_birth, avatar_url").in("id", patientIds)
       : { data: [] };
   const { data: sponsorProfiles } =
     sponsorIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name").in("id", sponsorIds)
+      ? await supabase.from("profiles").select("id, full_name, avatar_url").in("id", sponsorIds)
       : { data: [] };
   const { data: mySponsorProfiles } =
     mySponsorIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name").in("id", mySponsorIds)
+      ? await supabase.from("profiles").select("id, full_name, avatar_url").in("id", mySponsorIds)
       : { data: [] };
 
   const mySponsors = plansWherePatient.map((p) => {
@@ -154,7 +159,7 @@ export default async function HomePage() {
       id: p.id,
       started_at: p.started_at,
       care_plan: plan ? { id: plan.id, name: plan.name } : null,
-      sponsor: sponsor ? { id: sponsor.id, full_name: sponsor.full_name } : null,
+      sponsor: sponsor ? { id: sponsor.id, full_name: sponsor.full_name, avatar_url: sponsor.avatar_url ?? null } : null,
     };
   });
 
@@ -173,7 +178,7 @@ export default async function HomePage() {
       started_at: p.started_at,
       care_plan: plan ? { id: plan.id, name: plan.name, slug: plan.slug, price_cents: plan.price_cents } : null,
       patient: patient
-        ? { id: patient.id, full_name: patient.full_name, age }
+        ? { id: patient.id, full_name: patient.full_name, age, avatar_url: patient.avatar_url ?? null }
         : null,
     };
   });
@@ -189,16 +194,42 @@ export default async function HomePage() {
     };
   });
 
-  const rawAppointments = appointmentsResult.data ?? [];
+  const ownAppointments = appointmentsResult.data ?? [];
+
+  const { data: sponsoredAppointments } =
+    patientIds.length > 0
+      ? await supabase
+          .from("appointments")
+          .select("id, scheduled_at, status, clinician_id, patient_id")
+          .in("patient_id", patientIds)
+          .gte("scheduled_at", new Date().toISOString())
+          .order("scheduled_at", { ascending: true })
+          .limit(10)
+      : { data: [] };
+
+  const rawAppointments = [
+    ...ownAppointments.map((a) => ({ ...a, patient_id: user.id as string })),
+    ...(sponsoredAppointments ?? []).filter(
+      (sa) => !ownAppointments.some((oa) => oa.id === sa.id)
+    ),
+  ].sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+
   const clinicianIds = [...new Set(rawAppointments.map((a) => a.clinician_id).filter(Boolean))];
   const { data: clinicianProfiles } =
     clinicianIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name").in("id", clinicianIds)
+      ? await supabase.from("profiles").select("id, full_name, avatar_url").in("id", clinicianIds)
       : { data: [] };
-  const upcomingAppointments = rawAppointments.map((a) => ({
-    ...a,
-    clinician_name: clinicianProfiles?.find((p) => p.id === a.clinician_id)?.full_name ?? null,
-  }));
+  const upcomingAppointments = rawAppointments.map((a) => {
+    const clinician = clinicianProfiles?.find((p) => p.id === a.clinician_id);
+    const patient = patientProfiles?.find((p) => p.id === a.patient_id);
+    const isOwn = a.patient_id === user.id;
+    return {
+      ...a,
+      clinician_name: clinician?.full_name ?? null,
+      clinician_avatar_url: clinician?.avatar_url ?? null,
+      patient_name: isOwn ? null : (patient?.full_name ?? "Patient"),
+    };
+  });
   const notifications = notificationsResult.data ?? [];
 
   return (
