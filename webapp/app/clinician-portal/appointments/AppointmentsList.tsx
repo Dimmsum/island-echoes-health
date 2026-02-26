@@ -36,67 +36,43 @@ const PlusIcon = () => (
 
 const SearchIcon = () => (
   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-    />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
   </svg>
 );
 
 const ListViewIcon = () => (
   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M4 6h16M4 12h16M4 18h16"
-    />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
   </svg>
 );
 
 const GridViewIcon = () => (
   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-    />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
   </svg>
 );
 
 const CalendarIcon = () => (
   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-    />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
   </svg>
 );
 
 const ChevronDownIcon = () => (
   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M19 9l-7 7-7-7"
-    />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
   </svg>
 );
 
 const UserIcon = () => (
   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-    />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+  </svg>
+);
+
+const ArrowRightIcon = () => (
+  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
   </svg>
 );
 
@@ -107,56 +83,25 @@ const getInitials = (name: string | null): string => {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
 
-const getStatusDot = (status: string) => {
+const getStatusBadge = (status: string) => {
   switch (status) {
-    case "completed":
-      return <span className="h-2 w-2 rounded-full bg-blue-500" />;
-    case "cancelled":
-      return <span className="h-2 w-2 rounded-full bg-red-500" />;
-    case "scheduled":
-      return <span className="h-2 w-2 rounded-full bg-[#1F5F2E]" />;
-    case "no_show":
-      return <span className="h-2 w-2 rounded-full bg-amber-500" />;
-    default:
-      return <span className="h-2 w-2 rounded-full bg-slate-400" />;
+    case "completed": return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20";
+    case "cancelled": return "bg-red-50 text-red-700 ring-1 ring-red-600/20";
+    case "scheduled": return "bg-blue-50 text-blue-700 ring-1 ring-blue-600/20";
+    case "no_show": return "bg-amber-50 text-amber-700 ring-1 ring-amber-600/20";
+    default: return "bg-slate-100 text-slate-600";
   }
 };
 
 const getStatusText = (status: string) => {
   switch (status) {
-    case "completed":
-      return "Completed";
-    case "cancelled":
-      return "Canceled";
-    case "scheduled":
-      return "Scheduled";
-    case "no_show":
-      return "No show";
-    default:
-      return status.charAt(0).toUpperCase() + status.slice(1);
+    case "completed": return "Completed";
+    case "cancelled": return "Canceled";
+    case "scheduled": return "Scheduled";
+    case "no_show": return "No show";
+    default: return status.charAt(0).toUpperCase() + status.slice(1);
   }
 };
-
-const getStatusStyles = (status: string) => {
-  switch (status) {
-    case "completed":
-      return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-    case "cancelled":
-      return "bg-red-500/20 text-red-400 border-red-500/30";
-    case "scheduled":
-      return "bg-[#1F5F2E]/30 text-[#9CCB4A] border-[#1F5F2E]/40";
-    case "no_show":
-      return "bg-amber-500/20 text-amber-400 border-amber-500/30";
-    default:
-      return "bg-slate-500/20 text-slate-400 border-slate-500/30";
-  }
-};
-
-const ArrowRightIcon = () => (
-  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-  </svg>
-);
 
 type AppointmentCardProps = {
   apt: Appointment;
@@ -170,81 +115,73 @@ function AppointmentCard({ apt, onStatus, pendingId }: AppointmentCardProps) {
   const isPast = date < new Date() && apt.status === "scheduled";
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#1a1f26] transition hover:border-[#1F5F2E]/40 hover:shadow-lg hover:shadow-[#1F5F2E]/5">
+    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-[#1F5F2E]/30 hover:shadow-md">
       {isToday && apt.status === "scheduled" && (
         <div className="absolute right-0 top-0 rounded-bl-xl bg-[#1F5F2E] px-3 py-1.5 text-xs font-semibold text-white">
           Today
         </div>
       )}
       {isPast && (
-        <div className="absolute right-0 top-0 rounded-bl-xl bg-amber-500/90 px-3 py-1.5 text-xs font-semibold text-white">
+        <div className="absolute right-0 top-0 rounded-bl-xl bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white">
           Past
         </div>
       )}
 
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-start gap-4">
-          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/15 bg-white/5">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
             {apt.patient_avatar ? (
               <img src={apt.patient_avatar} alt="" className="h-full w-full object-cover" />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-400">
+              <span className="text-sm font-semibold text-slate-400">
                 {getInitials(apt.patient_name)}
-              </div>
+              </span>
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="truncate text-base font-semibold text-white">
+            <h3 className="truncate text-base font-semibold text-slate-900">
               {apt.patient_name ?? "Patient"}
             </h3>
-            <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-400">
+            <p className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-500">
               <UserIcon />
               {apt.clinician_name ?? "Clinician"}
             </p>
           </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-          <div className="rounded-lg bg-[#1F5F2E]/20 p-2 text-[#9CCB4A]">
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1F5F2E]/10 text-[#1F5F2E]">
             <CalendarIcon />
           </div>
           <div>
-            <p className="text-sm font-medium text-white">
-              {date.toLocaleDateString("en-US", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+            <p className="text-sm font-medium text-slate-900">
+              {date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
             </p>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-slate-500">
               {date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
             </p>
           </div>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusStyles(apt.status)}`}
-          >
-            {getStatusDot(apt.status)}
+          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadge(apt.status)}`}>
             {getStatusText(apt.status)}
           </span>
-          <span className="text-xs text-slate-500">#{apt.id.slice(0, 8)}</span>
+          <span className="text-xs text-slate-400">#{apt.id.slice(0, 8)}</span>
         </div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-white/10 pt-4">
+        <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
           {apt.status === "scheduled" && (
             <>
               <button
                 type="button"
                 onClick={() => onStatus(apt.id, "completed")}
                 disabled={pendingId !== null && pendingId !== apt.id}
-                className="rounded-lg bg-emerald-500/20 px-3 py-2 text-xs font-medium text-emerald-400 transition hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {pendingId === apt.id ? (
                   <span className="flex items-center gap-1">
-                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     ...
                   </span>
                 ) : (
@@ -255,7 +192,7 @@ function AppointmentCard({ apt, onStatus, pendingId }: AppointmentCardProps) {
                 type="button"
                 onClick={() => onStatus(apt.id, "no_show")}
                 disabled={pendingId !== null && pendingId !== apt.id}
-                className="rounded-lg bg-amber-500/20 px-3 py-2 text-xs font-medium text-amber-400 transition hover:bg-amber-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 No show
               </button>
@@ -263,7 +200,7 @@ function AppointmentCard({ apt, onStatus, pendingId }: AppointmentCardProps) {
                 type="button"
                 onClick={() => onStatus(apt.id, "cancelled")}
                 disabled={pendingId !== null && pendingId !== apt.id}
-                className="rounded-lg bg-red-500/20 px-3 py-2 text-xs font-medium text-red-400 transition hover:bg-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -271,7 +208,7 @@ function AppointmentCard({ apt, onStatus, pendingId }: AppointmentCardProps) {
           )}
           <Link
             href={`/clinician-portal/appointments/${apt.id}`}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-[#1F5F2E]/20 px-3 py-2 text-sm font-medium text-[#9CCB4A] transition hover:bg-[#1F5F2E]/30"
+            className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-[#1F5F2E] transition hover:bg-[#1F5F2E]/5"
           >
             View details
             <ArrowRightIcon />
@@ -299,7 +236,6 @@ export function AppointmentsList({ appointments, patients }: Props) {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -340,7 +276,6 @@ export function AppointmentsList({ appointments, patients }: Props) {
     setPendingId(null);
   }
 
-  // Filter and search appointments
   const filteredAppointments = useMemo(() => {
     let filtered = appointments;
 
@@ -366,7 +301,6 @@ export function AppointmentsList({ appointments, patients }: Props) {
     return filtered;
   }, [appointments, searchQuery, dateFilter, statusFilter]);
 
-  // Pagination
   const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -383,21 +317,21 @@ export function AppointmentsList({ appointments, patients }: Props) {
   const selectedStatusLabel = statusOptions.find((opt) => opt.value === statusFilter)?.label ?? "All Status";
 
   return (
-    <div className="space-y-8">
-      {/* Toolbar: New appointment + filters */}
+    <div className="space-y-6">
+      {/* Toolbar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-3">
           {hasPatients && (
             <button
               type="button"
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#1F5F2E] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#1F5F2E]/25 transition hover:bg-[#174622] hover:shadow-[#1F5F2E]/30"
+              className="inline-flex items-center gap-2 rounded-lg bg-[#1F5F2E] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#174a23]"
             >
               <PlusIcon />
               New appointment
             </button>
           )}
-          <div className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2">
+          <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 shadow-sm">
             <CalendarIcon />
             <input
               type="date"
@@ -406,11 +340,11 @@ export function AppointmentsList({ appointments, patients }: Props) {
                 setDateFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="border-none bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none [color-scheme:dark]"
+              className="border-none bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
             />
           </div>
-          <div className="relative flex-1 min-w-[180px] sm:max-w-[240px]">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+          <div className="relative min-w-[180px] flex-1 sm:max-w-[240px]">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
               <SearchIcon />
             </span>
             <input
@@ -421,14 +355,14 @@ export function AppointmentsList({ appointments, patients }: Props) {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full rounded-xl border border-white/15 bg-white/5 pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
+              className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
             />
           </div>
           <div className="relative" ref={statusDropdownRef}>
             <button
               type="button"
               onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-              className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-white/10"
+              className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
               aria-expanded={showStatusDropdown}
               aria-haspopup="true"
             >
@@ -436,7 +370,7 @@ export function AppointmentsList({ appointments, patients }: Props) {
               <ChevronDownIcon />
             </button>
             {showStatusDropdown && (
-              <div className="absolute left-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-white/15 bg-[#1a1f26] shadow-xl">
+              <div className="absolute left-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
                 {statusOptions.map((option) => (
                   <button
                     key={option.value}
@@ -449,7 +383,7 @@ export function AppointmentsList({ appointments, patients }: Props) {
                     className={`w-full px-4 py-2.5 text-left text-sm transition ${
                       statusFilter === option.value
                         ? "bg-[#1F5F2E] text-white"
-                        : "text-slate-300 hover:bg-white/10"
+                        : "text-slate-700 hover:bg-slate-50"
                     }`}
                   >
                     {option.label}
@@ -458,12 +392,12 @@ export function AppointmentsList({ appointments, patients }: Props) {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 p-1">
+          <div className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white p-1 shadow-sm">
             <button
               type="button"
               onClick={() => setViewMode("list")}
-              className={`rounded-lg p-2 transition ${
-                viewMode === "list" ? "bg-[#1F5F2E] text-white" : "text-slate-400 hover:text-white"
+              className={`rounded-md p-2 transition ${
+                viewMode === "list" ? "bg-[#1F5F2E] text-white" : "text-slate-400 hover:text-slate-700"
               }`}
               aria-label="List view"
             >
@@ -472,8 +406,8 @@ export function AppointmentsList({ appointments, patients }: Props) {
             <button
               type="button"
               onClick={() => setViewMode("grid")}
-              className={`rounded-lg p-2 transition ${
-                viewMode === "grid" ? "bg-[#1F5F2E] text-white" : "text-slate-400 hover:text-white"
+              className={`rounded-md p-2 transition ${
+                viewMode === "grid" ? "bg-[#1F5F2E] text-white" : "text-slate-400 hover:text-slate-700"
               }`}
               aria-label="Grid view"
             >
@@ -485,12 +419,12 @@ export function AppointmentsList({ appointments, patients }: Props) {
 
       {/* Create Appointment Form */}
       {showCreateForm && (
-        <div className="rounded-2xl border border-white/10 bg-[#1a1f26] p-6 shadow-xl">
-          <h3 className="mb-6 text-lg font-semibold text-white">Create new appointment</h3>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-6 text-lg font-semibold text-slate-900">Create new appointment</h3>
           <form onSubmit={handleCreate} className="space-y-6">
             <div className="grid gap-6 sm:grid-cols-2">
               <div>
-                <label htmlFor="patient" className="mb-2 block text-sm font-medium text-slate-300">
+                <label htmlFor="patient" className="mb-1.5 block text-sm font-medium text-slate-700">
                   Patient
                 </label>
                 <select
@@ -498,17 +432,17 @@ export function AppointmentsList({ appointments, patients }: Props) {
                   value={patientId}
                   onChange={(e) => setPatientId(e.target.value)}
                   required
-                  className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
+                  className="block w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
                 >
                   {patients.map((p) => (
-                    <option key={p.id} value={p.id} className="bg-[#1a1f26] text-white">
+                    <option key={p.id} value={p.id}>
                       {p.full_name ?? p.id.slice(0, 8)}
                     </option>
                   ))}
                 </select>
               </div>
               <div>
-                <label htmlFor="scheduled_at" className="mb-2 block text-sm font-medium text-slate-300">
+                <label htmlFor="scheduled_at" className="mb-1.5 block text-sm font-medium text-slate-700">
                   Date & time
                 </label>
                 <input
@@ -517,22 +451,22 @@ export function AppointmentsList({ appointments, patients }: Props) {
                   value={scheduledAt}
                   onChange={(e) => setScheduledAt(e.target.value)}
                   required
-                  className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E] [color-scheme:dark]"
+                  className="block w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
                 />
               </div>
             </div>
             {error && (
-              <div className="rounded-xl bg-red-500/15 border border-red-500/30 p-3 text-sm text-red-300">{error}</div>
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>
             )}
             <div className="flex flex-wrap gap-3">
               <button
                 type="submit"
                 disabled={creating}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#1F5F2E] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#174622] disabled:opacity-70 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#1F5F2E] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#174a23] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {creating ? (
                   <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     Creating...
                   </>
                 ) : (
@@ -548,7 +482,7 @@ export function AppointmentsList({ appointments, patients }: Props) {
                   setShowCreateForm(false);
                   setError(null);
                 }}
-                className="rounded-xl border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
               >
                 Cancel
               </button>
@@ -557,15 +491,15 @@ export function AppointmentsList({ appointments, patients }: Props) {
         </div>
       )}
 
-      {/* Appointments cards */}
+      {/* Appointments */}
       <div className="space-y-6">
         {paginatedAppointments.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-16 text-center">
-            <span className="inline-flex rounded-full bg-white/10 p-5 text-slate-500">
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
               <CalendarIcon />
-            </span>
-            <p className="mt-4 text-base font-medium text-white">No appointments found</p>
-            <p className="mt-1 text-sm text-slate-400">
+            </div>
+            <p className="mt-4 text-base font-medium text-slate-900">No appointments found</p>
+            <p className="mt-1 text-sm text-slate-500">
               {searchQuery || statusFilter !== "all" || dateFilter
                 ? "Try adjusting your search, date, or status filter."
                 : "Create a new appointment to get started."}
@@ -592,18 +526,18 @@ export function AppointmentsList({ appointments, patients }: Props) {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-[#1a1f26] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-slate-400">
-              Showing <span className="font-medium text-white">{startIndex + 1}</span>–
-              <span className="font-medium text-white">{Math.min(endIndex, filteredAppointments.length)}</span> of{" "}
-              <span className="font-medium text-white">{filteredAppointments.length}</span> appointments
+          <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white px-6 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-slate-500">
+              Showing <span className="font-medium text-slate-900">{startIndex + 1}</span>&ndash;
+              <span className="font-medium text-slate-900">{Math.min(endIndex, filteredAppointments.length)}</span> of{" "}
+              <span className="font-medium text-slate-900">{filteredAppointments.length}</span> appointments
             </p>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Previous
               </button>
@@ -622,7 +556,7 @@ export function AppointmentsList({ appointments, patients }: Props) {
                       className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                         currentPage === pageNum
                           ? "bg-[#1F5F2E] text-white"
-                          : "text-slate-400 hover:bg-white/10 hover:text-white"
+                          : "text-slate-600 hover:bg-slate-100"
                       }`}
                       aria-label={`Go to page ${pageNum}`}
                       aria-current={currentPage === pageNum ? "page" : undefined}
@@ -636,7 +570,7 @@ export function AppointmentsList({ appointments, patients }: Props) {
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Next
               </button>

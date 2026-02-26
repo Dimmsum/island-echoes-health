@@ -53,71 +53,43 @@ export default async function ClinicianPortalAppointmentDetailPage({ params }: P
   ]);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0f1419]">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-0 top-0 h-[380px] w-full bg-gradient-to-b from-[#1F5F2E]/40 via-[#1F5F2E]/10 to-transparent" />
-        <div className="absolute -left-32 top-20 h-72 w-72 rounded-full bg-[#9CCB4A]/20 blur-3xl" />
-        <div className="absolute right-0 bottom-0 h-96 w-96 rounded-full bg-[#1F5F2E]/15 blur-3xl" />
-      </div>
-
-      <main className="relative z-10 mx-auto min-h-screen w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="min-h-screen bg-slate-50">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
             <Link href="/clinician-portal" className="flex items-center gap-3">
-              <Image
-                src="/island-echoes-health.svg"
-                alt="Island Echoes Health"
-                width={140}
-                height={50}
-                priority
-                className="h-9 w-auto"
-              />
+              <Image src="/island-echoes-health.svg" alt="Island Echoes Health" width={140} height={50} priority />
             </Link>
-            <span className="hidden h-6 w-px bg-white/20 sm:block" />
-            <nav className="flex items-center gap-2 text-sm">
-              <Link
-                href="/clinician-portal"
-                className="rounded-lg px-3 py-2 text-slate-400 transition hover:bg-white/5 hover:text-white"
-              >
-                Dashboard
-              </Link>
-              <span className="text-slate-600">/</span>
-              <Link
-                href="/clinician-portal/appointments"
-                className="rounded-lg px-3 py-2 text-slate-400 transition hover:bg-white/5 hover:text-white"
-              >
-                Appointments
-              </Link>
-              <span className="text-slate-600">/</span>
-              <span className="px-3 py-2 font-medium text-white">Appointment</span>
+            <span className="hidden h-6 w-px bg-slate-200 sm:block" />
+            <nav className="flex items-center gap-1.5 text-sm">
+              <Link href="/clinician-portal" className="text-slate-500 transition hover:text-[#1F5F2E]">Dashboard</Link>
+              <svg className="h-3.5 w-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              <Link href="/clinician-portal/appointments" className="text-slate-500 transition hover:text-[#1F5F2E]">Appointments</Link>
+              <svg className="h-3.5 w-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              <span className="font-medium text-slate-900">Detail</span>
             </nav>
           </div>
           <Link
             href="/clinician-portal/appointments"
-            className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
           >
-            <span aria-hidden>←</span>
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             Back to appointments
           </Link>
-        </header>
+        </div>
+      </header>
 
-        <section className="mt-10">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="rounded-full bg-[#1F5F2E]/30 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#9CCB4A]">
-              Clinician portal
-            </span>
-          </div>
-          <ClinicianAppointmentDetailClient
-            appointmentId={id}
-            patientId={appointment.patient_id}
-            patientName={patient?.full_name ?? null}
-            clinicianName={clinician?.full_name ?? null}
-            scheduledAt={appointment.scheduled_at}
-            status={appointment.status}
-            notes={notes ?? []}
-            services={services ?? []}
-          />
-        </section>
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <ClinicianAppointmentDetailClient
+          appointmentId={id}
+          patientId={appointment.patient_id}
+          patientName={patient?.full_name ?? null}
+          clinicianName={clinician?.full_name ?? null}
+          scheduledAt={appointment.scheduled_at}
+          status={appointment.status}
+          notes={notes ?? []}
+          services={services ?? []}
+        />
       </main>
     </div>
   );

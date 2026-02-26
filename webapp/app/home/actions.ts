@@ -300,12 +300,12 @@ export async function uploadAvatar(formData: FormData): Promise<HomeActionResult
   }
 
   const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-  const avatarUrl = urlData.publicUrl;
+  const baseUrl = urlData.publicUrl;
 
   const { error: updateError } = await supabase
     .from("profiles")
     .update({
-      avatar_url: avatarUrl,
+      avatar_url: baseUrl,
       updated_at: new Date().toISOString(),
     })
     .eq("id", user.id);
@@ -319,5 +319,5 @@ export async function uploadAvatar(formData: FormData): Promise<HomeActionResult
   revalidatePath("/home");
   revalidatePath("/clinician-portal/profile");
   revalidatePath("/clinician-portal");
-  return { error: null, url: avatarUrl };
+  return { error: null, url: `${baseUrl}?t=${Date.now()}` };
 }

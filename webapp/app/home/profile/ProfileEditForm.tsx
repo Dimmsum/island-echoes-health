@@ -40,13 +40,18 @@ export function ProfileEditForm({ initialAvatarUrl, variant = "light" }: Props) 
     const file = e.target.files?.[0];
     if (!file) return;
     setError(null);
+    setSuccess(false);
     setPendingAvatar(true);
     const formData = new FormData();
     formData.set("avatar", file);
     const result = await uploadAvatar(formData);
     setPendingAvatar(false);
-    if (result.error) setError(result.error);
-    else if (result.url) setAvatarUrl(result.url);
+    if (result.error) {
+      setError(result.error);
+    } else if (result.url) {
+      setAvatarUrl(result.url);
+      setSuccess(true);
+    }
     e.target.value = "";
   }
 

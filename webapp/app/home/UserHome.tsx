@@ -182,29 +182,8 @@ export function UserHome({
             </div>
           )}
 
-          {!hasLinkedPatients && (
-            <div className="mt-10 rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-[#1F5F2E]/10 p-2.5 text-[#1F5F2E]">
-                  <UsersIcon />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">
-                    Purchase a plan for a patient
-                  </h2>
-                  <p className="mt-0.5 text-sm text-slate-600">
-                    Get started by selecting a care plan
-                  </p>
-                </div>
-              </div>
-              <div className="mt-6">
-                <PurchasePlanForm carePlans={carePlans} />
-              </div>
-            </div>
-          )}
-
           {hasLinkedPatients && (
-            <div id="patients" className="mt-10 scroll-mt-8">
+            <div className="mt-10">
               <div className="flex items-center gap-3">
                 <div className="rounded-xl bg-[#1F5F2E]/10 p-2.5 text-[#1F5F2E]">
                   <UsersIcon />
@@ -336,6 +315,27 @@ export function UserHome({
                 })}
               </ul>
             )}
+          </div>
+
+          <div className="mt-10 rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-[#1F5F2E]/10 p-2.5 text-[#1F5F2E]">
+                <UsersIcon />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {hasLinkedPatients ? "Link another patient" : "Purchase a plan for a patient"}
+                </h2>
+                <p className="mt-0.5 text-sm text-slate-600">
+                  {hasLinkedPatients
+                    ? "Purchase a care plan for an additional patient"
+                    : "Get started by selecting a care plan"}
+                </p>
+              </div>
+            </div>
+            <div className="mt-6">
+              <PurchasePlanForm carePlans={carePlans} />
+            </div>
           </div>
         </section>
       </main>
