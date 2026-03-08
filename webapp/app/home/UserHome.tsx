@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ConsentRequestCards } from "./ConsentRequestCards";
 import { PurchasePlanForm } from "./PurchasePlanForm";
+import { SetupSuccessHandler } from "./SetupSuccessHandler";
 import { UserNavbar } from "./UserNavbar";
 
 const CalendarIcon = ({ className }: { className?: string }) => (
@@ -95,6 +96,7 @@ type Props = {
   upcomingAppointments: Appointment[];
   notifications: Notification[];
   carePlans: CarePlan[];
+  setupSuccessSessionId?: string | null;
 };
 
 export function UserHome({
@@ -105,6 +107,7 @@ export function UserHome({
   upcomingAppointments,
   notifications,
   carePlans,
+  setupSuccessSessionId = null,
 }: Props) {
   const greeting = fullName ? `Welcome back, ${fullName}` : "Welcome back";
   const hasLinkedPatients = linkedPatients.length > 0;
@@ -334,6 +337,10 @@ export function UserHome({
               </div>
             </div>
             <div className="mt-6">
+              {setupSuccessSessionId && (
+                <SetupSuccessHandler sessionId={setupSuccessSessionId} />
+              )}
+              {setupSuccessSessionId && <div className="mt-4" />}
               <PurchasePlanForm carePlans={carePlans} />
             </div>
           </div>
