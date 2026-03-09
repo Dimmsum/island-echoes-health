@@ -67,7 +67,8 @@ export async function purchasePlanForPatient(
     .eq("id", user.id)
     .single();
   const sponsorEmail = user.email ?? "";
-  if (!sponsorEmail) return { error: "Your account must have an email to sponsor." };
+  if (!sponsorEmail)
+    return { error: "Your account must have an email to sponsor." };
 
   const { data: consentRequest, error: insertError } = await supabase
     .from("sponsorship_consent_requests")
@@ -187,7 +188,9 @@ export async function acceptConsentRequest(
 
   const { data: request, error: fetchError } = await supabase
     .from("sponsorship_consent_requests")
-    .select("id, sponsor_id, patient_id, care_plan_id, status, stripe_payment_method_id")
+    .select(
+      "id, sponsor_id, patient_id, care_plan_id, status, stripe_payment_method_id",
+    )
     .eq("id", consentRequestId)
     .single();
 
@@ -354,7 +357,9 @@ export async function declineConsentRequest(
   return { error: null };
 }
 
-export async function endSponsorship(planId: string): Promise<HomeActionResult> {
+export async function endSponsorship(
+  planId: string,
+): Promise<HomeActionResult> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -443,7 +448,9 @@ export async function clearAllNotifications(): Promise<HomeActionResult> {
   return { error: null };
 }
 
-export async function updateProfile(fullName: string | null): Promise<HomeActionResult> {
+export async function updateProfile(
+  fullName: string | null,
+): Promise<HomeActionResult> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -469,7 +476,9 @@ export async function updateProfile(fullName: string | null): Promise<HomeAction
   return { error: null };
 }
 
-export async function uploadAvatar(formData: FormData): Promise<HomeActionResult & { url?: string }> {
+export async function uploadAvatar(
+  formData: FormData,
+): Promise<HomeActionResult & { url?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -480,8 +489,10 @@ export async function uploadAvatar(formData: FormData): Promise<HomeActionResult
   if (!file || !file.size) return { error: "Please select an image." };
 
   const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-  if (!allowed.includes(file.type)) return { error: "Invalid file type. Use JPEG, PNG, WebP, or GIF." };
-  if (file.size > 2 * 1024 * 1024) return { error: "Image must be under 2 MB." };
+  if (!allowed.includes(file.type))
+    return { error: "Invalid file type. Use JPEG, PNG, WebP, or GIF." };
+  if (file.size > 2 * 1024 * 1024)
+    return { error: "Image must be under 2 MB." };
 
   const ext = file.name.split(".").pop() || "jpg";
   const path = `${user.id}/avatar.${ext}`;

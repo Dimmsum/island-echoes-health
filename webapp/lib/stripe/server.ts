@@ -70,11 +70,13 @@ export async function createSetupCheckoutSession(
   }
 }
 
-export type AttachPaymentMethodResult = {
-  consentRequestId: string;
-  paymentMethodId: string;
-  stripeCustomerId?: string;
-} | { error: string };
+export type AttachPaymentMethodResult =
+  | {
+      consentRequestId: string;
+      paymentMethodId: string;
+      stripeCustomerId?: string;
+    }
+  | { error: string };
 
 /**
  * After redirect from Checkout (setup mode), retrieve session and attach payment method to consent request.
@@ -99,7 +101,8 @@ export async function attachPaymentMethodFromSession(
       typeof setupIntent.payment_method === "string"
         ? setupIntent.payment_method
         : setupIntent.payment_method?.id;
-    if (!paymentMethodId) return { error: "No payment method on setup intent." };
+    if (!paymentMethodId)
+      return { error: "No payment method on setup intent." };
     const consentRequestId = session.metadata?.consent_request_id;
     if (!consentRequestId) return { error: "No consent request in session." };
     const result: AttachPaymentMethodResult = {
@@ -180,7 +183,10 @@ export async function createAndConfirmPaymentIntent(
     };
     if (params.customerId) piParams.customer = params.customerId;
     const paymentIntent = await stripe.paymentIntents.create(piParams);
-    if (paymentIntent.status === "succeeded" || paymentIntent.status === "processing") {
+    if (
+      paymentIntent.status === "succeeded" ||
+      paymentIntent.status === "processing"
+    ) {
       return { paymentIntentId: paymentIntent.id };
     }
     if (paymentIntent.status === "requires_action") {
@@ -198,8 +204,7 @@ export async function createAndConfirmPaymentIntent(
   } catch (e) {
     const err = e as Stripe.errors.StripeError;
     const message =
-      err?.message ||
-      (e instanceof Error ? e.message : "Payment failed.");
+      err?.message || (e instanceof Error ? e.message : "Payment failed.");
     console.error("createAndConfirmPaymentIntent failed:", e);
     return { error: message };
   }
@@ -222,7 +227,9 @@ export async function getOrCreatePriceForCarePlan(
   const stripe = getStripe();
   try {
     const products = await stripe.products.list({ active: true, limit: 100 });
-    let productId = products.data.find((p) => p.name === STRIPE_PRODUCT_NAME)?.id;
+    let productId = products.data.find(
+      (p) => p.name === STRIPE_PRODUCT_NAME,
+    )?.id;
     if (!productId) {
       const product = await stripe.products.create({
         name: STRIPE_PRODUCT_NAME,
@@ -237,7 +244,10 @@ export async function getOrCreatePriceForCarePlan(
       type: "recurring",
     });
     const existing = prices.data.find(
-      (p) => p.recurring?.interval === "month" && p.unit_amount === priceCents && p.metadata?.care_plan_id === carePlanId,
+      (p) =>
+        p.recurring?.interval === "month" &&
+        p.unit_amount === priceCents &&
+        p.metadata?.care_plan_id === carePlanId,
     );
     if (existing) return { priceId: existing.id, created: false };
 
@@ -285,16 +295,27 @@ export async function createSubscription(
       metadata: params.metadata,
       expand: ["latest_invoice.payment_intent"],
     });
-    if (subscription.status === "incomplete" || subscription.status === "incomplete_expired") {
-      const reason = subscription.latest_invoice && typeof subscription.latest_invoice === "object"
-        ? (subscription.latest_invoice as Stripe.Invoice).last_finalization_error?.message
-        : "Payment failed.";
-      return { error: reason || "Subscription could not be activated. Please try a different card." };
+    if (
+      subscription.status === "incomplete" ||
+      subscription.status === "incomplete_expired"
+    ) {
+      const reason =
+        subscription.latest_invoice &&
+        typeof subscription.latest_invoice === "object"
+          ? (subscription.latest_invoice as Stripe.Invoice)
+              .last_finalization_error?.message
+          : "Payment failed.";
+      return {
+        error:
+          reason ||
+          "Subscription could not be activated. Please try a different card.",
+      };
     }
     return { subscriptionId: subscription.id };
   } catch (e) {
     const err = e as Stripe.errors.StripeError;
-    const message = err?.message ?? (e instanceof Error ? e.message : "Subscription failed.");
+    const message =
+      err?.message ?? (e instanceof Error ? e.message : "Subscription failed.");
     console.error("createSubscription failed:", e);
     return { error: message };
   }
