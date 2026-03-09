@@ -204,3 +204,115 @@ export async function createAndConfirmPaymentIntent(
     return { error: message };
   }
 }
+
+const STRIPE_PRODUCT_NAME = "Island Echoes Care";
+
+/**
+ * Get or create a Stripe Price for a care plan (recurring monthly).
+ * If existingStripePriceId is set, return it. Otherwise create a Product (if needed) and Price, return the new price id.
+ */
+export async function getOrCreatePriceForCarePlan(
+  carePlanId: string,
+  priceCents: number,
+  existingStripePriceId: string | null,
+): Promise<{ priceId: string; created: boolean } | { error: string }> {
+  if (existingStripePriceId) {
+    return { priceId: existingStripePriceId, created: false };
+  }
+  const stripe = getStripe();
+  try {
+    const products = await stripe.products.list({ active: true, limit: 100 });
+    let productId = products.data.find((p) => p.name === STRIPE_PRODUCT_NAME)?.id;
+    if (!productId) {
+      const product = await stripe.products.create({
+        name: STRIPE_PRODUCT_NAME,
+        metadata: { app: "island-echoes-health" },
+      });
+      productId = product.id;
+    }
+
+    const prices = await stripe.prices.list({
+      product: productId,
+      active: true,
+      type: "recurring",
+    });
+    const existing = prices.data.find(
+      (p) => p.recurring?.interval === "month" && p.unit_amount === priceCents && p.metadata?.care_plan_id === carePlanId,
+    );
+    if (existing) return { priceId: existing.id, created: false };
+
+    const price = await stripe.prices.create({
+      product: productId,
+      unit_amount: priceCents,
+      currency: "usd",
+      recurring: { interval: "month" },
+      metadata: { care_plan_id: carePlanId },
+    });
+    return { priceId: price.id, created: true };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Stripe error";
+    console.error("getOrCreatePriceForCarePlan failed:", e);
+    return { error: message };
+  }
+}
+
+export type CreateSubscriptionParams = {
+  customerId: string;
+  paymentMethodId: string;
+  priceId: string;
+  metadata: {
+    consent_request_id: string;
+    sponsor_id: string;
+    patient_id: string;
+    care_plan_id: string;
+  };
+};
+
+/**
+ * Create a monthly Stripe Subscription (charges the default payment method now and each billing cycle).
+ */
+export async function createSubscription(
+  params: CreateSubscriptionParams,
+): Promise<{ subscriptionId: string } | { error: string }> {
+  const stripe = getStripe();
+  try {
+    const subscription = await stripe.subscriptions.create({
+      customer: params.customerId,
+      items: [{ price: params.priceId }],
+      default_payment_method: params.paymentMethodId,
+      payment_behavior: "error_if_incomplete",
+      payment_settings: { save_default_payment_method: "on_subscription" },
+      metadata: params.metadata,
+      expand: ["latest_invoice.payment_intent"],
+    });
+    if (subscription.status === "incomplete" || subscription.status === "incomplete_expired") {
+      const reason = subscription.latest_invoice && typeof subscription.latest_invoice === "object"
+        ? (subscription.latest_invoice as Stripe.Invoice).last_finalization_error?.message
+        : "Payment failed.";
+      return { error: reason || "Subscription could not be activated. Please try a different card." };
+    }
+    return { subscriptionId: subscription.id };
+  } catch (e) {
+    const err = e as Stripe.errors.StripeError;
+    const message = err?.message ?? (e instanceof Error ? e.message : "Subscription failed.");
+    console.error("createSubscription failed:", e);
+    return { error: message };
+  }
+}
+
+/**
+ * Cancel a Stripe Subscription immediately (stops recurring billing and access).
+ */
+export async function cancelSubscription(
+  subscriptionId: string,
+): Promise<{ ok: true } | { error: string }> {
+  const stripe = getStripe();
+  try {
+    await stripe.subscriptions.cancel(subscriptionId);
+    return { ok: true };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Cancel failed.";
+    console.error("cancelSubscription failed:", e);
+    return { error: message };
+  }
+}

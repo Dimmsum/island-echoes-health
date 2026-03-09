@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { EndSponsorshipButton } from "../../EndSponsorshipButton";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -188,6 +189,9 @@ export default async function SponsoredPatientPage({ params }: Props) {
                 </div>
               )}
             </div>
+          </div>
+          <div className="mt-4 flex justify-end border-t border-slate-200 pt-4">
+            <EndSponsorshipButton planId={linkId} label="Cancel sponsorship" />
           </div>
         </section>
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { EndSponsorshipButton } from "../EndSponsorshipButton";
 import { UserNavbar } from "../UserNavbar";
 import { ProfileEditForm } from "./ProfileEditForm";
 
@@ -302,7 +303,7 @@ export default async function ProfilePage() {
                     {mySponsors.map((link) => (
                       <li
                         key={link.id}
-                        className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-3"
+                        className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-3"
                       >
                         <div className="h-10 w-10 shrink-0 rounded-lg bg-gradient-to-br from-[#E6E15A]/20 to-[#9CCB4A]/20 flex items-center justify-center overflow-hidden">
                           {link.sponsor?.avatar_url ? (
@@ -319,6 +320,11 @@ export default async function ProfilePage() {
                             <p className="text-xs text-slate-600">{link.care_plan.name}</p>
                           )}
                         </div>
+                        <EndSponsorshipButton
+                          planId={link.id}
+                          label="Opt out"
+                          variant="ghost"
+                        />
                       </li>
                     ))}
                   </ul>

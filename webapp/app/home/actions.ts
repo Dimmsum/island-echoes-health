@@ -7,7 +7,9 @@ import {
   createSetupCheckoutSession,
   attachPaymentMethodFromSession,
   ensureCustomerForPaymentMethod,
-  createAndConfirmPaymentIntent,
+  getOrCreatePriceForCarePlan,
+  createSubscription,
+  cancelSubscription,
 } from "@/lib/stripe/server";
 
 export type HomeActionResult = { error: string | null };
@@ -203,7 +205,7 @@ export async function acceptConsentRequest(
 
   const { data: carePlan } = await supabase
     .from("care_plans")
-    .select("price_cents")
+    .select("price_cents, stripe_price_id")
     .eq("id", request.care_plan_id)
     .single();
   if (!carePlan) return { error: "Plan not found." };
@@ -230,18 +232,37 @@ export async function acceptConsentRequest(
       .eq("id", request.sponsor_id);
   }
 
-  const paymentResult = await createAndConfirmPaymentIntent({
-    amountCents: carePlan.price_cents,
-    paymentMethodId: request.stripe_payment_method_id,
+  const priceResult = await getOrCreatePriceForCarePlan(
+    request.care_plan_id,
+    carePlan.price_cents,
+    carePlan.stripe_price_id ?? null,
+  );
+  if ("error" in priceResult) {
+    return { error: priceResult.error };
+  }
+
+  if (priceResult.created) {
+    const adminForPlan = createClientAdmin();
+    await adminForPlan
+      .from("care_plans")
+      .update({ stripe_price_id: priceResult.priceId })
+      .eq("id", request.care_plan_id);
+  }
+
+  const subResult = await createSubscription({
     customerId: customerResult.customerId,
-    consentRequestId,
-    sponsorId: request.sponsor_id,
-    patientId: request.patient_id,
-    carePlanId: request.care_plan_id,
+    paymentMethodId: request.stripe_payment_method_id,
+    priceId: priceResult.priceId,
+    metadata: {
+      consent_request_id: consentRequestId,
+      sponsor_id: request.sponsor_id,
+      patient_id: request.patient_id,
+      care_plan_id: request.care_plan_id,
+    },
   });
 
-  if ("error" in paymentResult) {
-    return { error: paymentResult.error };
+  if ("error" in subResult) {
+    return { error: subResult.error };
   }
 
   const admin = createClientAdmin();
@@ -251,7 +272,6 @@ export async function acceptConsentRequest(
     .update({
       status: "accepted",
       responded_at: new Date().toISOString(),
-      stripe_payment_intent_id: paymentResult.paymentIntentId,
     })
     .eq("id", consentRequestId);
 
@@ -267,6 +287,7 @@ export async function acceptConsentRequest(
       patient_id: request.patient_id,
       care_plan_id: request.care_plan_id,
       consent_request_id: consentRequestId,
+      stripe_subscription_id: subResult.subscriptionId,
     });
 
   if (linkError) {
@@ -330,6 +351,50 @@ export async function declineConsentRequest(
   }
 
   revalidatePath("/home");
+  return { error: null };
+}
+
+export async function endSponsorship(planId: string): Promise<HomeActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const { data: plan, error: fetchError } = await supabase
+    .from("sponsor_patient_plans")
+    .select("id, sponsor_id, patient_id, stripe_subscription_id")
+    .eq("id", planId)
+    .is("ended_at", null)
+    .single();
+
+  if (fetchError || !plan) return { error: "Plan not found or already ended." };
+  if (plan.sponsor_id !== user.id && plan.patient_id !== user.id) {
+    return { error: "You can only end a sponsorship you are part of." };
+  }
+
+  if (plan.stripe_subscription_id) {
+    const cancelResult = await cancelSubscription(plan.stripe_subscription_id);
+    if ("error" in cancelResult) {
+      console.error("cancelSubscription failed:", cancelResult.error);
+      // Still set ended_at so app state is correct
+    }
+  }
+
+  const admin = createClientAdmin();
+  const { error: updateError } = await admin
+    .from("sponsor_patient_plans")
+    .update({ ended_at: new Date().toISOString() })
+    .eq("id", planId);
+
+  if (updateError) {
+    console.error("Update ended_at failed:", updateError);
+    return { error: "Failed to end sponsorship." };
+  }
+
+  revalidatePath("/home");
+  revalidatePath("/home/profile");
+  revalidatePath(`/home/sponsored/${planId}`);
   return { error: null };
 }
 
