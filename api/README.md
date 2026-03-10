@@ -2,6 +2,10 @@
 
 Express API server for Island Echoes Health. It talks to Supabase (database and auth) and is used by the web app and (later) the mobile app. **Phase 1:** APIs only; the Next.js web app still uses the database directly. In Phase 2, the web app will call this API instead.
 
+## Postman
+
+Import **`Island-Echoes-Health-API.postman_collection.json`** into Postman to test all endpoints. Set the collection variable **`access_token`** to your Supabase session access token (from the web app or Supabase Auth) for protected routes. Use **`baseUrl`** (default `http://localhost:4001`) if your API runs on a different host/port.
+
 ## Run locally
 
 ```bash

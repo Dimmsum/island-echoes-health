@@ -1,9 +1,11 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import multer from "multer";
 import path from "path";
 import { authMiddleware } from "./middleware/auth.js";
 import { requireAdmin, requireClinicianOrAdmin } from "./middleware/requireRole.js";
+import * as auth from "./routes/auth.js";
 import * as me from "./routes/me.js";
 import * as carePlans from "./routes/care-plans.js";
 import * as home from "./routes/home.js";
@@ -25,6 +27,9 @@ const PORT = process.env.PORT ?? 4001;
 
 // Health
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+// Sign in (for testing / API clients)
+app.post("/api/auth/sign-in", (req, res, next) => auth.signIn(req, res).catch(next));
 
 // Auth required for all below
 app.use("/api/me", authMiddleware, (req, res) => me.getMe(req as Parameters<typeof me.getMe>[0], res));
