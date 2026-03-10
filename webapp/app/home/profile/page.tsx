@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchApiJson } from "@/lib/api";
 import { UserNavbar } from "../UserNavbar";
 import { ProfileEditForm } from "./ProfileEditForm";
 
@@ -51,94 +52,33 @@ const ArrowRightIcon = ({ className }: { className?: string }) => (
 
 export default async function ProfilePage() {
   const supabase = await createClient();
-
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/");
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.user) redirect("/");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, full_name, avatar_url")
-    .eq("id", user.id)
-    .single();
+  const [meData, homeProfileData] = await Promise.all([
+    fetchApiJson<{ user: { id: string; email: string | null }; profile: { role?: string; full_name: string | null; avatar_url: string | null } | null }>(
+      session.access_token,
+      "/api/me"
+    ),
+    fetchApiJson<{
+      linkedPatients: { id: string; started_at: string; care_plan: { id: string; name: string; slug: string; price_cents: number } | null; patient: { id: string; full_name: string; age: number | null; avatar_url: string | null } | null }[];
+      mySponsors: { id: string; started_at: string; care_plan: { id: string; name: string; slug: string; price_cents: number } | null; sponsor: { id: string; full_name: string; avatar_url: string | null } | null }[];
+      notifications: Parameters<typeof UserNavbar>[0]["notifications"];
+      carePlans: { id: string; name: string; slug: string; price_cents: number }[];
+    }>(session.access_token, "/api/home/profile"),
+  ]);
 
-  const role = profile?.role as string | undefined;
+  const role = meData.profile?.role as string | undefined;
   if (role && STAFF_ROLES.includes(role as (typeof STAFF_ROLES)[number])) {
     redirect("/home");
   }
 
-  const fullName = profile?.full_name ?? null;
-  const avatarUrl = profile?.avatar_url ?? null;
-
-  const [linkedPlansResult, plansWherePatientResult, notificationsResult, carePlansResult] =
-    await Promise.all([
-      supabase
-        .from("sponsor_patient_plans")
-        .select("id, started_at, care_plan_id, patient_id")
-        .eq("sponsor_id", user.id)
-        .is("ended_at", null)
-        .order("started_at", { ascending: false }),
-      supabase
-        .from("sponsor_patient_plans")
-        .select("id, started_at, care_plan_id, sponsor_id")
-        .eq("patient_id", user.id)
-        .is("ended_at", null)
-        .order("started_at", { ascending: false }),
-      supabase
-        .from("notifications")
-        .select("id, type, title, body, read_at, created_at, reference_id")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(20),
-      supabase.from("care_plans").select("id, name, slug, price_cents"),
-    ]);
-
-  const linkedPlans = linkedPlansResult.data ?? [];
-  const plansWherePatient = plansWherePatientResult.data ?? [];
-  const carePlans = carePlansResult.data ?? [];
-  const notifications = notificationsResult.data ?? [];
-
-  const patientIds = [...new Set(linkedPlans.map((p) => p.patient_id))];
-  const mySponsorIds = [...new Set(plansWherePatient.map((p) => p.sponsor_id))];
-
-  const { data: patientProfiles } =
-    patientIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name, date_of_birth, avatar_url").in("id", patientIds)
-      : { data: [] };
-  const { data: mySponsorProfiles } =
-    mySponsorIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name, avatar_url").in("id", mySponsorIds)
-      : { data: [] };
-
-  const linkedPatients = linkedPlans.map((p) => {
-    const plan = carePlans.find((c) => c.id === p.care_plan_id);
-    const patient = patientProfiles?.find((pr) => pr.id === p.patient_id);
-    const dob = patient?.date_of_birth;
-    const age =
-      dob != null
-        ? Math.floor(
-            (Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
-          )
-        : null;
-    return {
-      id: p.id,
-      started_at: p.started_at,
-      care_plan: plan ? { id: plan.id, name: plan.name, slug: plan.slug, price_cents: plan.price_cents } : null,
-      patient: patient ? { id: patient.id, full_name: patient.full_name, age, avatar_url: patient.avatar_url ?? null } : null,
-    };
-  });
-
-  const mySponsors = plansWherePatient.map((p) => {
-    const plan = carePlans.find((c) => c.id === p.care_plan_id);
-    const sponsor = mySponsorProfiles?.find((pr) => pr.id === p.sponsor_id);
-    return {
-      id: p.id,
-      started_at: p.started_at,
-      care_plan: plan ? { id: plan.id, name: plan.name } : null,
-      sponsor: sponsor ? { id: sponsor.id, full_name: sponsor.full_name, avatar_url: sponsor.avatar_url ?? null } : null,
-    };
-  });
+  const fullName = meData.profile?.full_name ?? null;
+  const avatarUrl = meData.profile?.avatar_url ?? null;
+  const user = meData.user;
+  const { linkedPatients, mySponsors, notifications } = homeProfileData;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-50">

@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchApiJson } from "@/lib/api";
 import { AppointmentDetailClient } from "./AppointmentDetailClient";
 
 type Props = {
@@ -11,46 +12,32 @@ type Props = {
 export default async function AppointmentDetailPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
-
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/");
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.user) redirect("/");
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
-    .eq("id", user.id)
+    .eq("id", session.user.id)
     .single();
   if (profile?.role !== "clinician" && profile?.role !== "admin") redirect("/home");
 
-  const { data: appointment, error } = await supabase
-    .from("appointments")
-    .select("id, patient_id, clinician_id, scheduled_at, status")
-    .eq("id", id)
-    .single();
+  let data: {
+    appointment: { id: string; patient_id: string; clinician_id: string; scheduled_at: string; status: string };
+    patient: { id: string; full_name: string | null; avatar_url?: string | null } | null;
+    clinician: { id: string; full_name: string | null; avatar_url?: string | null } | null;
+    notes: { id: string; content: string; created_at: string }[];
+    services: { id: string; service_type: string; details: string | null; created_at: string }[];
+  };
+  try {
+    data = await fetchApiJson(session.access_token, `/api/home/appointments/${id}`);
+  } catch {
+    redirect("/home/appointments");
+  }
 
-  if (error || !appointment) redirect("/home/appointments");
-
-  const [
-    { data: patient },
-    { data: clinician },
-    { data: notes },
-    { data: services },
-  ] = await Promise.all([
-    supabase.from("profiles").select("id, full_name").eq("id", appointment.patient_id).single(),
-    supabase.from("profiles").select("id, full_name").eq("id", appointment.clinician_id).single(),
-    supabase
-      .from("appointment_notes")
-      .select("id, content, created_at")
-      .eq("appointment_id", id)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("appointment_services")
-      .select("id, service_type, details, created_at")
-      .eq("appointment_id", id)
-      .order("created_at", { ascending: false }),
-  ]);
+  const { appointment, patient, clinician, notes, services } = data;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-white">

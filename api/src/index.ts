@@ -23,6 +23,20 @@ const upload = multer({ dest: path.join(process.cwd(), "tmp-uploads") });
 app.use(cors({ origin: process.env.CORS_ORIGIN ?? true, credentials: true }));
 app.use(express.json());
 
+// Simple request logging middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  const { method, originalUrl } = req;
+
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    // Example: GET /api/home 200 - 12ms
+    console.log(`${method} ${originalUrl} ${res.statusCode} - ${duration}ms`);
+  });
+
+  next();
+});
+
 const PORT = process.env.PORT ?? 4001;
 
 // Health
@@ -32,57 +46,245 @@ app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.post("/api/auth/sign-in", (req, res, next) => auth.signIn(req, res).catch(next));
 
 // Auth required for all below
-app.use("/api/me", authMiddleware, (req, res) => me.getMe(req as Parameters<typeof me.getMe>[0], res));
-app.use("/api/care-plans", authMiddleware, (req, res) => carePlans.listCarePlans(req as Parameters<typeof carePlans.listCarePlans>[0], res));
+app.use(
+  "/api/me",
+  authMiddleware,
+  (req, res, next) => me.getMe(req as Parameters<typeof me.getMe>[0], res).catch(next),
+);
+app.use(
+  "/api/care-plans",
+  authMiddleware,
+  (req, res, next) => carePlans.listCarePlans(req as Parameters<typeof carePlans.listCarePlans>[0], res).catch(next),
+);
 
 // Home
-app.get("/api/home", authMiddleware, (req, res) => home.getHome(req as Parameters<typeof home.getHome>[0], res));
-app.get("/api/home/profile", authMiddleware, (req, res) => home.getHomeProfile(req as Parameters<typeof home.getHomeProfile>[0], res));
-app.get("/api/home/sponsored/:id", authMiddleware, (req, res) => home.getSponsoredPatient(req as Parameters<typeof home.getSponsoredPatient>[0], res));
-app.get("/api/home/appointments", authMiddleware, (req, res) => home.getHomeAppointments(req as Parameters<typeof home.getHomeAppointments>[0], res));
-app.get("/api/home/appointments/:id", authMiddleware, (req, res) => home.getHomeAppointmentById(req as Parameters<typeof home.getHomeAppointmentById>[0], res));
+app.get(
+  "/api/home",
+  authMiddleware,
+  (req, res, next) => home.getHome(req as Parameters<typeof home.getHome>[0], res).catch(next),
+);
+app.get(
+  "/api/home/profile",
+  authMiddleware,
+  (req, res, next) => home.getHomeProfile(req as Parameters<typeof home.getHomeProfile>[0], res).catch(next),
+);
+app.get(
+  "/api/home/sponsored/:id",
+  authMiddleware,
+  (req, res, next) => home.getSponsoredPatient(req as Parameters<typeof home.getSponsoredPatient>[0], res).catch(next),
+);
+app.get(
+  "/api/home/appointments",
+  authMiddleware,
+  (req, res, next) => home.getHomeAppointments(req as Parameters<typeof home.getHomeAppointments>[0], res).catch(next),
+);
+app.get(
+  "/api/home/appointments/:id",
+  authMiddleware,
+  (req, res, next) =>
+    home.getHomeAppointmentById(req as Parameters<typeof home.getHomeAppointmentById>[0], res).catch(next),
+);
 
 // Sponsorship
-app.post("/api/sponsorship/consent-requests", authMiddleware, (req, res) => sponsorship.createConsentRequest(req as Parameters<typeof sponsorship.createConsentRequest>[0], res));
-app.post("/api/sponsorship/accept", authMiddleware, (req, res) => sponsorship.acceptConsent(req as Parameters<typeof sponsorship.acceptConsent>[0], res));
-app.post("/api/sponsorship/decline", authMiddleware, (req, res) => sponsorship.declineConsent(req as Parameters<typeof sponsorship.declineConsent>[0], res));
+app.post(
+  "/api/sponsorship/consent-requests",
+  authMiddleware,
+  (req, res, next) =>
+    sponsorship.createConsentRequest(req as Parameters<typeof sponsorship.createConsentRequest>[0], res).catch(next),
+);
+app.post(
+  "/api/sponsorship/accept",
+  authMiddleware,
+  (req, res, next) => sponsorship.acceptConsent(req as Parameters<typeof sponsorship.acceptConsent>[0], res).catch(next),
+);
+app.post(
+  "/api/sponsorship/decline",
+  authMiddleware,
+  (req, res, next) =>
+    sponsorship.declineConsent(req as Parameters<typeof sponsorship.declineConsent>[0], res).catch(next),
+);
 
 // Notifications
-app.patch("/api/notifications/:id/read", authMiddleware, (req, res) => notifications.markRead(req as Parameters<typeof notifications.markRead>[0], res));
-app.delete("/api/notifications", authMiddleware, (req, res) => notifications.clearAll(req as Parameters<typeof notifications.clearAll>[0], res));
+app.patch(
+  "/api/notifications/:id/read",
+  authMiddleware,
+  (req, res, next) => notifications.markRead(req as Parameters<typeof notifications.markRead>[0], res).catch(next),
+);
+app.delete(
+  "/api/notifications",
+  authMiddleware,
+  (req, res, next) => notifications.clearAll(req as Parameters<typeof notifications.clearAll>[0], res).catch(next),
+);
 
 // Profile
-app.patch("/api/profile", authMiddleware, (req, res) => profile.updateProfile(req as Parameters<typeof profile.updateProfile>[0], res));
-app.post("/api/profile/avatar", authMiddleware, upload.single("avatar"), (req, res) => profile.uploadAvatar(req as Parameters<typeof profile.uploadAvatar>[0], res));
+app.patch(
+  "/api/profile",
+  authMiddleware,
+  (req, res, next) => profile.updateProfile(req as Parameters<typeof profile.updateProfile>[0], res).catch(next),
+);
+app.post(
+  "/api/profile/avatar",
+  authMiddleware,
+  upload.single("avatar"),
+  (req, res, next) => profile.uploadAvatar(req as Parameters<typeof profile.uploadAvatar>[0], res).catch(next),
+);
 
 // Admin (admin role required)
-app.get("/api/admin/clinicians", authMiddleware, requireAdmin, (req, res) => admin.getClinicians(req as Parameters<typeof admin.getClinicians>[0], res));
-app.get("/api/admin/pending-requests", authMiddleware, requireAdmin, (req, res) => admin.getPendingRequests(req as Parameters<typeof admin.getPendingRequests>[0], res));
-app.post("/api/admin/approve", authMiddleware, requireAdmin, (req, res) => admin.approveRequest(req as Parameters<typeof admin.approveRequest>[0], res));
-app.post("/api/admin/reject", authMiddleware, requireAdmin, (req, res) => admin.rejectRequest(req as Parameters<typeof admin.rejectRequest>[0], res));
+app.get(
+  "/api/admin/clinicians",
+  authMiddleware,
+  requireAdmin,
+  (req, res, next) => admin.getClinicians(req as Parameters<typeof admin.getClinicians>[0], res).catch(next),
+);
+app.get(
+  "/api/admin/pending-requests",
+  authMiddleware,
+  requireAdmin,
+  (req, res, next) => admin.getPendingRequests(req as Parameters<typeof admin.getPendingRequests>[0], res).catch(next),
+);
+app.post(
+  "/api/admin/approve",
+  authMiddleware,
+  requireAdmin,
+  (req, res, next) => admin.approveRequest(req as Parameters<typeof admin.approveRequest>[0], res).catch(next),
+);
+app.post(
+  "/api/admin/reject",
+  authMiddleware,
+  requireAdmin,
+  (req, res, next) => admin.rejectRequest(req as Parameters<typeof admin.rejectRequest>[0], res).catch(next),
+);
 
 // Clinician signup (no auth) - multipart: email, name, license_number, specialty, institution_or_clinic_name, license_image
-app.post("/api/clinician/request", upload.fields([{ name: "license_image", maxCount: 1 }]), (req, res, next) => {
-  const r = req as unknown as { files?: { license_image?: { path: string; originalname: string; mimetype: string; size: number }[] }; body?: Record<string, string>; file?: { path: string; originalname: string; mimetype: string; size: number } };
-  const licenseFile = r.files?.license_image?.[0];
-  if (licenseFile) r.file = licenseFile;
-  r.body = (r.body ?? {}) as Record<string, string>;
-  clinician.submitClinicianRequest(r as Parameters<typeof clinician.submitClinicianRequest>[0], res).catch(next);
-});
+app.post(
+  "/api/clinician/request",
+  upload.fields([{ name: "license_image", maxCount: 1 }]),
+  (req, res, next) => {
+    const r = req as unknown as {
+      files?: { license_image?: { path: string; originalname: string; mimetype: string; size: number }[] };
+      body?: Record<string, string>;
+      file?: { path: string; originalname: string; mimetype: string; size: number };
+    };
+    const licenseFile = r.files?.license_image?.[0];
+    if (licenseFile) r.file = licenseFile;
+    r.body = (r.body ?? {}) as Record<string, string>;
+    clinician.submitClinicianRequest(r as Parameters<typeof clinician.submitClinicianRequest>[0], res).catch(next);
+  },
+);
 
 // Clinician portal (clinician or admin)
-app.get("/api/clinician-portal", authMiddleware, requireClinicianOrAdmin, (req, res) => clinicianPortal.getDashboard(req as Parameters<typeof clinicianPortal.getDashboard>[0], res));
-app.get("/api/clinician-portal/appointments", authMiddleware, requireClinicianOrAdmin, (req, res) => clinicianPortal.getClinicianPortalAppointments(req as Parameters<typeof clinicianPortal.getClinicianPortalAppointments>[0], res));
-app.get("/api/clinician-portal/appointments/:id", authMiddleware, requireClinicianOrAdmin, (req, res) => clinicianPortal.getClinicianPortalAppointmentById(req as Parameters<typeof clinicianPortal.getClinicianPortalAppointmentById>[0], res));
-app.get("/api/clinician-portal/profile", authMiddleware, requireClinicianOrAdmin, (req, res) => clinicianPortal.getClinicianProfile(req as Parameters<typeof clinicianPortal.getClinicianProfile>[0], res));
+app.get(
+  "/api/clinician-portal",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) => clinicianPortal.getDashboard(req as Parameters<typeof clinicianPortal.getDashboard>[0], res).catch(next),
+);
+app.get(
+  "/api/clinician-portal/appointments",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) =>
+    clinicianPortal.getClinicianPortalAppointments(
+      req as Parameters<typeof clinicianPortal.getClinicianPortalAppointments>[0],
+      res,
+    ).catch(next),
+);
+app.get(
+  "/api/clinician-portal/appointments/:id",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) =>
+    clinicianPortal.getClinicianPortalAppointmentById(
+      req as Parameters<typeof clinicianPortal.getClinicianPortalAppointmentById>[0],
+      res,
+    ).catch(next),
+);
+app.get(
+  "/api/clinician-portal/profile",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) =>
+    clinicianPortal.getClinicianProfile(req as Parameters<typeof clinicianPortal.getClinicianProfile>[0], res).catch(
+      next,
+    ),
+);
 
 // Appointments (clinician or admin)
-app.post("/api/appointments", authMiddleware, requireClinicianOrAdmin, (req, res) => appointments.createAppointment(req as Parameters<typeof appointments.createAppointment>[0], res));
-app.patch("/api/appointments/:id/status", authMiddleware, requireClinicianOrAdmin, (req, res) => appointments.updateAppointmentStatus(req as Parameters<typeof appointments.updateAppointmentStatus>[0], res));
-app.patch("/api/appointments/:id/reschedule", authMiddleware, requireClinicianOrAdmin, (req, res) => appointments.rescheduleAppointment(req as Parameters<typeof appointments.rescheduleAppointment>[0], res));
-app.post("/api/appointments/:id/notes", authMiddleware, requireClinicianOrAdmin, (req, res) => appointments.addNote(req as Parameters<typeof appointments.addNote>[0], res));
-app.post("/api/appointments/:id/services", authMiddleware, requireClinicianOrAdmin, (req, res) => appointments.addService(req as Parameters<typeof appointments.addService>[0], res));
-app.post("/api/appointments/:id/metrics", authMiddleware, requireClinicianOrAdmin, (req, res) => appointments.recordMetrics(req as Parameters<typeof appointments.recordMetrics>[0], res));
+app.post(
+  "/api/appointments",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) =>
+    appointments.createAppointment(req as Parameters<typeof appointments.createAppointment>[0], res).catch(next),
+);
+app.patch(
+  "/api/appointments/:id/status",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) =>
+    appointments.updateAppointmentStatus(req as Parameters<typeof appointments.updateAppointmentStatus>[0], res).catch(
+      next,
+    ),
+);
+app.patch(
+  "/api/appointments/:id/reschedule",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) =>
+    appointments.rescheduleAppointment(req as Parameters<typeof appointments.rescheduleAppointment>[0], res).catch(
+      next,
+    ),
+);
+app.post(
+  "/api/appointments/:id/notes",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) => appointments.addNote(req as Parameters<typeof appointments.addNote>[0], res).catch(next),
+);
+app.post(
+  "/api/appointments/:id/services",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) => appointments.addService(req as Parameters<typeof appointments.addService>[0], res).catch(next),
+);
+app.post(
+  "/api/appointments/:id/metrics",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) => appointments.recordMetrics(req as Parameters<typeof appointments.recordMetrics>[0], res).catch(next),
+);
+
+// 404 handler for unknown API routes
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/")) {
+    return res.status(404).json({ error: "Not found" });
+  }
+  return next();
+});
+
+// Central error handler
+app.use((
+  err: unknown,
+  req: express.Request,
+  res: express.Response,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _next: express.NextFunction,
+) => {
+  const status = (err as { status?: number }).status ?? 500;
+  const message = (err as { message?: string }).message ?? "Internal server error";
+
+  console.error(`Error handling ${req.method} ${req.originalUrl}:`, err);
+
+  if (res.headersSent) {
+    return;
+  }
+
+  if (status >= 500) {
+    res.status(status).json({ error: "Internal server error" });
+  } else {
+    res.status(status).json({ error: message });
+  }
+});
 
 const basePort = Number(process.env.PORT) || 4001;
 const maxTries = 10;
