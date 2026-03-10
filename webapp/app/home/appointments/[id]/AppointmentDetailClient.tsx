@@ -7,6 +7,9 @@ import {
   addAppointmentService,
   recordPatientMetrics,
 } from "../../clinician-actions";
+import { CustomInput } from "@/app/components/CustomInput";
+import { CustomTextArea } from "@/app/components/CustomTextArea";
+import { CustomSelect, type CustomSelectOption } from "@/app/components/CustomSelect";
 
 type Note = { id: string; content: string; created_at: string };
 type Service = { id: string; service_type: string; details: string | null; created_at: string };
@@ -19,6 +22,18 @@ const SERVICE_TYPES = [
   "coordination",
 ] as const;
 
+const SERVICE_TYPE_OPTIONS: CustomSelectOption<(typeof SERVICE_TYPES)[number]>[] = SERVICE_TYPES.map((t) => ({
+  value: t,
+  label: t.replace(/_/g, " "),
+}));
+
+const ADHERENCE_OPTIONS: CustomSelectOption<"good" | "fair" | "poor" | "">[] = [
+  { value: "", label: "—" },
+  { value: "good", label: "Good" },
+  { value: "fair", label: "Fair" },
+  { value: "poor", label: "Poor" },
+];
+
 type Props = {
   appointmentId: string;
   patientId: string;
@@ -26,6 +41,11 @@ type Props = {
   services: Service[];
   variant?: "light" | "dark";
 };
+
+const sectionCardClass =
+  "rounded-2xl border border-slate-200 bg-white p-6 shadow-sm";
+
+const sectionTitleClass = "text-base font-semibold text-slate-900";
 
 export function AppointmentDetailClient({
   appointmentId,
@@ -102,15 +122,19 @@ export function AppointmentDetailClient({
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-base font-semibold text-slate-900">Notes</h2>
+    <div className="space-y-8">
+      {/* Notes */}
+      <section className={sectionCardClass}>
+        <h2 className={sectionTitleClass}>Notes</h2>
         {notes.length > 0 ? (
-          <ul className="mt-4 space-y-2">
+          <ul className="mt-4 space-y-3">
             {notes.map((n) => (
-              <li key={n.id} className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm text-slate-700">
-                {n.content}
-                <p className="mt-1 text-xs text-slate-400">
+              <li
+                key={n.id}
+                className="rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3 text-sm text-slate-700"
+              >
+                <p className="whitespace-pre-wrap">{n.content}</p>
+                <p className="mt-2 text-xs text-slate-400">
                   {new Date(n.created_at).toLocaleString()}
                 </p>
               </li>
@@ -119,27 +143,36 @@ export function AppointmentDetailClient({
         ) : (
           <p className="mt-2 text-sm text-slate-500">No notes yet.</p>
         )}
-        <form onSubmit={handleAddNote} className="mt-4">
-          <textarea
+        <form onSubmit={handleAddNote} className="mt-6">
+          <CustomTextArea
+            label="Add a note"
             value={noteContent}
             onChange={(e) => setNoteContent(e.target.value)}
-            placeholder="Visit summary, next steps\u2026"
-            rows={3}
-            className="block w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
+            placeholder="Visit summary, next steps…"
+            rows={4}
+            containerClassName="mb-4"
           />
-          <button type="submit" disabled={pending !== null} className="mt-2 rounded-lg bg-[#1F5F2E] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#174a23] disabled:opacity-50">
-            {pending === "note" ? "Adding\u2026" : "Add note"}
+          <button
+            type="submit"
+            disabled={pending !== null}
+            className="rounded-xl bg-[#1F5F2E] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#174a23] disabled:opacity-50"
+          >
+            {pending === "note" ? "Adding…" : "Add note"}
           </button>
         </form>
-      </div>
+      </section>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-base font-semibold text-slate-900">Services used</h2>
+      {/* Services used */}
+      <section className={sectionCardClass}>
+        <h2 className={sectionTitleClass}>Services used</h2>
         {services.length > 0 ? (
           <ul className="mt-4 space-y-2">
             {services.map((s) => (
-              <li key={s.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                <span className="capitalize">{s.service_type.replace("_", " ")}</span>
+              <li
+                key={s.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-2.5 text-sm text-slate-700"
+              >
+                <span className="capitalize">{s.service_type.replace(/_/g, " ")}</span>
                 {s.details && <span className="text-slate-500">{s.details}</span>}
               </li>
             ))}
@@ -147,70 +180,106 @@ export function AppointmentDetailClient({
         ) : (
           <p className="mt-2 text-sm text-slate-500">No services recorded yet.</p>
         )}
-        <form onSubmit={handleAddService} className="mt-4 flex flex-wrap items-end gap-2">
-          <select
-            value={serviceType}
-            onChange={(e) => setServiceType(e.target.value as (typeof SERVICE_TYPES)[number])}
-            className="rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
-          >
-            {SERVICE_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t.replace("_", " ")}
-              </option>
-            ))}
-          </select>
-          <input
-            type="text"
-            value={serviceDetails}
-            onChange={(e) => setServiceDetails(e.target.value)}
-            placeholder="Details (optional)"
-            className="rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
-          />
-          <button type="submit" disabled={pending !== null} className="rounded-lg bg-[#1F5F2E] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#174a23] disabled:opacity-50">
-            {pending === "service" ? "Adding\u2026" : "Add service"}
-          </button>
+        <form onSubmit={handleAddService} className="mt-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+            <div className="min-w-0 flex-1 sm:max-w-[200px]">
+              <CustomSelect
+                label="Service type"
+                value={serviceType}
+                onChange={setServiceType}
+                options={SERVICE_TYPE_OPTIONS}
+                aria-label="Service type"
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <CustomInput
+                label="Details (optional)"
+                type="text"
+                value={serviceDetails}
+                onChange={(e) => setServiceDetails(e.target.value)}
+                placeholder="e.g. blood draw, follow-up in 2 weeks"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={pending !== null}
+              className="shrink-0 rounded-xl bg-[#1F5F2E] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#174a23] disabled:opacity-50"
+            >
+              {pending === "service" ? "Adding…" : "Add service"}
+            </button>
+          </div>
         </form>
-      </div>
+      </section>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-        <h2 className="text-base font-semibold text-slate-900">Record metrics</h2>
+      {/* Record metrics */}
+      <section className={sectionCardClass}>
+        <h2 className={sectionTitleClass}>Record metrics</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Blood pressure, weight, A1C, medication adherence for this visit.
+          Blood pressure, weight, A1C, and medication adherence for this visit.
         </p>
         {error && (
-          <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            {error}
+          </div>
         )}
-        <form onSubmit={handleRecordMetrics} className="mt-4 flex flex-wrap gap-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-600">BP (systolic)</label>
-            <input type="number" value={bpSystolic} onChange={(e) => setBpSystolic(e.target.value)} placeholder="120" min={1} max={300} className="mt-1 w-24 rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]" />
+        <form onSubmit={handleRecordMetrics} className="mt-6">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+            <CustomInput
+              label="BP systolic"
+              type="number"
+              value={bpSystolic}
+              onChange={(e) => setBpSystolic(e.target.value)}
+              placeholder="120"
+              min={1}
+              max={300}
+            />
+            <CustomInput
+              label="BP diastolic"
+              type="number"
+              value={bpDiastolic}
+              onChange={(e) => setBpDiastolic(e.target.value)}
+              placeholder="80"
+              min={1}
+              max={200}
+            />
+            <CustomInput
+              label="Weight (kg)"
+              type="number"
+              step="0.1"
+              value={weightKg}
+              onChange={(e) => setWeightKg(e.target.value)}
+              placeholder="70"
+            />
+            <CustomInput
+              label="A1C"
+              type="number"
+              step="0.1"
+              value={a1c}
+              onChange={(e) => setA1c(e.target.value)}
+              placeholder="5.7"
+            />
+            <div className="sm:col-span-2 lg:col-span-1">
+              <CustomSelect
+                label="Medication adherence"
+                value={adherence}
+                onChange={setAdherence}
+                options={ADHERENCE_OPTIONS}
+                placeholder="—"
+                aria-label="Medication adherence"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600">BP (diastolic)</label>
-            <input type="number" value={bpDiastolic} onChange={(e) => setBpDiastolic(e.target.value)} placeholder="80" min={1} max={200} className="mt-1 w-24 rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]" />
+          <div className="mt-6">
+            <button
+              type="submit"
+              disabled={pending !== null}
+              className="rounded-xl bg-[#1F5F2E] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#174a23] disabled:opacity-50"
+            >
+              {pending === "metrics" ? "Saving…" : "Save metrics"}
+            </button>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600">Weight (kg)</label>
-            <input type="number" step="0.1" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} placeholder="70" className="mt-1 w-24 rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600">A1C</label>
-            <input type="number" step="0.1" value={a1c} onChange={(e) => setA1c(e.target.value)} placeholder="5.7" className="mt-1 w-24 rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600">Medication adherence</label>
-            <select value={adherence} onChange={(e) => setAdherence(e.target.value as "good" | "fair" | "poor" | "")} className="mt-1 rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]">
-              <option value="">—</option>
-              <option value="good">Good</option>
-              <option value="fair">Fair</option>
-              <option value="poor">Poor</option>
-            </select>
-          </div>
-          <button type="submit" disabled={pending !== null} className="self-end rounded-lg bg-[#1F5F2E] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#174a23] disabled:opacity-50">
-            {pending === "metrics" ? "Saving\u2026" : "Save metrics"}
-          </button>
         </form>
-      </div>
+      </section>
     </div>
   );
 }

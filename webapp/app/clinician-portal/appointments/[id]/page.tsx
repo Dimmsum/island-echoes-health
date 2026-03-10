@@ -37,9 +37,10 @@ export default async function ClinicianPortalAppointmentDetailPage({ params }: P
     { data: clinician },
     { data: notes },
     { data: services },
+    { data: previousMetrics },
   ] = await Promise.all([
-    supabase.from("profiles").select("id, full_name").eq("id", appointment.patient_id).single(),
-    supabase.from("profiles").select("id, full_name").eq("id", appointment.clinician_id).single(),
+    supabase.from("profiles").select("id, full_name, avatar_url").eq("id", appointment.patient_id).single(),
+    supabase.from("profiles").select("id, full_name, avatar_url").eq("id", appointment.clinician_id).single(),
     supabase
       .from("appointment_notes")
       .select("id, content, created_at")
@@ -50,6 +51,12 @@ export default async function ClinicianPortalAppointmentDetailPage({ params }: P
       .select("id, service_type, details, created_at")
       .eq("appointment_id", id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("patient_metrics")
+      .select("id, recorded_at, blood_pressure_systolic, blood_pressure_diastolic, weight_kg, a1c, medication_adherence")
+      .eq("patient_id", appointment.patient_id)
+      .order("recorded_at", { ascending: false })
+      .limit(10),
   ]);
 
   return (
@@ -84,9 +91,12 @@ export default async function ClinicianPortalAppointmentDetailPage({ params }: P
           appointmentId={id}
           patientId={appointment.patient_id}
           patientName={patient?.full_name ?? null}
+          patientAvatarUrl={patient?.avatar_url ?? null}
           clinicianName={clinician?.full_name ?? null}
+          clinicianAvatarUrl={clinician?.avatar_url ?? null}
           scheduledAt={appointment.scheduled_at}
           status={appointment.status}
+          previousMetrics={previousMetrics ?? []}
           notes={notes ?? []}
           services={services ?? []}
         />

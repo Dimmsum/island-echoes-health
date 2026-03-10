@@ -73,6 +73,10 @@ export function PurchasePlanForm({ carePlans }: Props) {
       setError(result.error);
       return;
     }
+    if (result.redirectUrl) {
+      window.location.href = result.redirectUrl;
+      return;
+    }
     setSuccess(true);
     setEmail("");
     setShowConfirmation(false);

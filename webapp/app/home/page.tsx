@@ -5,8 +5,15 @@ import { UserHome } from "./UserHome";
 
 const STAFF_ROLES = ["admin", "clinician"] as const;
 
-export default async function HomePage() {
+type HomePageProps = {
+  searchParams: Promise<{ setup?: string; session_id?: string }>;
+};
+
+export default async function HomePage({ searchParams }: HomePageProps) {
   const supabase = await createClient();
+  const params = await searchParams;
+  const setupSuccessSessionId =
+    params.setup === "success" && params.session_id ? params.session_id : null;
 
   const {
     data: { user },
@@ -241,6 +248,7 @@ export default async function HomePage() {
       upcomingAppointments={upcomingAppointments}
       notifications={notifications}
       carePlans={carePlans}
+      setupSuccessSessionId={setupSuccessSessionId}
     />
   );
 }
