@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { purchasePlanForPatient } from "./actions";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { createPaymentForPlan } from "./actions";
+import { StripePaymentStep } from "./StripePaymentStep";
 
 type CarePlan = {
   id: string;
@@ -39,15 +41,33 @@ const MailIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+
 export function PurchasePlanForm({ carePlans }: Props) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [planId, setPlanId] = useState(carePlans[0]?.id ?? "");
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [paymentStep, setPaymentStep] = useState<{
+    clientSecret: string;
+    publishableKey: string;
+  } | null>(null);
 
   const selectedPlan = carePlans.find((p) => p.id === planId);
+
+  useEffect(() => {
+    const redirectStatus = searchParams.get("redirect_status");
+    if (redirectStatus === "succeeded") {
+      setSuccess(true);
+      setPaymentStep(null);
+      setShowConfirmation(false);
+      router.replace("/home", { scroll: false });
+    }
+  }, [searchParams, router]);
 
   function handleContinue(e: React.FormEvent) {
     e.preventDefault();
@@ -67,23 +87,44 @@ export function PurchasePlanForm({ carePlans }: Props) {
   async function handleConfirm() {
     setError(null);
     setPending(true);
-    const result = await purchasePlanForPatient(email.trim(), planId);
+    const result = await createPaymentForPlan(email.trim(), planId);
     setPending(false);
     if (result.error) {
       setError(result.error);
       return;
     }
-    setSuccess(true);
-    setEmail("");
-    setShowConfirmation(false);
+    if (result.clientSecret) {
+      const publishableKey = result.publishableKey || STRIPE_PUBLISHABLE_KEY;
+      if (publishableKey) {
+        setPaymentStep({ clientSecret: result.clientSecret, publishableKey });
+        return;
+      }
+    }
+    setError("Unable to load payment form. Please try again.");
+  }
+
+  function handlePaymentCancel() {
+    setPaymentStep(null);
   }
 
   if (success) {
     return (
       <div className="rounded-xl border border-[#1F5F2E]/20 bg-[#E6E15A]/20 p-5">
         <p className="text-sm font-medium text-[#1F5F2E]">
-          Request sent. The patient will receive a consent request (in-app or when they sign up). You'll be notified when they respond.
+          Payment successful. The patient will receive a consent request (in-app or when they sign up). You'll be notified when they respond.
         </p>
+      </div>
+    );
+  }
+
+  if (paymentStep) {
+    return (
+      <div className="space-y-6">
+        <StripePaymentStep
+          clientSecret={paymentStep.clientSecret}
+          publishableKey={paymentStep.publishableKey}
+          onCancel={handlePaymentCancel}
+        />
       </div>
     );
   }

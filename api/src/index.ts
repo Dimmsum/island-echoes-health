@@ -16,11 +16,19 @@ import * as admin from "./routes/admin.js";
 import * as clinician from "./routes/clinician.js";
 import * as clinicianPortal from "./routes/clinician-portal.js";
 import * as appointments from "./routes/appointments.js";
+import * as stripe from "./routes/stripe.js";
 
 const app = express();
 const upload = multer({ dest: path.join(process.cwd(), "tmp-uploads") });
 
 app.use(cors({ origin: process.env.CORS_ORIGIN ?? true, credentials: true }));
+
+// Stripe webhook must receive raw body for signature verification (before express.json())
+app.post(
+  "/api/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  (req, res, next) => stripe.handleStripeWebhook(req, res).catch(next),
+);
 app.use(express.json());
 
 // Simple request logging middleware
@@ -87,6 +95,12 @@ app.get(
 
 // Sponsorship
 app.post(
+  "/api/sponsorship/create-payment",
+  authMiddleware,
+  (req: express.Request, res, next) =>
+    stripe.createSponsorshipPayment(req as Parameters<typeof stripe.createSponsorshipPayment>[0], res).catch(next),
+);
+app.post(
   "/api/sponsorship/consent-requests",
   authMiddleware,
   (req, res, next) =>
@@ -105,6 +119,12 @@ app.post(
 );
 
 // Notifications
+app.get(
+  "/api/notifications",
+  authMiddleware,
+  (req, res, next) =>
+    notifications.listNotifications(req as Parameters<typeof notifications.listNotifications>[0], res).catch(next),
+);
 app.patch(
   "/api/notifications/:id/read",
   authMiddleware,

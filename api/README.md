@@ -26,6 +26,7 @@ Copy from the web app or set:
 - `NEXT_PUBLIC_APP_URL` or `APP_URL` – Base URL for emails (e.g. password reset redirect)
 - `CORS_ORIGIN` – (optional) Allowed origin for CORS; default allows all
 - `PORT` – (optional) Port; default 4001 (use 4000 if you prefer, e.g. when nothing else is using it)
+- **Stripe (for real payments):** `STRIPE_SECRET_KEY` (e.g. `sk_test_...`), `STRIPE_PUBLISHABLE_KEY` (e.g. `pk_test_...`), `STRIPE_WEBHOOK_SECRET` (from Stripe Dashboard → Webhooks). See **docs/STRIPE.md** for setup and mobile client usage.
 
 ## Auth
 
@@ -39,8 +40,11 @@ Copy from the web app or set:
 - `GET /me` – Current user + profile
 - `GET /care-plans` – List care plans
 - `GET /home`, `GET /home/profile`, `GET /home/sponsored/:id`, `GET /home/appointments`, `GET /home/appointments/:id` – Home dashboard and related reads
-- `POST /sponsorship/consent-requests`, `POST /sponsorship/accept`, `POST /sponsorship/decline` – Sponsorship flow
-- `PATCH /notifications/:id/read`, `DELETE /notifications` – Notifications
+- `POST /sponsorship/create-payment` – Create sponsorship payment (Stripe); returns `clientSecret` for the client to confirm. Body: `{ patientEmail, carePlanId }`.
+- `POST /sponsorship/consent-requests`, `POST /sponsorship/accept`, `POST /sponsorship/decline` – Sponsorship flow (legacy consent-requests skips real payment)
+- `POST /stripe/webhook` – Stripe webhook (raw body; used by Stripe to notify payment success)
+- `GET /notifications` – List notifications for current user (query: `limit`, default 50, max 100). Returns `{ notifications: [...] }` with `id`, `type`, `title`, `body`, `read_at`, `created_at`, `reference_id`.
+- `PATCH /notifications/:id/read`, `DELETE /notifications` – Mark one read, clear all
 - `PATCH /profile`, `POST /profile/avatar` – Profile (avatar is multipart)
 - `GET /admin/clinicians`, `GET /admin/pending-requests`, `POST /admin/approve`, `POST /admin/reject` – Admin (admin role only)
 - `POST /clinician/request` – Submit clinician signup (no auth; multipart form)

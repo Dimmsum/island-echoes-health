@@ -6,6 +6,51 @@ import { createClientAdmin } from "@/lib/supabase/admin";
 
 export type HomeActionResult = { error: string | null };
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:4001";
+
+export type CreatePaymentResult =
+  | { error: string | null; clientSecret?: undefined; publishableKey?: undefined; consentRequestId?: undefined }
+  | { error: null; clientSecret: string; publishableKey: string | undefined; consentRequestId: string };
+
+/** Calls API to create a Stripe PaymentIntent for sponsorship. Returns clientSecret for Stripe Elements. */
+export async function createPaymentForPlan(
+  patientEmail: string,
+  carePlanId: string,
+): Promise<CreatePaymentResult> {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) return { error: "Not signed in." };
+
+  const email = patientEmail.trim().toLowerCase();
+  if (!email) return { error: "Patient email is required." };
+  if (!carePlanId) return { error: "Care plan is required." };
+
+  const res = await fetch(`${API_BASE}/api/sponsorship/create-payment`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ patientEmail: email, carePlanId }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message = res.status === 503 ? "Payments are not configured. Please try again later." : (data?.error ?? "Failed to start payment.");
+    return { error: message };
+  }
+  if (!data.clientSecret) return { error: "Invalid response from server." };
+
+  return {
+    error: null,
+    clientSecret: data.clientSecret,
+    publishableKey: data.publishableKey ?? undefined,
+    consentRequestId: data.consentRequestId,
+  };
+}
+
 type NotificationType =
   | "consent_request"
   | "visit_update"
