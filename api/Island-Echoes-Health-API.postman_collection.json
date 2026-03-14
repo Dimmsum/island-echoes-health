@@ -1,0 +1,468 @@
+{
+  "info": {
+    "name": "Island Echoes Health API",
+    "description": "API collection for Island Echoes Health. Set collection variable `access_token` to your Supabase session access token (from client auth) for protected routes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4001" },
+    { "key": "access_token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Get me (current user + profile)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{baseUrl}}/api/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Care Plans",
+      "item": [
+        {
+          "name": "List care plans",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{baseUrl}}/api/care-plans"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Home",
+      "item": [
+        {
+          "name": "Get home dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{baseUrl}}/api/home"
+          }
+        },
+        {
+          "name": "Get home profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{baseUrl}}/api/home/profile"
+          }
+        },
+        {
+          "name": "Get sponsored patient",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{baseUrl}}/api/home/sponsored/:linkId",
+            "urlVariable": [
+              { "key": "linkId", "value": "" }
+            ]
+          }
+        },
+        {
+          "name": "Get home appointments",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{baseUrl}}/api/home/appointments"
+          }
+        },
+        {
+          "name": "Get appointment by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{baseUrl}}/api/home/appointments/:id",
+            "urlVariable": [
+              { "key": "id", "value": "" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sponsorship",
+      "item": [
+        {
+          "name": "Create consent request",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientEmail\": \"patient@example.com\",\n  \"carePlanId\": \"<care_plan_uuid>\"\n}"
+            },
+            "url": "{{baseUrl}}/api/sponsorship/consent-requests"
+          }
+        },
+        {
+          "name": "Accept consent",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"consentRequestId\": \"<consent_request_uuid>\"\n}"
+            },
+            "url": "{{baseUrl}}/api/sponsorship/accept"
+          }
+        },
+        {
+          "name": "Decline consent",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"consentRequestId\": \"<consent_request_uuid>\",\n  \"declineReason\": \"Optional reason\"\n}"
+            },
+            "url": "{{baseUrl}}/api/sponsorship/decline"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Mark notification read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{baseUrl}}/api/notifications/:id/read",
+            "urlVariable": [
+              { "key": "id", "value": "" }
+            ]
+          }
+        },
+        {
+          "name": "Clear all notifications",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{baseUrl}}/api/notifications"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Update profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"New Name\"\n}"
+            },
+            "url": "{{baseUrl}}/api/profile"
+          }
+        },
+        {
+          "name": "Upload avatar",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "avatar", "type": "file", "src": "" }
+              ]
+            },
+            "url": "{{baseUrl}}/api/profile/avatar"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Get clinicians",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{baseUrl}}/api/admin/clinicians"
+          }
+        },
+        {
+          "name": "Get pending requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{baseUrl}}/api/admin/pending-requests"
+          }
+        },
+        {
+          "name": "Approve request",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestId\": \"<clinician_signup_request_uuid>\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/approve"
+          }
+        },
+        {
+          "name": "Reject request",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestId\": \"<clinician_signup_request_uuid>\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/reject"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clinician signup",
+      "item": [
+        {
+          "name": "Submit clinician request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "email", "value": "clinician@example.com", "type": "text" },
+                { "key": "name", "value": "Dr. Jane Doe", "type": "text" },
+                { "key": "license_number", "value": "LIC123", "type": "text" },
+                { "key": "specialty", "value": "Family Medicine", "type": "text" },
+                { "key": "institution_or_clinic_name", "value": "Island Clinic", "type": "text" },
+                { "key": "license_image", "type": "file", "src": "" }
+              ]
+            },
+            "url": "{{baseUrl}}/api/clinician/request"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clinician Portal",
+      "item": [
+        {
+          "name": "Get dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{baseUrl}}/api/clinician-portal"
+          }
+        },
+        {
+          "name": "Get appointments",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{baseUrl}}/api/clinician-portal/appointments"
+          }
+        },
+        {
+          "name": "Get appointment by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{baseUrl}}/api/clinician-portal/appointments/:id",
+            "urlVariable": [
+              { "key": "id", "value": "" }
+            ]
+          }
+        },
+        {
+          "name": "Get clinician profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{baseUrl}}/api/clinician-portal/profile"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Appointments",
+      "item": [
+        {
+          "name": "Create appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"<patient_uuid>\",\n  \"scheduledAt\": \"2025-12-01T10:00:00.000Z\"\n}"
+            },
+            "url": "{{baseUrl}}/api/appointments"
+          }
+        },
+        {
+          "name": "Update appointment status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\"\n}"
+            },
+            "url": "{{baseUrl}}/api/appointments/:id/status",
+            "urlVariable": [
+              { "key": "id", "value": "" }
+            ]
+          }
+        },
+        {
+          "name": "Reschedule appointment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scheduledAt\": \"2025-12-02T14:00:00.000Z\"\n}"
+            },
+            "url": "{{baseUrl}}/api/appointments/:id/reschedule",
+            "urlVariable": [
+              { "key": "id", "value": "" }
+            ]
+          }
+        },
+        {
+          "name": "Add note",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Follow-up in 2 weeks.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/appointments/:id/notes",
+            "urlVariable": [
+              { "key": "id", "value": "" }
+            ]
+          }
+        },
+        {
+          "name": "Add service",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceType\": \"vitals\",\n  \"details\": \"BP 120/80\"\n}"
+            },
+            "url": "{{baseUrl}}/api/appointments/:id/services",
+            "urlVariable": [
+              { "key": "id", "value": "" }
+            ]
+          }
+        },
+        {
+          "name": "Record metrics",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"<patient_uuid>\",\n  \"bloodPressureSystolic\": 120,\n  \"bloodPressureDiastolic\": 80,\n  \"weightKg\": 72.5,\n  \"a1c\": 5.7,\n  \"medicationAdherence\": \"good\"\n}"
+            },
+            "url": "{{baseUrl}}/api/appointments/:id/metrics",
+            "urlVariable": [
+              { "key": "id", "value": "" }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

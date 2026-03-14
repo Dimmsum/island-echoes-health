@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { EndSponsorshipButton } from "../../EndSponsorshipButton";
+import { fetchApiJson } from "@/lib/api";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -11,76 +11,41 @@ type Props = {
 export default async function SponsoredPatientPage({ params }: Props) {
   const { id: linkId } = await params;
   const supabase = await createClient();
-
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/");
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.user) redirect("/");
 
-  const { data: link, error: linkError } = await supabase
-    .from("sponsor_patient_plans")
-    .select("id, patient_id, care_plan_id, started_at")
-    .eq("id", linkId)
-    .eq("sponsor_id", user.id)
-    .is("ended_at", null)
-    .single();
+  let data: {
+    link: { id: string; started_at: string; care_plan_id: string; patient_id: string };
+    patient: { id: string; full_name: string | null; date_of_birth?: string | null; avatar_url?: string | null } | null;
+    carePlan: { id: string; name: string; slug: string; price_cents: number } | null;
+    metrics: {
+      id: string;
+      recorded_at: string;
+      blood_pressure_systolic: number | null;
+      blood_pressure_diastolic: number | null;
+      weight_kg: number | null;
+      a1c: number | null;
+      medication_adherence: string | null;
+    }[];
+    appointments: {
+      id: string;
+      scheduled_at: string;
+      status: string;
+      clinician_id: string;
+      clinician_name: string | null;
+      clinician_avatar_url: string | null;
+    }[];
+  };
+  try {
+    data = await fetchApiJson(session.access_token, `/api/home/sponsored/${linkId}`);
+  } catch {
+    redirect("/home");
+  }
 
-  if (linkError || !link) redirect("/home");
-
-  const [patientResult, planResult, metricsResult, appointmentsResult] = await Promise.all([
-    supabase.from("profiles").select("id, full_name, date_of_birth, avatar_url").eq("id", link.patient_id).single(),
-    supabase.from("care_plans").select("id, name, slug, price_cents").eq("id", link.care_plan_id).single(),
-    supabase
-      .from("patient_metrics")
-      .select("id, recorded_at, blood_pressure_systolic, blood_pressure_diastolic, weight_kg, a1c, medication_adherence")
-      .eq("patient_id", link.patient_id)
-      .order("recorded_at", { ascending: false })
-      .limit(20),
-    supabase
-      .from("appointments")
-      .select("id, scheduled_at, status, clinician_id")
-      .eq("patient_id", link.patient_id)
-      .order("scheduled_at", { ascending: false })
-      .limit(30),
-  ]);
-
-  const patient = patientResult.data;
-  const plan = planResult.data;
-  const metrics = metricsResult.data ?? [];
-  const rawAppointments = appointmentsResult.data ?? [];
-
-  const clinicianIds = [...new Set(rawAppointments.map((a) => a.clinician_id).filter(Boolean))];
-  const { data: clinicianProfiles } =
-    clinicianIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name, avatar_url").in("id", clinicianIds)
-      : { data: [] };
-  const appointments = rawAppointments.map((a) => {
-    const clinician = clinicianProfiles?.find((p) => p.id === a.clinician_id);
-    return {
-      ...a,
-      clinician_name: clinician?.full_name ?? null,
-      clinician_avatar_url: clinician?.avatar_url ?? null,
-    };
-  });
-
-  const appointmentIds = appointments.map((a) => a.id);
-  const { data: notes } =
-    appointmentIds.length > 0
-      ? await supabase
-          .from("appointment_notes")
-          .select("id, appointment_id, content, created_at")
-          .in("appointment_id", appointmentIds)
-          .order("created_at", { ascending: false })
-      : { data: [] };
-
-  const notesByAppointment = (notes ?? []).reduce(
-    (acc, n) => {
-      if (!acc[n.appointment_id]) acc[n.appointment_id] = [];
-      acc[n.appointment_id].push(n);
-      return acc;
-    },
-    {} as Record<string, { id: string; content: string; created_at: string }[]>
-  );
+  const { link, patient, carePlan: plan, metrics, appointments } = data;
+  const notesByAppointment: Record<string, { id: string; content: string; created_at: string }[]> = {};
 
   const patientName = patient?.full_name ?? "Patient";
   const patientAvatar = patient?.avatar_url ?? null;

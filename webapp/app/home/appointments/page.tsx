@@ -2,56 +2,34 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchApiJson } from "@/lib/api";
 import { AppointmentsList } from "./AppointmentsList";
 
 export default async function ClinicianAppointmentsPage() {
   const supabase = await createClient();
-
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/");
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.user) redirect("/");
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
-    .eq("id", user.id)
+    .eq("id", session.user.id)
     .single();
-
   const role = profile?.role;
   if (role !== "clinician" && role !== "admin") redirect("/home");
 
-  const { data: appointments } = await supabase
-    .from("appointments")
-    .select("id, patient_id, clinician_id, scheduled_at, status")
-    .order("scheduled_at", { ascending: true });
+  const { appointments, activePatients } = await fetchApiJson<{
+    appointments: { id: string; patient_id: string; clinician_id: string; scheduled_at: string; status: string; patient_name?: string; patient_avatar?: string | null; clinician_name?: string }[];
+    activePatients: { id: string; full_name: string | null }[];
+  }>(session.access_token, "/api/clinician-portal/appointments");
 
-  const patientIds = [...new Set((appointments ?? []).map((a) => a.patient_id))];
-  const clinicianIds = [...new Set((appointments ?? []).map((a) => a.clinician_id))];
-  const { data: patientProfiles } =
-    patientIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name").in("id", patientIds)
-      : { data: [] };
-  const { data: clinicianProfiles } =
-    clinicianIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name").in("id", clinicianIds)
-      : { data: [] };
-
-  const appointmentsWithNames = (appointments ?? []).map((a) => ({
+  const appointmentsWithNames = appointments.map((a) => ({
     ...a,
-    patient_name: patientProfiles?.find((p) => p.id === a.patient_id)?.full_name ?? "Patient",
-    clinician_name: clinicianProfiles?.find((p) => p.id === a.clinician_id)?.full_name ?? "Clinician",
+    patient_name: a.patient_name ?? "Patient",
+    clinician_name: a.clinician_name ?? "Clinician",
   }));
-
-  const { data: plansWithPatients } = await supabase
-    .from("sponsor_patient_plans")
-    .select("patient_id")
-    .is("ended_at", null);
-  const activePatientIds = [...new Set((plansWithPatients ?? []).map((p) => p.patient_id))];
-  const { data: activePatients } =
-    activePatientIds.length > 0
-      ? await supabase.from("profiles").select("id, full_name").in("id", activePatientIds)
-      : { data: [] };
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-white">
@@ -87,7 +65,7 @@ export default async function ClinicianAppointmentsPage() {
 
           <AppointmentsList
             appointments={appointmentsWithNames}
-            patients={activePatients ?? []}
+            patients={activePatients}
           />
         </section>
       </main>
