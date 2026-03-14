@@ -9,6 +9,7 @@ const SCREEN_WIDTH = layout.width;
 type Props = {
   onSignIn: () => void;
   onComplete: () => void;
+  onOpenSignUp?: (role: 'sponsor' | 'patient' | 'clinic') => void;
   onSelectRole?: (role: 'sponsor' | 'patient' | 'clinic') => void;
 };
 
@@ -56,7 +57,7 @@ const ROLES = [
   },
 ];
 
-export function OnboardingRoleSelect({ onSignIn, onComplete, onSelectRole }: Props) {
+export function OnboardingRoleSelect({ onSignIn, onComplete, onOpenSignUp, onSelectRole }: Props) {
   const [selected, setSelected] = useState<'sponsor' | 'patient' | 'clinic' | null>(null);
 
   const handleSelect = (key: 'sponsor' | 'patient' | 'clinic') => {
@@ -127,8 +128,13 @@ export function OnboardingRoleSelect({ onSignIn, onComplete, onSelectRole }: Pro
 
       {/* Bottom */}
       <View style={styles.bottomWrap}>
-        <TouchableOpacity style={styles.continueBtn} onPress={onComplete} activeOpacity={0.85}>
-          <Text style={styles.continueBtnText}>Continue →</Text>
+        <TouchableOpacity
+          style={[styles.continueBtn, !selected && styles.continueBtnDisabled]}
+          onPress={() => (selected ? (onOpenSignUp ? onOpenSignUp(selected) : onComplete()) : undefined)}
+          activeOpacity={0.85}
+          disabled={!selected}
+        >
+          <Text style={[styles.continueBtnText, !selected && styles.continueBtnTextDisabled]}>Continue →</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.signInWrap} onPress={onSignIn} activeOpacity={0.7}>
           <Text style={styles.signInText}>
@@ -242,6 +248,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.green,
     letterSpacing: 0.5,
+  },
+  continueBtnDisabled: {
+    opacity: 0.4,
+  },
+  continueBtnTextDisabled: {
+    color: 'rgba(0,59,19,0.6)',
   },
   signInWrap: {
     alignItems: 'center',

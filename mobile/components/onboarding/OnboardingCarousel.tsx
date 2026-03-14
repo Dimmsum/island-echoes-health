@@ -1,9 +1,10 @@
 import React, { useRef, useState } from 'react';
-import { ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { ScrollView, NativeSyntheticEvent, NativeScrollEvent, View, StyleSheet } from 'react-native';
 import { layout } from '../../constants/layout';
 import { OnboardingSplash } from './OnboardingSplash';
 import { OnboardingFeature } from './OnboardingFeature';
 import { OnboardingRoleSelect } from './OnboardingRoleSelect';
+import { SignUpPanel } from './SignUpPanel';
 
 const SCREEN_WIDTH = layout.width;
 
@@ -11,9 +12,12 @@ type Props = {
   onComplete: () => void;
 };
 
+export type SignUpRole = 'sponsor' | 'patient' | 'clinic';
+
 export function OnboardingCarousel({ onComplete }: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const [page, setPage] = useState(0);
+  const [signUpRole, setSignUpRole] = useState<SignUpRole | null>(null);
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const x = e.nativeEvent.contentOffset.x;
@@ -34,6 +38,7 @@ export function OnboardingCarousel({ onComplete }: Props) {
   };
 
   return (
+    <>
     <ScrollView
       ref={scrollRef}
       horizontal
@@ -65,10 +70,21 @@ export function OnboardingCarousel({ onComplete }: Props) {
       <OnboardingRoleSelect
         onSignIn={onComplete}
         onComplete={onComplete}
-        onSelectRole={(_role) => {
-          // Could navigate to role-specific sign-up; for now selection is tracked in state
-        }}
+        onOpenSignUp={setSignUpRole}
+        onSelectRole={(_role) => {}}
       />
     </ScrollView>
+    <View style={StyleSheet.absoluteFill} pointerEvents={signUpRole ? 'auto' : 'none'}>
+      <SignUpPanel
+        visible={!!signUpRole}
+        role={signUpRole}
+        onClose={() => setSignUpRole(null)}
+        onComplete={() => {
+          setSignUpRole(null);
+          onComplete();
+        }}
+      />
+    </View>
+    </>
   );
 }
