@@ -31,7 +31,12 @@ type Props = {
 };
 
 const CalendarIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg
+    className="h-5 w-5"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -42,7 +47,12 @@ const CalendarIcon = () => (
 );
 
 const UsersIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg
+    className="h-5 w-5"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -53,7 +63,12 @@ const UsersIcon = () => (
 );
 
 const ClockIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg
+    className="h-5 w-5"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -64,7 +79,12 @@ const ClockIcon = () => (
 );
 
 const UserIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg
+    className="h-5 w-5"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -87,7 +107,7 @@ export function ClinicianPortalDashboard({
   const roleLabel = role === "clinician" ? "Clinician" : "Admin";
 
   const filteredPatients = patientsWithPlans.filter((p) =>
-    p.patient_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    p.patient_name?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -129,7 +149,9 @@ export function ClinicianPortalDashboard({
                 </div>
               )}
               <div>
-                <p className="text-sm font-semibold text-slate-900">{fullName ?? "Clinician"}</p>
+                <p className="text-sm font-semibold text-slate-900">
+                  {fullName ?? "Clinician"}
+                </p>
                 <p className="text-xs text-slate-500">{roleLabel}</p>
               </div>
             </div>
@@ -156,15 +178,6 @@ export function ClinicianPortalDashboard({
             >
               Profile
             </Link>
-            <form action="/auth/signout" method="post">
-              <input type="hidden" name="redirectTo" value="/" />
-              <button
-                type="submit"
-                className="rounded-lg px-3 py-2 transition hover:bg-slate-100 hover:text-slate-900"
-              >
-                Sign out
-              </button>
-            </form>
           </nav>
         </header>
 
@@ -179,7 +192,8 @@ export function ClinicianPortalDashboard({
             {greeting}
           </h1>
           <p className="max-w-2xl text-lg text-slate-600">
-            Manage your patients, view appointments, and track care plans all in one place.
+            Manage your patients, view appointments, and track care plans all in
+            one place.
           </p>
         </section>
 
@@ -190,8 +204,12 @@ export function ClinicianPortalDashboard({
               <UsersIcon />
             </div>
             <div className="relative">
-              <p className="text-sm font-medium text-slate-600">Total Patients</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900">{stats.totalPatients}</p>
+              <p className="text-sm font-medium text-slate-600">
+                Total Patients
+              </p>
+              <p className="mt-2 text-3xl font-bold text-slate-900">
+                {stats.totalPatients}
+              </p>
               <p className="mt-1 text-xs text-slate-500">Active care plans</p>
             </div>
           </div>
@@ -201,8 +219,12 @@ export function ClinicianPortalDashboard({
               <CalendarIcon />
             </div>
             <div className="relative">
-              <p className="text-sm font-medium text-slate-600">Today&apos;s Appointments</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900">{stats.todayAppointments}</p>
+              <p className="text-sm font-medium text-slate-600">
+                Today&apos;s Appointments
+              </p>
+              <p className="mt-2 text-3xl font-bold text-slate-900">
+                {stats.todayAppointments}
+              </p>
               <p className="mt-1 text-xs text-slate-500">Scheduled for today</p>
             </div>
           </div>
@@ -213,7 +235,9 @@ export function ClinicianPortalDashboard({
             </div>
             <div className="relative">
               <p className="text-sm font-medium text-slate-600">Upcoming</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900">{stats.upcomingAppointments}</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900">
+                {stats.upcomingAppointments}
+              </p>
               <p className="mt-1 text-xs text-slate-500">Future appointments</p>
             </div>
           </div>
@@ -223,7 +247,9 @@ export function ClinicianPortalDashboard({
         <section>
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-slate-900">Patients & Care Plans</h2>
+              <h2 className="text-2xl font-bold text-slate-900">
+                Patients & Care Plans
+              </h2>
               <p className="mt-1 text-sm text-slate-600">
                 View and manage patients with active care plans
               </p>
@@ -265,7 +291,9 @@ export function ClinicianPortalDashboard({
               {searchQuery ? (
                 <>
                   <UsersIcon />
-                  <p className="mt-4 text-sm font-medium text-slate-900">No patients found</p>
+                  <p className="mt-4 text-sm font-medium text-slate-900">
+                    No patients found
+                  </p>
                   <p className="mt-1 text-sm text-slate-500">
                     Try adjusting your search query
                   </p>
@@ -273,9 +301,12 @@ export function ClinicianPortalDashboard({
               ) : (
                 <>
                   <UsersIcon />
-                  <p className="mt-4 text-sm font-medium text-slate-900">No patients yet</p>
+                  <p className="mt-4 text-sm font-medium text-slate-900">
+                    No patients yet
+                  </p>
                   <p className="mt-1 text-sm text-slate-500">
-                    When sponsors purchase plans and patients accept, they will appear here.
+                    When sponsors purchase plans and patients accept, they will
+                    appear here.
                   </p>
                 </>
               )}
@@ -306,7 +337,9 @@ export function ClinicianPortalDashboard({
                         {patient.patient_name}
                       </h3>
                       {patient.patient_age !== null && (
-                        <p className="text-sm text-slate-500">{patient.patient_age} years old</p>
+                        <p className="text-sm text-slate-500">
+                          {patient.patient_age} years old
+                        </p>
                       )}
                       <div className="mt-3 flex items-center gap-2">
                         <span className="rounded-full bg-[#1F5F2E]/10 px-2.5 py-1 text-xs font-medium text-[#1F5F2E]">
@@ -317,12 +350,16 @@ export function ClinicianPortalDashboard({
                         <div className="mt-3 flex items-center gap-2 text-sm text-slate-600">
                           <CalendarIcon />
                           <span>
-                            {new Date(patient.next_appointment).toLocaleDateString("en-US", {
+                            {new Date(
+                              patient.next_appointment,
+                            ).toLocaleDateString("en-US", {
                               month: "short",
                               day: "numeric",
                               year: "numeric",
                             })}{" "}
-                            {new Date(patient.next_appointment).toLocaleTimeString("en-US", {
+                            {new Date(
+                              patient.next_appointment,
+                            ).toLocaleTimeString("en-US", {
                               hour: "numeric",
                               minute: "2-digit",
                             })}

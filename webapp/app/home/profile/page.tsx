@@ -7,13 +7,6 @@ import { ProfileEditForm } from "./ProfileEditForm";
 
 const STAFF_ROLES = ["admin", "clinician"] as const;
 
-// Dummy monthly expense data for UI preview
-const DUMMY_MONTHLY_EXPENSES = [
-  { plan: "Core Wellness", amount: 75 },
-  { plan: "Chronic Care", amount: 120 },
-];
-const DUMMY_TOTAL = DUMMY_MONTHLY_EXPENSES.reduce((s, x) => s + x.amount, 0);
-
 const UsersIcon = ({ className }: { className?: string }) => (
   <svg className={className || "h-6 w-6"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -79,6 +72,18 @@ export default async function ProfilePage() {
   const avatarUrl = meData.profile?.avatar_url ?? null;
   const user = meData.user;
   const { linkedPatients, mySponsors, notifications } = homeProfileData;
+
+  // Monthly expenses from active sponsorships (DB: sponsor_patient_plans + care_plans.price_cents)
+  const monthlyExpenses = linkedPatients
+    .filter((link) => link.care_plan != null)
+    .map((link) => ({
+      id: link.id,
+      plan: link.care_plan!.name,
+      amountCents: link.care_plan!.price_cents,
+      amountDollars: link.care_plan!.price_cents / 100,
+    }));
+  const totalMonthlyCents = monthlyExpenses.reduce((sum, x) => sum + x.amountCents, 0);
+  const totalMonthlyDollars = totalMonthlyCents / 100;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-50">
@@ -242,7 +247,7 @@ export default async function ProfilePage() {
                     {mySponsors.map((link) => (
                       <li
                         key={link.id}
-                        className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-3"
+                        className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-3"
                       >
                         <div className="h-10 w-10 shrink-0 rounded-lg bg-gradient-to-br from-[#E6E15A]/20 to-[#9CCB4A]/20 flex items-center justify-center overflow-hidden">
                           {link.sponsor?.avatar_url ? (
@@ -259,13 +264,18 @@ export default async function ProfilePage() {
                             <p className="text-xs text-slate-600">{link.care_plan.name}</p>
                           )}
                         </div>
+                        <EndSponsorshipButton
+                          planId={link.id}
+                          label="Opt out"
+                          variant="ghost"
+                        />
                       </li>
                     ))}
                   </ul>
                 )}
               </div>
 
-              {/* Monthly expenses */}
+              {/* Monthly expenses (from active sponsorships in DB) */}
               <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur transition hover:border-[#1F5F2E]/30 hover:shadow-md">
                 <div className="mb-4 flex items-center gap-3">
                   <div className="rounded-xl bg-gradient-to-br from-[#1F5F2E]/20 to-[#9CCB4A]/20 p-3 text-[#1F5F2E]">
@@ -273,23 +283,33 @@ export default async function ProfilePage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-slate-900">Monthly expenses</h3>
-                    <p className="text-xs text-slate-500">This month (preview)</p>
+                    <p className="text-xs text-slate-500">From your active sponsorships</p>
                   </div>
                 </div>
                 <div className="space-y-3">
-                  {DUMMY_MONTHLY_EXPENSES.map((item) => (
-                    <div
-                      key={item.plan}
-                      className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2.5"
-                    >
-                      <span className="text-sm text-slate-700">{item.plan}</span>
-                      <span className="font-semibold text-slate-900">${item.amount}</span>
+                  {monthlyExpenses.length === 0 ? (
+                    <div className="py-6 text-center">
+                      <CurrencyIcon className="mx-auto h-10 w-10 text-slate-300" />
+                      <p className="mt-2 text-sm font-medium text-slate-900">No active sponsorships</p>
+                      <p className="mt-1 text-xs text-slate-500">Sponsor a care plan to see costs here</p>
                     </div>
-                  ))}
-                  <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-3">
-                    <span className="text-base font-semibold text-slate-900">Total</span>
-                    <span className="text-xl font-bold text-[#1F5F2E]">${DUMMY_TOTAL}/mo</span>
-                  </div>
+                  ) : (
+                    <>
+                      {monthlyExpenses.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2.5"
+                        >
+                          <span className="text-sm text-slate-700">{item.plan}</span>
+                          <span className="font-semibold text-slate-900">${item.amountDollars.toFixed(2)}</span>
+                        </div>
+                      ))}
+                      <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-3">
+                        <span className="text-base font-semibold text-slate-900">Total</span>
+                        <span className="text-xl font-bold text-[#1F5F2E]">${totalMonthlyDollars.toFixed(2)}/mo</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

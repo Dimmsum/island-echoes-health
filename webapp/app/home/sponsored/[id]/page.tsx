@@ -155,6 +155,9 @@ export default async function SponsoredPatientPage({ params }: Props) {
               )}
             </div>
           </div>
+          <div className="mt-4 flex justify-end border-t border-slate-200 pt-4">
+            <EndSponsorshipButton planId={linkId} label="Cancel sponsorship" />
+          </div>
         </section>
 
         {/* Stats Row */}
