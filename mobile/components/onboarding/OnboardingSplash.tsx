@@ -269,35 +269,6 @@ export function OnboardingSplash({ onGetStarted, onSignIn }: Props) {
             d="M0 310 Q50 295 100 300 Q150 305 190 295 Q230 285 270 298 Q310 310 390 295 L390 340 L0 340 Z"
             fill="rgba(0,30,10,0.8)"
           />
-          <Path
-            d="M72 300 L72 262"
-            stroke="rgba(0,59,19,0.9)"
-            strokeWidth={3}
-            strokeLinecap="round"
-          />
-          <Path
-            d="M72 265 Q55 252 45 258 Q58 262 65 270 Q66 268 72 265Z"
-            fill="rgba(0,59,19,0.9)"
-          />
-          <Path
-            d="M72 265 Q90 250 98 255 Q86 260 78 270 Q76 268 72 265Z"
-            fill="rgba(0,59,19,0.9)"
-          />
-          <Path d="M72 265 Q62 248 72 240 Q72 254 72 265Z" fill="rgba(0,59,19,0.7)" />
-          <Path
-            d="M315 298 L318 260"
-            stroke="rgba(0,59,19,0.9)"
-            strokeWidth={3}
-            strokeLinecap="round"
-          />
-          <Path
-            d="M317 263 Q298 250 290 256 Q304 261 311 270 Q313 268 317 263Z"
-            fill="rgba(0,59,19,0.9)"
-          />
-          <Path
-            d="M317 263 Q336 248 344 254 Q332 259 323 269 Q321 267 317 263Z"
-            fill="rgba(0,59,19,0.9)"
-          />
         </Svg>
         {/* Overlay lines */}
         <Svg
