@@ -10,10 +10,14 @@ import {
   Modal,
   Animated,
   KeyboardAvoidingView,
+  ActivityIndicator,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'react-native';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { theme } from '../../constants/theme';
 import { layout } from '../../constants/layout';
+import { signUp as authSignUp, resendVerificationEmail } from '../../lib/auth';
 
 const PARISHES = [
   'Kingston', 'St. Andrew', 'St. Thomas', 'Portland', 'St. Mary', 'St. Ann',
@@ -38,6 +42,8 @@ type Props = {
   role: Role | null;
   onClose: () => void;
   onComplete: () => void;
+  /** When provided, "Already have an account? Sign in" calls this instead of onClose. */
+  onSignInPress?: () => void;
 };
 
 function getPasswordStrength(pass: string): 'none' | 'weak' | 'medium' | 'strong' {
@@ -59,12 +65,24 @@ function formatDobInput(raw: string): string {
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
-export function SignUpPanel({ visible, role, onClose, onComplete }: Props) {
+/** Convert DD/MM/YYYY to YYYY-MM-DD for API. */
+function dobToApi(ddMmYyyy: string): string | undefined {
+  const parts = ddMmYyyy.split('/').map((p) => p.trim());
+  if (parts.length !== 3) return undefined;
+  const [d, m, y] = parts;
+  if (d.length === 2 && m.length === 2 && y.length === 4) {
+    return `${y}-${m}-${d}`;
+  }
+  return undefined;
+}
+
+export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress }: Props) {
   const isClinic = role === 'clinic';
   const flow = isClinic ? 'clinic' : 'user';
   const totalSteps = 4;
   const [step, setStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [showPass2, setShowPass2] = useState(false);
   const [showCPass, setShowCPass] = useState(false);
@@ -80,8 +98,10 @@ export function SignUpPanel({ visible, role, onClose, onComplete }: Props) {
   const [uParish, setUParish] = useState('');
   const [uPass, setUPass] = useState('');
   const [uPass2, setUPass2] = useState('');
-  const [uOtp, setUOtp] = useState(['', '', '', '', '', '']);
-  const otpRefs = useRef<(TextInput | null)[]>([]);
+  const [uAvatarUri, setUAvatarUri] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendLoading, setResendLoading] = useState(false);
+  const resendCooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Clinic form
   const [cName, setCName] = useState('');
@@ -133,13 +153,6 @@ export function SignUpPanel({ visible, role, onClose, onComplete }: Props) {
           return false;
         }
       }
-      if (step === 4) {
-        const code = uOtp.join('');
-        if (code.length < 6) {
-          setError('Please enter the full 6-digit code.');
-          return false;
-        }
-      }
     } else {
       if (step === 1) {
         if (!cName.trim() || !cType || !cParish) {
@@ -167,15 +180,47 @@ export function SignUpPanel({ visible, role, onClose, onComplete }: Props) {
     return true;
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (isSuccess) {
       onComplete();
       return;
     }
     if (!validateStep()) return;
+    if (loading) return;
+
+    // User flow: step 3 → sign-up (Supabase sends verification email), then go to step 4
+    if (flow === 'user' && step === 3) {
+      setLoading(true);
+      setError(null);
+      const fullName = `${uFirst.trim()} ${uLast.trim()}`.trim();
+      const dateOfBirth = dobToApi(uDob);
+      const signUpResult = await authSignUp({
+        email: uEmail.trim(),
+        password: uPass,
+        role: role === 'sponsor' ? 'sponsor' : 'patient',
+        full_name: fullName,
+        phone: uPhone.trim() || undefined,
+        date_of_birth: dateOfBirth,
+        organisation: role === 'sponsor' ? (uOrg.trim() || undefined) : undefined,
+        parish: uParish || undefined,
+      });
+      if ('error' in signUpResult) {
+        setError(signUpResult.error);
+        setLoading(false);
+        return;
+      }
+      setLoading(false);
+      setStep(4);
+      return;
+    }
+
+    // User flow: step 4 → "Check your email" screen; Continue goes to welcome
     if (flow === 'user' && step === 4) {
       setStep(5);
-    } else if (flow === 'clinic' && step === 3) {
+      return;
+    }
+
+    if (flow === 'clinic' && step === 3) {
       setStep(4);
     } else {
       setStep((s) => s + 1);
@@ -205,6 +250,32 @@ export function SignUpPanel({ visible, role, onClose, onComplete }: Props) {
       slideAnim.setValue(layout.height);
     }
   }, [visible, role]);
+
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const id = setInterval(() => {
+      setResendCooldown((s) => (s <= 1 ? 0 : s - 1));
+    }, 1000);
+    resendCooldownRef.current = id;
+    return () => {
+      if (resendCooldownRef.current) clearInterval(resendCooldownRef.current);
+      resendCooldownRef.current = null;
+    };
+  }, [resendCooldown]);
+
+  const handleResendVerificationEmail = async () => {
+    if (resendLoading || resendCooldown > 0) return;
+    setResendLoading(true);
+    setError(null);
+    const result = await resendVerificationEmail(uEmail.trim());
+    setResendLoading(false);
+    if ('error' in result) {
+      setError(result.error);
+      return;
+    }
+    setResendCooldown(60);
+  };
 
   if (!role) return null;
 
@@ -244,6 +315,64 @@ export function SignUpPanel({ visible, role, onClose, onComplete }: Props) {
           <Text style={styles.title}>A little{'\n'}<Text style={styles.titleEm}>more info</Text></Text>
           <Text style={styles.sub}>{role === 'sponsor' ? 'Tell us about your organisation (optional).' : 'Just a couple more details.'}</Text>
           <View style={styles.fields}>
+            <View style={styles.field}>
+              <Text style={styles.label}>Profile photo</Text>
+              <Text style={styles.hint}>Add a photo so sponsors and clinicians can recognise you. You can skip this for now.</Text>
+              <View style={styles.avatarRow}>
+                <View style={styles.avatarCircle}>
+                  {uAvatarUri ? (
+                    <Image source={{ uri: uAvatarUri }} style={styles.avatarImage} />
+                  ) : (
+                    <Text style={styles.avatarPlaceholderText}>{(uFirst || 'You')[0]?.toUpperCase()}</Text>
+                  )}
+                </View>
+                <View style={styles.avatarButtons}>
+                  <TouchableOpacity
+                    style={styles.avatarBtn}
+                    activeOpacity={0.85}
+                    onPress={async () => {
+                      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                      if (status !== 'granted') {
+                        setError('Camera permission is required to take a photo.');
+                        return;
+                      }
+                      const result = await ImagePicker.launchCameraAsync({
+                        allowsEditing: true,
+                        aspect: [1, 1],
+                        quality: 0.7,
+                      });
+                      if (!result.canceled && result.assets?.[0]?.uri) {
+                        setUAvatarUri(result.assets[0].uri);
+                      }
+                    }}
+                  >
+                    <Text style={styles.avatarBtnText}>Take photo</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.avatarBtnSecondary}
+                    activeOpacity={0.85}
+                    onPress={async () => {
+                      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                      if (status !== 'granted') {
+                        setError('Media library permission is required to choose a photo.');
+                        return;
+                      }
+                      const result = await ImagePicker.launchImageLibraryAsync({
+                        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                        allowsEditing: true,
+                        aspect: [1, 1],
+                        quality: 0.7,
+                      });
+                      if (!result.canceled && result.assets?.[0]?.uri) {
+                        setUAvatarUri(result.assets[0].uri);
+                      }
+                    }}
+                  >
+                    <Text style={styles.avatarBtnSecondaryText}>{uAvatarUri ? 'Change photo' : 'Choose from library'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
             <View style={styles.field}>
               <Text style={styles.label}>Date of birth</Text>
               <TextInput
@@ -322,31 +451,27 @@ export function SignUpPanel({ visible, role, onClose, onComplete }: Props) {
       return (
         <View style={styles.step}>
           <Text style={styles.eyebrow}>Step 4 of 4</Text>
-          <Text style={styles.title}>Verify your{'\n'}<Text style={styles.titleEm}>email</Text></Text>
-          <Text style={styles.sub}>We sent a 6-digit code to {uEmail || 'your email'}.</Text>
+          <Text style={styles.title}>Check your{'\n'}<Text style={styles.titleEm}>email</Text></Text>
+          <Text style={styles.sub}>
+            We sent a verification email to {uEmail || 'your email'}. Click the link in that email to verify your account, then return here and tap Continue.
+          </Text>
           <View style={styles.fields}>
-            <View style={styles.otpWrap}>
-              {uOtp.map((digit, i) => (
-                <TextInput
-                  key={i}
-                  ref={(r) => { otpRefs.current[i] = r; }}
-                  style={[styles.otpBox, digit ? styles.otpFilled : null]}
-                  value={digit}
-                  maxLength={1}
-                  keyboardType="number-pad"
-                  onChangeText={(t) => {
-                    const v = t.replace(/\D/g, '').slice(-1);
-                    const next = [...uOtp]; next[i] = v; setUOtp(next);
-                    if (v && i < 5) otpRefs.current[i + 1]?.focus();
-                  }}
-                  onKeyPress={(e) => {
-                    if (e.nativeEvent.key === 'Backspace' && !uOtp[i] && i > 0) otpRefs.current[i - 1]?.focus();
-                  }}
-                />
-              ))}
-            </View>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
-            <Text style={styles.resend}>Didn't receive a code? <Text style={styles.resendLink}>Resend</Text></Text>
+            <TouchableOpacity
+              style={styles.resendRow}
+              onPress={handleResendVerificationEmail}
+              disabled={resendLoading || resendCooldown > 0}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.resend}>Didn&apos;t receive the email? </Text>
+              {resendLoading ? (
+                <Text style={styles.resendLink}>Sending…</Text>
+              ) : resendCooldown > 0 ? (
+                <Text style={styles.resendMuted}>Resend in {resendCooldown}s</Text>
+              ) : (
+                <Text style={styles.resendLink}>Resend</Text>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
       );
@@ -520,7 +645,15 @@ export function SignUpPanel({ visible, role, onClose, onComplete }: Props) {
     );
   };
 
-  const nextLabel = isSuccess ? 'Start exploring →' : (flow === 'clinic' && step === 3) ? 'Submit application →' : step === 4 && flow === 'user' ? 'Verify →' : 'Continue →';
+  const nextLabel = loading
+    ? 'Loading...'
+    : isSuccess
+      ? 'Start exploring →'
+      : (flow === 'clinic' && step === 3)
+        ? 'Submit application →'
+        : step === 4 && flow === 'user'
+          ? 'Continue →'
+          : 'Continue →';
 
   return (
     <Animated.View style={[styles.panel, { transform: [{ translateY: slideAnim }] }]}>
@@ -545,11 +678,24 @@ export function SignUpPanel({ visible, role, onClose, onComplete }: Props) {
           {flow === 'user' ? renderUserStep() : renderClinicStep()}
         </ScrollView>
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.nextBtn} onPress={handleNext} activeOpacity={0.85}>
-            <Text style={styles.nextBtnText}>{nextLabel}</Text>
+          <TouchableOpacity
+            style={[styles.nextBtn, loading && styles.nextBtnDisabled]}
+            onPress={handleNext}
+            activeOpacity={0.85}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color={theme.green} size="small" />
+            ) : (
+              <Text style={styles.nextBtnText}>{nextLabel}</Text>
+            )}
           </TouchableOpacity>
           {!isSuccess && (
-            <TouchableOpacity style={styles.signInRow} onPress={onClose} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.signInRow}
+              onPress={onSignInPress ?? onClose}
+              activeOpacity={0.7}
+            >
               <Text style={styles.signInRowText}>Already have an account? <Text style={styles.signInLink}>Sign in</Text></Text>
             </TouchableOpacity>
           )}
@@ -756,6 +902,64 @@ const styles = StyleSheet.create({
     marginTop: layout.s(4),
     lineHeight: layout.f(17),
   },
+  avatarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.s(16),
+    marginTop: layout.s(10),
+  },
+  avatarCircle: {
+    width: layout.s(70),
+    height: layout.s(70),
+    borderRadius: layout.s(35),
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  avatarPlaceholderText: {
+    fontSize: layout.f(26),
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.7)',
+  },
+  avatarButtons: {
+    flex: 1,
+    gap: layout.s(8),
+  },
+  avatarBtn: {
+    height: layout.s(40),
+    borderRadius: layout.s(999),
+    backgroundColor: theme.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: layout.s(16),
+  },
+  avatarBtnText: {
+    fontSize: layout.f(13),
+    fontWeight: '600',
+    color: theme.green,
+  },
+  avatarBtnSecondary: {
+    height: layout.s(40),
+    borderRadius: layout.s(999),
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: layout.s(16),
+  },
+  avatarBtnSecondaryText: {
+    fontSize: layout.f(13),
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.9)',
+  },
   terms: {
     fontSize: layout.f(11.5),
     color: 'rgba(255,255,255,0.28)',
@@ -793,15 +997,26 @@ const styles = StyleSheet.create({
   otpFilled: {
     borderColor: 'rgba(231,211,28,0.35)',
   },
+  resendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: layout.s(20),
+    flexWrap: 'wrap',
+  },
   resend: {
     fontSize: layout.f(13),
     color: 'rgba(255,255,255,0.4)',
-    textAlign: 'center',
-    marginTop: layout.s(20),
     lineHeight: layout.f(22),
   },
   resendLink: {
     color: theme.gold,
+    fontWeight: '500',
+    fontSize: layout.f(13),
+  },
+  resendMuted: {
+    fontSize: layout.f(13),
+    color: 'rgba(255,255,255,0.35)',
     fontWeight: '500',
   },
   successWrap: {
@@ -893,6 +1108,9 @@ const styles = StyleSheet.create({
     borderRadius: layout.s(18),
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  nextBtnDisabled: {
+    opacity: 0.9,
   },
   nextBtnText: {
     fontSize: layout.f(16),

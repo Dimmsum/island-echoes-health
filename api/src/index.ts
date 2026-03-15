@@ -50,8 +50,11 @@ const PORT = process.env.PORT ?? 4001;
 // Health
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
-// Sign in (for testing / API clients)
+// Auth (no auth middleware)
 app.post("/api/auth/sign-in", (req, res, next) => auth.signIn(req, res).catch(next));
+app.post("/api/auth/sign-up", (req, res, next) => auth.signUpRoute(req, res).catch(next));
+app.post("/api/auth/send-otp", (req, res, next) => auth.sendOtpRoute(req, res).catch(next));
+app.post("/api/auth/verify-otp", (req, res, next) => auth.verifyOtpRoute(req, res).catch(next));
 
 // Auth required for all below
 app.use(

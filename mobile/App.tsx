@@ -19,9 +19,9 @@ export default function App() {
   const opacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    AsyncStorage.getItem(ONBOARDING_KEY).then((v) => {
-      setOnboardingDone(v === '1');
-    });
+    AsyncStorage.getItem(ONBOARDING_KEY)
+      .then((v) => setOnboardingDone(v === '1'))
+      .catch(() => setOnboardingDone(false));
   }, []);
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function App() {
   }, [phase, opacity]);
 
   const handleOnboardingComplete = () => {
-    AsyncStorage.setItem(ONBOARDING_KEY, '1');
+    AsyncStorage.setItem(ONBOARDING_KEY, '1').catch(() => {});
     setOnboardingDone(true);
   };
 

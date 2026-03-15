@@ -5,6 +5,7 @@ import { OnboardingSplash } from './OnboardingSplash';
 import { OnboardingFeature } from './OnboardingFeature';
 import { OnboardingRoleSelect } from './OnboardingRoleSelect';
 import { SignUpPanel } from './SignUpPanel';
+import { SignInPanel } from './SignInPanel';
 
 const SCREEN_WIDTH = layout.width;
 
@@ -18,6 +19,7 @@ export function OnboardingCarousel({ onComplete }: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const [page, setPage] = useState(0);
   const [signUpRole, setSignUpRole] = useState<SignUpRole | null>(null);
+  const [signInVisible, setSignInVisible] = useState(false);
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const x = e.nativeEvent.contentOffset.x;
@@ -33,8 +35,12 @@ export function OnboardingCarousel({ onComplete }: Props) {
   const handleGetStarted = () => goTo(1);
   const handleSignIn = () => {
     goTo(3);
-    // Optionally complete immediately when skipping to sign-in
-    // onComplete();
+    setSignInVisible(true);
+  };
+
+  const handleSignInSuccess = () => {
+    setSignInVisible(false);
+    onComplete();
   };
 
   return (
@@ -68,21 +74,30 @@ export function OnboardingCarousel({ onComplete }: Props) {
         totalDots={3}
       />
       <OnboardingRoleSelect
-        onSignIn={onComplete}
+        onSignIn={handleSignIn}
         onComplete={onComplete}
         onOpenSignUp={setSignUpRole}
         onSelectRole={(_role) => {}}
       />
     </ScrollView>
-    <View style={StyleSheet.absoluteFill} pointerEvents={signUpRole ? 'auto' : 'none'}>
+    <View style={StyleSheet.absoluteFill} pointerEvents={signUpRole || signInVisible ? 'auto' : 'none'}>
       <SignUpPanel
         visible={!!signUpRole}
         role={signUpRole}
         onClose={() => setSignUpRole(null)}
+        onSignInPress={() => {
+          setSignUpRole(null);
+          setSignInVisible(true);
+        }}
         onComplete={() => {
           setSignUpRole(null);
           onComplete();
         }}
+      />
+      <SignInPanel
+        visible={signInVisible}
+        onClose={() => setSignInVisible(false)}
+        onSuccess={handleSignInSuccess}
       />
     </View>
     </>
