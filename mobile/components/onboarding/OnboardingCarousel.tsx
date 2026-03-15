@@ -98,6 +98,15 @@ export function OnboardingCarousel({ onComplete }: Props) {
         visible={signInVisible}
         onClose={() => setSignInVisible(false)}
         onSuccess={handleSignInSuccess}
+        onSignUpPress={() => {
+          setSignInVisible(false);
+          goTo(3);
+        }}
+        onClinicSignUpPress={() => {
+          setSignInVisible(false);
+          goTo(3);
+          setSignUpRole('clinic');
+        }}
       />
     </View>
     </>

@@ -9,131 +9,565 @@ import {
   Animated,
   KeyboardAvoidingView,
   ActivityIndicator,
+  ScrollView,
+  Easing,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Circle, Rect, Defs, RadialGradient, Stop, Ellipse, Line } from 'react-native-svg';
 import { theme } from '../../constants/theme';
 import { layout } from '../../constants/layout';
 import { signInWithPassword } from '../../lib/auth';
+
+type SignInRole = 'user' | 'clinic';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  /** "Don't have an account? Sign up" / "Create one" – close sign-in and show role select. */
+  onSignUpPress?: () => void;
+  /** "Clinic not registered? Apply to join" – close sign-in and open clinic sign-up. */
+  onClinicSignUpPress?: () => void;
 };
 
-export function SignInPanel({ visible, onClose, onSuccess }: Props) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [showPass, setShowPass] = useState(false);
-  const slideAnim = useRef(new Animated.Value(layout.height)).current;
+const easing = Easing.bezier(0.77, 0, 0.175, 1);
+
+export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClinicSignUpPress }: Props) {
+  const [view, setView] = useState<'role' | 'user'>('role');
+  const [clinicLayerVisible, setClinicLayerVisible] = useState(false);
+  const [mfaVisible, setMfaVisible] = useState(false);
+  const [mfaFor, setMfaFor] = useState<SignInRole | null>(null);
+  const [mfaMethod, setMfaMethod] = useState<'email' | 'phone'>('email');
+
+  const [userEmail, setUserEmail] = useState('');
+  const [userPassword, setUserPassword] = useState('');
+  const [userError, setUserError] = useState<string | null>(null);
+  const [userLoading, setUserLoading] = useState(false);
+  const [showUserPass, setShowUserPass] = useState(false);
+
+  const [clinicId, setClinicId] = useState('');
+  const [clinicPassword, setClinicPassword] = useState('');
+  const [clinicError, setClinicError] = useState<string | null>(null);
+  const [clinicLoading, setClinicLoading] = useState(false);
+  const [showClinicPass, setShowClinicPass] = useState(false);
+
+  const [mfaCode, setMfaCode] = useState(['', '', '', '', '', '']);
+  const [mfaError, setMfaError] = useState<string | null>(null);
+  const mfaInputRefs = useRef<(TextInput | null)[]>([]);
+
+  const panelAnim = useRef(new Animated.Value(layout.height)).current;
+  const reelAnim = useRef(new Animated.Value(0)).current;
+  const clinicLayerAnim = useRef(new Animated.Value(layout.width)).current;
+  const mfaLayerAnim = useRef(new Animated.Value(layout.height)).current;
 
   useEffect(() => {
     if (visible) {
-      Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true }).start();
+      Animated.timing(panelAnim, { toValue: 0, duration: 500, useNativeDriver: true, easing }).start();
     } else {
-      slideAnim.setValue(layout.height);
+      panelAnim.setValue(layout.height);
+      setView('role');
+      setClinicLayerVisible(false);
+      setMfaVisible(false);
+      clinicLayerAnim.setValue(layout.width);
+      mfaLayerAnim.setValue(layout.height);
+      reelAnim.setValue(0);
     }
-  }, [visible, slideAnim]);
+  }, [visible, panelAnim, clinicLayerAnim, mfaLayerAnim, reelAnim]);
 
-  const handleSignIn = async () => {
-    setError(null);
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail || !password) {
-      setError('Please enter email and password.');
+  const openUserForm = () => {
+    setView('user');
+    Animated.timing(reelAnim, { toValue: 1, duration: 450, useNativeDriver: true, easing }).start();
+  };
+
+  const openClinicLayer = () => {
+    setClinicLayerVisible(true);
+    Animated.timing(clinicLayerAnim, { toValue: 0, duration: 450, useNativeDriver: true, easing }).start();
+  };
+
+  const closeClinicLayer = () => {
+    Animated.timing(clinicLayerAnim, { toValue: layout.width, duration: 450, useNativeDriver: true, easing }).start(() => {
+      setClinicLayerVisible(false);
+    });
+  };
+
+  const openMfa = (forRole: SignInRole) => {
+    setMfaFor(forRole);
+    setMfaCode(['', '', '', '', '', '']);
+    setMfaError(null);
+    setMfaVisible(true);
+    Animated.timing(mfaLayerAnim, { toValue: 0, duration: 450, useNativeDriver: true, easing }).start();
+    setTimeout(() => mfaInputRefs.current[0]?.focus(), 400);
+  };
+
+  const closeMfa = () => {
+    Animated.timing(mfaLayerAnim, { toValue: layout.height, duration: 450, useNativeDriver: true, easing }).start(() => {
+      setMfaVisible(false);
+      setMfaFor(null);
+    });
+  };
+
+  const handleBackFromUser = () => {
+    if (view === 'user') {
+      setView('role');
+      Animated.timing(reelAnim, { toValue: 0, duration: 450, useNativeDriver: true, easing }).start();
+    } else {
+      onClose();
+    }
+  };
+
+  const handleSignInUser = async () => {
+    setUserError(null);
+    const email = userEmail.trim();
+    if (!email || !email.includes('@')) {
+      setUserError('Please enter a valid email address.');
       return;
     }
-    setLoading(true);
-    const result = await signInWithPassword(trimmedEmail, password);
-    setLoading(false);
+    if (!userPassword) {
+      setUserError('Please enter your password.');
+      return;
+    }
+    setUserLoading(true);
+    const result = await signInWithPassword(email, userPassword);
+    setUserLoading(false);
     if ('error' in result) {
-      setError(result.error);
+      setUserError(result.error);
       return;
     }
     onSuccess();
   };
 
+  const handleSignInClinic = () => {
+    setClinicError(null);
+    const id = clinicId.trim();
+    if (!id) {
+      setClinicError('Please enter your clinic ID or email.');
+      return;
+    }
+    if (!clinicPassword) {
+      setClinicError('Please enter your staff password.');
+      return;
+    }
+    setMfaFor('clinic');
+    openMfa('clinic');
+  };
+
+  const handleMfaVerify = () => {
+    const code = mfaCode.join('');
+    if (code.length < 6) {
+      setMfaError('Please enter the full 6-digit code.');
+      return;
+    }
+    closeMfa();
+    if (clinicLayerVisible) closeClinicLayer();
+    onClose();
+    onSuccess();
+  };
+
+  const handleForgotUser = () => {
+    setUserError('Password reset instructions will be sent to your email.');
+    setTimeout(() => setUserError(null), 3500);
+  };
+
+  const handleForgotClinic = () => {
+    setClinicError('Password reset instructions will be sent to your clinic email.');
+    setTimeout(() => setClinicError(null), 3500);
+  };
+
+  const handleMfaResend = () => {
+    setMfaError(null);
+  };
+
+  const handleSwitchMfaMethod = () => {
+    setMfaMethod((m) => (m === 'email' ? 'phone' : 'email'));
+  };
+
+  const handleSignUpPress = () => {
+    onSignUpPress?.() ?? onClose();
+  };
+
+  const handleClinicSignUpPress = () => {
+    onClinicSignUpPress?.() ?? (closeClinicLayer(), onClose());
+  };
+
+  const updateMfaDigit = (index: number, value: string) => {
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const next = [...mfaCode];
+    next[index] = digit;
+    setMfaCode(next);
+    setMfaError(null);
+    if (digit && index < 5) mfaInputRefs.current[index + 1]?.focus();
+  };
+
+  const handleMfaKeyDown = (index: number, key: string) => {
+    if (key === 'Backspace' && !mfaCode[index] && index > 0) {
+      mfaInputRefs.current[index - 1]?.focus();
+    }
+  };
+
   if (!visible) return null;
 
-  return (
-    <Animated.View style={[styles.panel, { transform: [{ translateY: slideAnim }] }]}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={onClose} activeOpacity={0.85}>
-          <Svg width={18} height={18} viewBox="0 0 18 18" fill="none">
-            <Path d="M14 9H4M8 14L3 9L8 4" stroke="white" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
-          </Svg>
-        </TouchableOpacity>
-        <Text style={styles.title}>Sign in</Text>
-      </View>
+  const reelTranslateX = reelAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -layout.width] });
 
+  return (
+    <Animated.View style={[styles.panel, { transform: [{ translateY: panelAnim }] }]}>
       <KeyboardAvoidingView
-        style={styles.content}
+        style={styles.flex1}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={0}
       >
-        <Text style={styles.sub}>Enter your account details.</Text>
-
-        {error ? (
-          <View style={styles.errorWrap}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
-
-        <View style={styles.field}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="you@example.com"
-            placeholderTextColor="rgba(255,255,255,0.2)"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!loading}
-          />
+        {/* ─── Header (shared for role + user) ─── */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={handleBackFromUser} activeOpacity={0.85}>
+            <Svg width={18} height={18} viewBox="0 0 18 18" fill="none">
+              <Path d="M14 9H4M8 14L3 9L8 4" stroke="white" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+          </TouchableOpacity>
+          <Text style={styles.headerLabel}>{view === 'user' ? 'Sign in' : 'Sign in'}</Text>
         </View>
-        <View style={styles.field}>
-          <Text style={styles.label}>Password</Text>
-          <View style={styles.passwordRow}>
-            <TextInput
-              style={[styles.input, styles.inputFlex]}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="••••••••"
-              placeholderTextColor="rgba(255,255,255,0.2)"
-              secureTextEntry={!showPass}
-              editable={!loading}
-            />
-            <TouchableOpacity
-              style={styles.eyeBtn}
-              onPress={() => setShowPass((p) => !p)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.eyeText}>{showPass ? 'Hide' : 'Show'}</Text>
+
+        {/* ─── Reel: View 0 = Role chooser, View 1 = User form ─── */}
+        <View style={styles.reelWrapper}>
+          <Animated.View style={[styles.reel, { transform: [{ translateX: reelTranslateX }] }]}>
+            {/* VIEW 0: Role chooser */}
+            <View style={styles.reelPage}>
+            <View style={styles.scene}>
+              <Svg style={StyleSheet.absoluteFill} viewBox="0 0 390 220" preserveAspectRatio="xMidYMid slice">
+                <Defs>
+                  <RadialGradient id="siSky" cx="50%" cy="20%">
+                    <Stop offset="0%" stopColor="#0a2e14" />
+                    <Stop offset="100%" stopColor="#000e04" />
+                  </RadialGradient>
+                  <RadialGradient id="siFadeG" cx="0.5" cy="1">
+                    <Stop offset="0%" stopColor={theme.green} stopOpacity="0" />
+                    <Stop offset="100%" stopColor={theme.green} stopOpacity="1" />
+                  </RadialGradient>
+                </Defs>
+                <Rect width={390} height={220} fill="url(#siSky)" />
+                <Circle cx={60} cy={38} r={0.9} fill="white" opacity={0.5} />
+                <Circle cx={145} cy={22} r={1.2} fill="white" opacity={0.45} />
+                <Circle cx={250} cy={30} r={0.8} fill="white" opacity={0.55} />
+                <Circle cx={330} cy={48} r={1} fill="white" opacity={0.4} />
+                <Circle cx={195} cy={28} r={1.6} fill={theme.gold} opacity={0.9} />
+                <Circle cx={195} cy={28} r={4.5} fill={theme.gold} opacity={0.1} />
+                <Ellipse cx={195} cy={240} rx={260} ry={120} fill="rgba(0,60,22,0.2)" />
+                <Path d="M0 175 Q80 155 140 162 Q195 168 240 155 Q285 142 340 155 Q365 162 390 150 L390 220 L0 220Z" fill="#001a08" />
+                <Path d="M0 195 Q70 180 130 186 Q195 192 250 178 Q305 165 390 178 L390 220 L0 220Z" fill="#001008" />
+                <Rect x={191} y={148} width={5} height={14} rx={1.5} fill="rgba(231,211,28,0.45)" />
+                <Rect x={186} y={152} width={15} height={5} rx={1.5} fill="rgba(231,211,28,0.45)" />
+                <Line x1={58} y1={197} x2={61} y2={168} stroke="#001e08" strokeWidth={3.5} strokeLinecap="round" />
+                <Line x1={330} y1={196} x2={333} y2={165} stroke="#001e08" strokeWidth={3.5} strokeLinecap="round" />
+              </Svg>
+            </View>
+            <View style={styles.roleChooserContent}>
+              <Text style={styles.roleEyebrow}>Welcome back</Text>
+              <Text style={styles.roleTitle}>
+                Sign in{'\n'}as <Text style={styles.roleTitleEm}>who?</Text>
+              </Text>
+              <Text style={styles.roleSub}>Choose how you'd like to access Island Echoes Health.</Text>
+            </View>
+            <View style={styles.roleTiles}>
+              <TouchableOpacity style={styles.tile} onPress={openUserForm} activeOpacity={0.97}>
+                <View style={[styles.tileIcon, { backgroundColor: 'rgba(231,211,28,0.12)' }]}>
+                  <Svg width={28} height={28} viewBox="0 0 28 28" fill="none">
+                    <Circle cx={14} cy={10} r={5.5} fill="rgba(231,211,28,0.8)" />
+                    <Path d="M5 24C5 19.6 9.1 16 14 16C18.9 16 23 19.6 23 24" stroke="rgba(231,211,28,0.8)" strokeWidth={2} strokeLinecap="round" />
+                  </Svg>
+                </View>
+                <Text style={styles.tileLabel} numberOfLines={2}>Sponsor or Patient</Text>
+                <Text style={styles.tileSub} numberOfLines={1}>Personal account</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.tile} onPress={openClinicLayer} activeOpacity={0.97}>
+                <View style={[styles.tileIcon, { backgroundColor: 'rgba(93,202,165,0.12)' }]}>
+                  <Svg width={28} height={28} viewBox="0 0 28 28" fill="none">
+                    <Rect x={4} y={12} width={20} height={14} rx={2.5} stroke="rgba(93,202,165,0.8)" strokeWidth={1.8} fill="none" />
+                    <Path d="M8 12V9C8 7 9.5 5.5 11.5 5.5H16.5C18.5 5.5 20 7 20 9V12" stroke="rgba(93,202,165,0.8)" strokeWidth={1.8} fill="none" />
+                    <Rect x={12} y={16.5} width={4.5} height={1.8} rx={0.9} fill="rgba(93,202,165,0.8)" />
+                    <Rect x={13.6} y={14.8} width={1.8} height={5} rx={0.9} fill="rgba(93,202,165,0.8)" />
+                  </Svg>
+                </View>
+                <Text style={styles.tileLabel} numberOfLines={2}>Clinician</Text>
+                <Text style={styles.tileSub} numberOfLines={1}>Clinic account</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.signUpNudge} onPress={handleSignUpPress} activeOpacity={0.8}>
+              <Text style={styles.signUpNudgeText}>Don't have an account? </Text>
+              <Text style={styles.signUpNudgeLink}>Sign up</Text>
             </TouchableOpacity>
           </View>
-        </View>
 
-        <TouchableOpacity
-          style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
-          onPress={handleSignIn}
-          activeOpacity={0.85}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color={theme.green} size="small" />
-          ) : (
-            <Text style={styles.submitBtnText}>Sign in</Text>
-          )}
-        </TouchableOpacity>
+          {/* VIEW 1: User sign-in form */}
+          <View style={[styles.reelPage, styles.userFormPage]}>
+            <ScrollView
+              style={styles.scrollContent}
+              contentContainerStyle={styles.scrollContentInner}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.userBadge}>
+                <Svg width={10} height={10} viewBox="0 0 10 10" fill="none">
+                  <Circle cx={5} cy={4} r={2.2} fill="rgba(231,211,28,0.9)" />
+                  <Path d="M1 9C1 6.8 2.8 5 5 5S9 6.8 9 9" stroke="rgba(231,211,28,0.9)" strokeWidth={1.3} strokeLinecap="round" />
+                </Svg>
+                <Text style={styles.userBadgeText}>Sponsor / Patient</Text>
+              </View>
+              <Text style={styles.welcomeTitle}>
+                Welcome{'\n'}<Text style={styles.welcomeTitleEm}>back.</Text>
+              </Text>
+              <Text style={styles.welcomeSub}>Sign in to your Island Echoes account.</Text>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Email address</Text>
+                <TextInput
+                  style={styles.input}
+                  value={userEmail}
+                  onChangeText={(t) => { setUserEmail(t); setUserError(null); }}
+                  placeholder="you@example.com"
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!userLoading}
+                />
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>Password</Text>
+                <View style={styles.passWrap}>
+                  <TextInput
+                    style={[styles.input, styles.inputFlex]}
+                    value={userPassword}
+                    onChangeText={(t) => { setUserPassword(t); setUserError(null); }}
+                    placeholder="Your password"
+                    placeholderTextColor="rgba(255,255,255,0.2)"
+                    secureTextEntry={!showUserPass}
+                    editable={!userLoading}
+                  />
+                  <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowUserPass((p) => !p)} activeOpacity={0.7}>
+                    <Text style={styles.eyeText}>{showUserPass ? 'Hide' : 'Show'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <TouchableOpacity style={styles.forgotWrap} onPress={handleForgotUser} activeOpacity={0.8}>
+                <Text style={styles.forgot}>Forgot password?</Text>
+              </TouchableOpacity>
+              {userError ? <Text style={[styles.errorText, userError.includes('reset') && styles.errorTextHint]}>{userError}</Text> : null}
+
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or continue with</Text>
+                <View style={styles.dividerLine} />
+              </View>
+              <View style={styles.ssoRow}>
+                <TouchableOpacity style={styles.ssoBtn} activeOpacity={0.97}>
+                  <Text style={styles.ssoBtnText}>Google</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.ssoBtn} activeOpacity={0.97}>
+                  <Text style={styles.ssoBtnText}>GitHub</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+            <View style={styles.footer}>
+              <TouchableOpacity
+                style={[styles.submitBtn, userLoading && styles.submitBtnDisabled]}
+                onPress={handleSignInUser}
+                activeOpacity={0.97}
+                disabled={userLoading}
+              >
+                {userLoading ? (
+                  <ActivityIndicator color={theme.green} size="small" />
+                ) : (
+                  <Text style={styles.submitBtnText}>Sign in →</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.signUpRow} onPress={handleSignUpPress} activeOpacity={0.8}>
+                <Text style={styles.signUpRowText}>Don't have an account? </Text>
+                <Text style={styles.signUpRowLink}>Create one</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          </Animated.View>
+        </View>
       </KeyboardAvoidingView>
+
+      {/* ─── Clinic layer (slides from right) ─── */}
+      {clinicLayerVisible && (
+        <Animated.View style={[styles.overlayLayer, styles.clinicLayer, { transform: [{ translateX: clinicLayerAnim }] }]}>
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.backBtn} onPress={closeClinicLayer} activeOpacity={0.85}>
+              <Svg width={18} height={18} viewBox="0 0 18 18" fill="none">
+                <Path d="M14 9H4M8 14L3 9L8 4" stroke="white" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </TouchableOpacity>
+            <Text style={styles.headerLabel}>Clinician sign in</Text>
+          </View>
+          <ScrollView
+            style={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContentInner, styles.clinicFormInner]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.clinicianBadge}>
+              <Svg width={10} height={10} viewBox="0 0 10 10" fill="none">
+                <Rect x={1} y={3.5} width={8} height={6} rx={1.2} stroke="rgba(93,202,165,0.9)" strokeWidth={1} fill="none" />
+                <Path d="M3 3.5V2.5C3 1.7 3.7 1 4.5 1H5.5C6.3 1 7 1.7 7 2.5V3.5" stroke="rgba(93,202,165,0.9)" strokeWidth={1} fill="none" />
+                <Rect x={4.1} y={5.5} width={1.8} height={1.1} rx={0.5} fill="rgba(93,202,165,0.9)" />
+                <Rect x={4.6} y={4.5} width={0.8} height={3} rx={0.4} fill="rgba(93,202,165,0.9)" />
+              </Svg>
+              <Text style={styles.clinicianBadgeText}>Clinician access</Text>
+            </View>
+            <Text style={styles.welcomeTitle}>
+              Clinic{'\n'}<Text style={[styles.welcomeTitleEm, { color: theme.accentTeal }]}>portal.</Text>
+            </Text>
+            <Text style={styles.welcomeSub}>Access your clinic dashboard and patient records.</Text>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Clinic ID or email</Text>
+              <TextInput
+                style={styles.input}
+                value={clinicId}
+                onChangeText={(t) => { setClinicId(t); setClinicError(null); }}
+                placeholder="clinic@example.com or ID"
+                placeholderTextColor="rgba(255,255,255,0.2)"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                editable={!clinicLoading}
+              />
+              <Text style={styles.hint}>Use the email address registered with your clinic account.</Text>
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.label}>Staff password</Text>
+              <View style={styles.passWrap}>
+                <TextInput
+                  style={[styles.input, styles.inputFlex]}
+                  value={clinicPassword}
+                  onChangeText={(t) => { setClinicPassword(t); setClinicError(null); }}
+                  placeholder="Your staff password"
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  secureTextEntry={!showClinicPass}
+                  editable={!clinicLoading}
+                />
+                <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowClinicPass((p) => !p)} activeOpacity={0.7}>
+                  <Text style={styles.eyeText}>{showClinicPass ? 'Hide' : 'Show'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <TouchableOpacity style={styles.forgotWrap} onPress={handleForgotClinic} activeOpacity={0.8}>
+              <Text style={styles.forgot}>Forgot password?</Text>
+            </TouchableOpacity>
+            {clinicError ? <Text style={[styles.errorText, clinicError.includes('reset') && styles.errorTextHint]}>{clinicError}</Text> : null}
+
+            <View style={styles.mfaNotice}>
+              <Svg width={18} height={18} viewBox="0 0 18 18" fill="none" style={styles.mfaNoticeIcon}>
+                <Circle cx={9} cy={9} r={7.5} stroke="rgba(93,202,165,0.7)" strokeWidth={1.2} />
+                <Path d="M9 6V9.5" stroke="rgba(93,202,165,0.7)" strokeWidth={1.4} strokeLinecap="round" />
+                <Circle cx={9} cy={12} r={0.7} fill="rgba(93,202,165,0.7)" />
+              </Svg>
+              <Text style={styles.mfaNoticeText}>
+                Clinic accounts require <Text style={styles.mfaNoticeStrong}>two-factor authentication</Text>. You'll verify via a code sent to your registered email or phone.
+              </Text>
+            </View>
+          </ScrollView>
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.submitBtn, styles.submitBtnTeal, clinicLoading && styles.submitBtnDisabled]}
+              onPress={handleSignInClinic}
+              activeOpacity={0.97}
+              disabled={clinicLoading}
+            >
+              {clinicLoading ? (
+                <ActivityIndicator color="#002e18" size="small" />
+              ) : (
+                <Text style={styles.submitBtnTextTeal}>Access clinic portal →</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.signUpRow} onPress={handleClinicSignUpPress} activeOpacity={0.8}>
+              <Text style={styles.signUpRowText}>Clinic not registered? </Text>
+              <Text style={styles.signUpRowLink}>Apply to join</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
+
+      {/* ─── MFA layer (slides from bottom) ─── */}
+      {mfaVisible && (
+        <Animated.View style={[styles.overlayLayer, styles.mfaLayer, { transform: [{ translateY: mfaLayerAnim }] }]}>
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.backBtn} onPress={closeMfa} activeOpacity={0.85}>
+              <Svg width={18} height={18} viewBox="0 0 18 18" fill="none">
+                <Path d="M14 9H4M8 14L3 9L8 4" stroke="white" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </TouchableOpacity>
+            <Text style={styles.headerLabel}>{mfaFor === 'clinic' ? 'Clinic two-factor auth' : 'Two-factor verification'}</Text>
+          </View>
+          <ScrollView
+            style={styles.scrollContent}
+            contentContainerStyle={styles.mfaContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={[styles.mfaIconWrap, mfaFor === 'clinic' && styles.mfaIconWrapTeal]}>
+              <Svg width={30} height={30} viewBox="0 0 30 30" fill="none">
+                <Rect x={6} y={3} width={18} height={24} rx={4} stroke="rgba(231,211,28,0.7)" strokeWidth={1.5} />
+                <Rect x={11} y={8} width={8} height={1.5} rx={0.75} fill="rgba(231,211,28,0.4)" />
+                <Rect x={11} y={12} width={8} height={1.5} rx={0.75} fill="rgba(231,211,28,0.4)" />
+                <Rect x={11} y={16} width={5} height={1.5} rx={0.75} fill="rgba(231,211,28,0.4)" />
+                <Circle cx={20} cy={21} r={5} fill={theme.green} stroke="rgba(231,211,28,0.7)" strokeWidth={1} />
+                <Path d="M17.5 21L19 22.5L22.5 19" stroke={theme.gold} strokeWidth={1.3} strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </View>
+            <Text style={styles.mfaTitle}>
+              Verify it's{'\n'}<Text style={styles.welcomeTitleEm}>you</Text>
+            </Text>
+            <Text style={styles.mfaSub}>
+              {mfaFor === 'clinic'
+                ? "Enter the 6-digit code we sent to your clinic's registered email."
+                : 'Enter the 6-digit code we sent to your registered email address.'}
+            </Text>
+            <View style={styles.otpRow}>
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <TextInput
+                  key={i}
+                  ref={(r) => { mfaInputRefs.current[i] = r; }}
+                  style={[styles.otpBox, mfaCode[i] && styles.otpBoxFilled]}
+                  value={mfaCode[i]}
+                  onChangeText={(v) => updateMfaDigit(i, v)}
+                  onKeyPress={({ nativeEvent }) => handleMfaKeyDown(i, nativeEvent.key)}
+                  maxLength={1}
+                  keyboardType="number-pad"
+                  placeholder=""
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                />
+              ))}
+            </View>
+            {mfaError ? <Text style={styles.errorText}>{mfaError}</Text> : null}
+            <View style={styles.resendRow}>
+              <Text style={styles.resendText}>Didn't receive a code? </Text>
+              <TouchableOpacity onPress={handleMfaResend} activeOpacity={0.8}>
+                <Text style={styles.resendLink}>Resend</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.mfaSwitch} onPress={handleSwitchMfaMethod} activeOpacity={0.9}>
+              <Text style={styles.mfaSwitchText}>
+                {mfaMethod === 'email' ? 'Switch to phone verification instead' : 'Switch to email verification instead'}
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.submitBtn, mfaFor === 'clinic' && styles.submitBtnTeal]}
+              onPress={handleMfaVerify}
+              activeOpacity={0.97}
+            >
+              <Text style={[styles.submitBtnText, mfaFor === 'clinic' && styles.submitBtnTextTeal]}>Verify & sign in →</Text>
+            </TouchableOpacity>
+            <Text style={styles.mfaFooterText}>Having trouble? Contact support</Text>
+          </View>
+        </Animated.View>
+      )}
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  flex1: { flex: 1 },
   panel: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: theme.green,
@@ -150,76 +584,253 @@ const styles = StyleSheet.create({
   backBtn: {
     width: layout.s(40),
     height: layout.s(40),
-    borderRadius: layout.s(20),
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: layout.s(12),
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.13)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: {
-    fontSize: layout.f(22),
-    fontWeight: '600',
-    color: theme.white,
-  },
-  content: {
+  headerLabel: {
     flex: 1,
-    paddingHorizontal: layout.s(28),
-    paddingTop: layout.s(8),
-  },
-  sub: {
-    fontSize: layout.f(14),
-    color: 'rgba(255,255,255,0.6)',
-    marginBottom: layout.s(24),
-  },
-  errorWrap: {
-    backgroundColor: 'rgba(255,100,100,0.15)',
-    borderRadius: layout.s(12),
-    paddingVertical: layout.s(10),
-    paddingHorizontal: layout.s(14),
-    marginBottom: layout.s(16),
-  },
-  errorText: {
     fontSize: layout.f(13),
-    color: '#ffb3b3',
-  },
-  field: {
-    marginBottom: layout.s(18),
-  },
-  label: {
-    fontSize: layout.f(12),
     fontWeight: '500',
     color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 0.5,
+  },
+  reelWrapper: {
+    flex: 1,
+    width: layout.width,
+    overflow: 'hidden',
+    minHeight: 0,
+  },
+  reel: {
+    width: layout.width * 2,
+    flexDirection: 'row',
+    minHeight: 0,
+    flex: 1,
+  },
+  reelPage: {
+    width: layout.width,
+    flexShrink: 0,
+    minHeight: 0,
+    flex: 1,
+  },
+  scene: {
+    height: layout.s(220),
+    overflow: 'hidden',
+  },
+  roleChooserContent: {
+    paddingHorizontal: layout.s(28),
+    paddingBottom: layout.s(28),
+  },
+  roleEyebrow: {
+    fontSize: layout.f(10),
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    color: 'rgba(255,255,255,0.38)',
+    marginBottom: layout.s(10),
+  },
+  roleTitle: {
+    fontFamily: Platform.OS === 'ios' ? 'Playfair Display' : 'serif',
+    fontSize: layout.f(42),
+    fontWeight: '700',
+    color: theme.white,
+    lineHeight: layout.s(40),
+    letterSpacing: -0.5,
+  },
+  roleTitleEm: {
+    fontStyle: 'italic',
+    color: theme.gold,
+  },
+  roleSub: {
+    fontSize: layout.f(13),
+    color: 'rgba(255,255,255,0.4)',
+    lineHeight: layout.s(22),
+    marginTop: layout.s(10),
+  },
+  roleTiles: {
+    flexDirection: 'row',
+    gap: layout.s(12),
+    paddingHorizontal: layout.s(28),
+  },
+  tile: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: layout.s(22),
+    paddingVertical: layout.s(24),
+    paddingHorizontal: layout.s(18),
+    alignItems: 'center',
+  },
+  tileIcon: {
+    width: layout.s(56),
+    height: layout.s(56),
+    borderRadius: layout.s(18),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: layout.s(12),
+  },
+  tileLabel: {
+    fontSize: layout.f(14),
+    fontWeight: '600',
+    color: theme.white,
+    lineHeight: layout.s(18),
+    textAlign: 'center',
+  },
+  tileSub: {
+    fontSize: layout.f(11),
+    color: 'rgba(255,255,255,0.38)',
+    lineHeight: layout.s(16),
+    marginTop: layout.s(-6),
+    textAlign: 'center',
+  },
+  signUpNudge: {
+    paddingHorizontal: layout.s(28),
+    paddingTop: layout.s(28),
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  signUpNudgeText: { fontSize: layout.f(12.5), color: 'rgba(255,255,255,0.3)' },
+  signUpNudgeLink: { fontSize: layout.f(12.5), color: theme.gold, fontWeight: '500' },
+
+  userFormPage: {
+    paddingTop: 0,
+  },
+  scrollContent: {
+    flex: 1,
+    minHeight: 0,
+  },
+  scrollContentInner: {
+    paddingHorizontal: layout.s(28),
+    paddingTop: layout.s(28),
+    paddingBottom: layout.s(24),
+  },
+  clinicFormInner: {
+    paddingBottom: layout.s(32),
+  },
+  userBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.s(7),
+    backgroundColor: 'rgba(231,211,28,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(231,211,28,0.25)',
+    borderRadius: layout.s(30),
+    paddingVertical: layout.s(6),
+    paddingHorizontal: layout.s(14),
+    alignSelf: 'flex-start',
+    marginBottom: layout.s(4),
+  },
+  userBadgeText: {
+    fontSize: layout.f(11),
+    fontWeight: '500',
+    color: 'rgba(231,211,28,0.85)',
+    letterSpacing: 0.8,
+  },
+  welcomeTitle: {
+    fontFamily: Platform.OS === 'ios' ? 'Playfair Display' : 'serif',
+    fontSize: layout.f(36),
+    fontWeight: '700',
+    color: theme.white,
+    lineHeight: layout.s(38),
+    letterSpacing: -0.5,
+    marginTop: layout.s(10),
     marginBottom: layout.s(6),
+  },
+  welcomeTitleEm: {
+    fontStyle: 'italic',
+    color: theme.gold,
+  },
+  welcomeSub: {
+    fontSize: layout.f(13),
+    color: 'rgba(255,255,255,0.4)',
+    lineHeight: layout.s(22),
+    marginBottom: layout.s(28),
+  },
+  field: { marginBottom: layout.s(14) },
+  label: {
+    fontSize: layout.f(10.5),
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: 'rgba(255,255,255,0.45)',
+    fontWeight: '500',
+    marginBottom: layout.s(7),
   },
   input: {
     height: layout.s(52),
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: layout.s(14),
-    paddingHorizontal: layout.s(16),
-    fontSize: layout.f(16),
-    color: theme.white,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: layout.s(14),
+    paddingHorizontal: layout.s(18),
+    fontSize: layout.f(15),
+    color: theme.white,
   },
-  inputFlex: {
-    flex: 1,
-  },
-  passwordRow: {
+  inputFlex: { flex: 1 },
+  passWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: layout.s(14),
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: layout.s(14),
   },
   eyeBtn: {
-    paddingHorizontal: layout.s(14),
+    paddingHorizontal: layout.s(16),
     height: layout.s(52),
     justifyContent: 'center',
   },
   eyeText: {
     fontSize: layout.f(13),
-    color: theme.gold,
+    color: 'rgba(255,255,255,0.35)',
+  },
+  forgotWrap: { alignSelf: 'flex-end', marginTop: layout.s(-4) },
+  forgot: {
+    fontSize: layout.f(12.5),
+    color: 'rgba(255,255,255,0.35)',
+  },
+  errorText: {
+    fontSize: layout.f(12),
+    color: '#e87b7b',
+    marginTop: layout.s(6),
+  },
+  errorTextHint: {
+    color: 'rgba(231,211,28,0.7)',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.s(12),
+    marginVertical: layout.s(24),
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.08)' },
+  dividerText: { fontSize: layout.f(11.5), color: 'rgba(255,255,255,0.25)' },
+  ssoRow: { flexDirection: 'row', gap: layout.s(10) },
+  ssoBtn: {
+    flex: 1,
+    height: layout.s(50),
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: layout.s(14),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ssoBtnText: {
+    fontSize: layout.f(13),
     fontWeight: '500',
+    color: 'rgba(255,255,255,0.65)',
+  },
+  footer: {
+    paddingHorizontal: layout.s(28),
+    paddingVertical: layout.s(12),
+    paddingBottom: layout.s(36),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.07)',
   },
   submitBtn: {
     width: '100%',
@@ -228,15 +839,168 @@ const styles = StyleSheet.create({
     borderRadius: layout.s(18),
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: layout.s(24),
   },
-  submitBtnDisabled: {
-    opacity: 0.9,
+  submitBtnTeal: {
+    backgroundColor: theme.accentTeal,
   },
+  submitBtnDisabled: { opacity: 0.8 },
   submitBtnText: {
     fontSize: layout.f(16),
     fontWeight: '600',
     color: theme.green,
     letterSpacing: 0.5,
+  },
+  submitBtnTextTeal: {
+    color: '#002e18',
+  },
+  signUpRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: layout.s(10),
+  },
+  signUpRowText: { fontSize: layout.f(12.5), color: 'rgba(255,255,255,0.3)' },
+  signUpRowLink: { fontSize: layout.f(12.5), color: theme.gold, fontWeight: '500' },
+
+  overlayLayer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: theme.green,
+    zIndex: 10,
+  },
+  clinicLayer: {},
+  clinicianBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.s(7),
+    backgroundColor: 'rgba(93,202,165,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(93,202,165,0.25)',
+    borderRadius: layout.s(30),
+    paddingVertical: layout.s(6),
+    paddingHorizontal: layout.s(14),
+    alignSelf: 'flex-start',
+    marginBottom: layout.s(4),
+  },
+  clinicianBadgeText: {
+    fontSize: layout.f(11),
+    fontWeight: '500',
+    color: 'rgba(93,202,165,0.85)',
+    letterSpacing: 0.8,
+  },
+  hint: {
+    fontSize: layout.f(11.5),
+    color: 'rgba(255,255,255,0.3)',
+    marginTop: layout.s(4),
+    lineHeight: layout.s(18),
+  },
+  mfaNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: layout.s(12),
+    backgroundColor: 'rgba(93,202,165,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(93,202,165,0.18)',
+    borderRadius: layout.s(16),
+    padding: layout.s(14),
+    marginTop: layout.s(8),
+  },
+  mfaNoticeIcon: { marginTop: layout.s(1) },
+  mfaNoticeText: {
+    flex: 1,
+    fontSize: layout.f(12),
+    color: 'rgba(255,255,255,0.4)',
+    lineHeight: layout.s(19),
+  },
+  mfaNoticeStrong: {
+    color: 'rgba(93,202,165,0.8)',
+    fontWeight: '500',
+  },
+
+  mfaLayer: { zIndex: 20 },
+  mfaContent: {
+    paddingHorizontal: layout.s(28),
+    paddingTop: layout.s(32),
+    alignItems: 'center',
+  },
+  mfaIconWrap: {
+    width: layout.s(72),
+    height: layout.s(72),
+    borderRadius: layout.s(36),
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: layout.s(20),
+  },
+  mfaIconWrapTeal: {
+    backgroundColor: 'rgba(93,202,165,0.1)',
+    borderColor: 'rgba(93,202,165,0.25)',
+  },
+  mfaTitle: {
+    fontFamily: Platform.OS === 'ios' ? 'Playfair Display' : 'serif',
+    fontSize: layout.f(30),
+    fontWeight: '700',
+    color: theme.white,
+    lineHeight: layout.s(34),
+    letterSpacing: -0.3,
+    marginBottom: layout.s(8),
+    textAlign: 'center',
+  },
+  mfaSub: {
+    fontSize: layout.f(13.5),
+    color: 'rgba(255,255,255,0.45)',
+    lineHeight: layout.s(22),
+    textAlign: 'center',
+    maxWidth: layout.s(270),
+    marginBottom: layout.s(28),
+  },
+  otpRow: {
+    flexDirection: 'row',
+    gap: layout.s(10),
+    width: '100%',
+    marginBottom: layout.s(8),
+  },
+  otpBox: {
+    flex: 1,
+    height: layout.s(60),
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: layout.s(14),
+    fontSize: layout.f(24),
+    fontWeight: '600',
+    color: theme.white,
+    textAlign: 'center',
+  },
+  otpBoxFilled: {
+    borderColor: 'rgba(231,211,28,0.35)',
+  },
+  resendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: layout.s(8),
+  },
+  resendText: { fontSize: layout.f(13), color: 'rgba(255,255,255,0.4)' },
+  resendLink: { fontSize: layout.f(13), color: theme.gold, fontWeight: '500' },
+  mfaSwitch: {
+    marginTop: layout.s(20),
+    width: '100%',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.09)',
+    borderRadius: layout.s(16),
+    padding: layout.s(14),
+  },
+  mfaSwitchText: {
+    fontSize: layout.f(12.5),
+    color: 'rgba(255,255,255,0.35)',
+  },
+  mfaFooterText: {
+    fontSize: layout.f(12.5),
+    color: 'rgba(255,255,255,0.25)',
+    textAlign: 'center',
+    marginTop: layout.s(10),
   },
 });
