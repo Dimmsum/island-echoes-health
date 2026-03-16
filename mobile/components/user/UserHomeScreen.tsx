@@ -31,10 +31,6 @@ export function UserHomeScreen({ onNavigatePatients, onNavigateAppointments, onN
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
-          <Text style={styles.brandTitle}>Island Echoes Health</Text>
-          <View style={styles.heroBadge}>
-            <Text style={styles.heroBadgeText}>Your care journey</Text>
-          </View>
           <Text style={styles.heroTitle}>
             Welcome back,{'\n'}
             {firstName}.

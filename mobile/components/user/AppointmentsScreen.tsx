@@ -2,7 +2,7 @@ import React from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../constants/layout';
-import { IconClock } from './userDesignAIcons';
+import { IconCalendar, IconClock } from './userDesignAIcons';
 import { userDesignATheme as c } from './userDesignATheme';
 import { useUserHomeData } from '../../lib/userHome';
 
@@ -16,6 +16,7 @@ export function AppointmentsScreen({ onOpenAppointmentDetail }: Props) {
   const all = home.status === 'loaded' ? home.data.upcomingAppointments : [];
   const upcoming = all.filter((a) => a.status === 'scheduled');
   const past: typeof all = []; // TODO: wire past visits API when available
+  const hasAnyAppointments = upcoming.length > 0 || past.length > 0;
 
   return (
     <View style={styles.root}>
@@ -31,35 +32,54 @@ export function AppointmentsScreen({ onOpenAppointmentDetail }: Props) {
         </View>
 
         <View style={styles.content}>
-          <View style={styles.badgeRow}>
-            <View style={styles.sectionBadge}>
-              <Text style={styles.sectionBadgeText}>Upcoming</Text>
-            </View>
-          </View>
-
           {home.status === 'loading' && (
             <Text style={styles.loadingText}>Loading your appointments…</Text>
           )}
           {home.status === 'error' && (
             <Text style={styles.errorText}>{home.error}</Text>
           )}
-          {home.status === 'loaded' && upcoming.length === 0 && (
-            <Text style={styles.emptyText}>No upcoming appointments found.</Text>
+
+          {home.status === 'loaded' && !hasAnyAppointments && (
+            <View style={styles.emptyCard}>
+              <View style={styles.emptyIconWrap}>
+                <IconCalendar size={22} color={c.g500} />
+              </View>
+              <Text style={styles.emptyTitle}>No appointments yet</Text>
+              <Text style={styles.emptyBody}>
+                Once your care team schedules a visit, it will appear here.
+              </Text>
+            </View>
           )}
 
-          {upcoming.map((a) => (
-            <AppointmentCard key={a.id} appointment={a} onPress={() => onOpenAppointmentDetail(a.id)} />
-          ))}
+          {hasAnyAppointments && (
+            <>
+              {upcoming.length > 0 && (
+                <>
+                  <View style={styles.badgeRow}>
+                    <View style={styles.sectionBadge}>
+                      <Text style={styles.sectionBadgeText}>Upcoming</Text>
+                    </View>
+                  </View>
+                  {upcoming.map((a) => (
+                    <AppointmentCard key={a.id} appointment={a} onPress={() => onOpenAppointmentDetail(a.id)} />
+                  ))}
+                </>
+              )}
 
-          <View style={[styles.badgeRow, { marginTop: layout.s(4) }]}>
-            <View style={[styles.sectionBadge, { backgroundColor: '#eee' }]}>
-              <Text style={[styles.sectionBadgeText, { color: '#666' }]}>Past</Text>
-            </View>
-          </View>
-
-          {past.map((a) => (
-            <AppointmentCard key={a.id} appointment={a} onPress={() => onOpenAppointmentDetail(a.id)} />
-          ))}
+              {past.length > 0 && (
+                <>
+                  <View style={[styles.badgeRow, { marginTop: layout.s(4) }]}>
+                    <View style={[styles.sectionBadge, { backgroundColor: '#eee' }]}>
+                      <Text style={[styles.sectionBadgeText, { color: '#666' }]}>Past</Text>
+                    </View>
+                  </View>
+                  {past.map((a) => (
+                    <AppointmentCard key={a.id} appointment={a} onPress={() => onOpenAppointmentDetail(a.id)} />
+                  ))}
+                </>
+              )}
+            </>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -260,6 +280,40 @@ const styles = StyleSheet.create({
   },
   statusTextScheduled: { color: c.g700 },
   statusTextCompleted: { color: '#666' },
+  emptyCard: {
+    marginTop: layout.s(6),
+    marginBottom: layout.s(8),
+    backgroundColor: c.white,
+    borderRadius: layout.s(16),
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(0,0,0,0.08)',
+    paddingVertical: layout.s(24),
+    paddingHorizontal: layout.s(20),
+    alignItems: 'center',
+  },
+  emptyIconWrap: {
+    width: layout.s(48),
+    height: layout.s(48),
+    borderRadius: layout.s(24),
+    backgroundColor: c.g50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: layout.s(10),
+  },
+  emptyTitle: {
+    fontSize: layout.f(13.5),
+    fontWeight: '600',
+    color: c.text1,
+    marginBottom: layout.s(6),
+    textAlign: 'center',
+  },
+  emptyBody: {
+    fontSize: layout.f(11.5),
+    color: c.text3,
+    lineHeight: layout.f(11.5 * 1.5),
+    textAlign: 'center',
+  },
   apptFooter: {
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.05)',
