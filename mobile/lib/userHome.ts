@@ -27,7 +27,7 @@ export type UserHomeResponse = {
   pendingConsents: unknown[];
   upcomingAppointments: UpcomingAppointment[];
   notifications: unknown[];
-  carePlans: unknown[];
+  carePlans: { id: string; name: string; slug?: string; price_cents?: number | null; features?: string[] | null }[];
 };
 
 export type UserHomeState =
