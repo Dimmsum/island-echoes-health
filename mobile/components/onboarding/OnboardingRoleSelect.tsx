@@ -176,9 +176,9 @@ const styles = StyleSheet.create({
     color: theme.gold,
   },
   subline: {
-    fontSize: layout.f(13),
-    color: 'rgba(255,255,255,0.45)',
-    lineHeight: layout.f(20),
+    fontSize: layout.f(14),
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: layout.f(22),
   },
   cardsWrap: {
     flex: 1,
@@ -217,9 +217,9 @@ const styles = StyleSheet.create({
     marginBottom: layout.s(3),
   },
   roleDesc: {
-    fontSize: layout.f(12),
-    color: 'rgba(255,255,255,0.45)',
-    lineHeight: layout.f(18),
+    fontSize: layout.f(13),
+    color: 'rgba(255,255,255,0.8)',
+    lineHeight: layout.f(20),
   },
   roleArrow: {
     fontSize: layout.f(20),

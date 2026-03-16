@@ -26,9 +26,11 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 type Props = {
   onGetStarted: () => void;
   onSignIn: () => void;
+  /** Skip the onboarding carousel and go straight to role selection. */
+  onSkip: () => void;
 };
 
-export function OnboardingSplash({ onGetStarted, onSignIn }: Props) {
+export function OnboardingSplash({ onGetStarted, onSignIn, onSkip }: Props) {
   // Ripples (3 circles: r and opacity, staggered)
   const ripple1R = useRef(new Animated.Value(30)).current;
   const ripple1Opacity = useRef(new Animated.Value(0.5)).current;
@@ -199,6 +201,14 @@ export function OnboardingSplash({ onGetStarted, onSignIn }: Props) {
 
   return (
     <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
+      {/* Top app bar with Skip */}
+      <View style={styles.topBar}>
+        <View style={styles.topBarLeft} />
+        <TouchableOpacity onPress={onSkip} activeOpacity={0.7}>
+          <Text style={styles.topBarSkip}>Skip</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Top: full-bleed visual */}
       <View style={[styles.visualWrap, { height: VISUAL_HEIGHT }]}>
         <Svg
@@ -364,6 +374,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.green,
   },
+  topBar: {
+    position: 'absolute',
+    top: layout.s(52),
+    left: layout.s(24),
+    right: layout.s(24),
+    zIndex: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  topBarLeft: {
+    width: layout.s(40),
+  },
+  topBarSkip: {
+    fontSize: layout.f(13),
+    fontWeight: '600',
+    color: theme.green,
+    letterSpacing: 0.6,
+    paddingHorizontal: layout.s(12),
+    paddingVertical: layout.s(6),
+    borderRadius: layout.s(999),
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    overflow: 'hidden',
+  },
   visualWrap: {
     width: '100%',
     overflow: 'hidden',
@@ -403,9 +437,9 @@ const styles = StyleSheet.create({
   },
   sublineWrap: {},
   subline: {
-    fontSize: layout.f(13.5),
-    color: 'rgba(255,255,255,0.55)',
-    lineHeight: layout.f(21),
+    fontSize: layout.f(14),
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: layout.f(22),
     fontWeight: '400',
   },
   dividerWrap: {},
@@ -435,11 +469,11 @@ const styles = StyleSheet.create({
     paddingVertical: layout.s(6),
   },
   skipText: {
-    fontSize: layout.f(12.5),
-    color: 'rgba(255,255,255,0.38)',
+    fontSize: layout.f(13.5),
+    color: 'rgba(255,255,255,0.7)',
   },
   signInLink: {
     color: theme.gold,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

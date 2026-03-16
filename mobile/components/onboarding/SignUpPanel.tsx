@@ -214,23 +214,29 @@ export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress 
     if (flow === 'clinic' && step === 2) {
       setLoading(true);
       setError(null);
-      const result = await submitClinicianRequest({
-        email: cEmail.trim(),
-        name: cName.trim() || null,
-        license_number: cReg.trim(),
-        specialty: cSpecialty.trim(),
-        institution_or_clinic_name: cInstitution.trim() || null,
-        license_image_uri: cLicenseUri,
-        license_image_mime: cLicenseMime,
-        license_image_name: cLicenseName,
-      });
-      setLoading(false);
-      if ('error' in result) {
-        setError(result.error);
+      try {
+        const result = await submitClinicianRequest({
+          email: cEmail.trim(),
+          name: cName.trim() || null,
+          license_number: cReg.trim(),
+          specialty: cSpecialty.trim(),
+          institution_or_clinic_name: cInstitution.trim() || null,
+          license_image_uri: cLicenseUri,
+          license_image_mime: cLicenseMime,
+          license_image_name: cLicenseName,
+        });
+        if ('error' in result) {
+          setError(result.error);
+          return;
+        }
+        setStep(3);
         return;
+      } catch (e) {
+        setError('Network error. Please check your connection and try again.');
+        return;
+      } finally {
+        setLoading(false);
       }
-      setStep(3);
-      return;
     }
 
     setStep((s) => s + 1);
@@ -579,7 +585,7 @@ export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress 
                         return;
                       }
                       const result = await ImagePicker.launchImageLibraryAsync({
-                        mediaTypes: ['images'],
+                        mediaTypes: ImagePicker.MediaTypeOptions.Images,
                         allowsEditing: false,
                         quality: 0.9,
                       });

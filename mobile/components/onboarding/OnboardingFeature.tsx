@@ -294,9 +294,9 @@ const styles = StyleSheet.create({
     color: theme.gold,
   },
   featSubline: {
-    fontSize: layout.f(13.5),
-    color: 'rgba(255,255,255,0.5)',
-    lineHeight: layout.f(22),
+    fontSize: layout.f(14),
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: layout.f(23),
     fontWeight: '400',
   },
   featDivider: {

@@ -37,6 +37,11 @@ export function OnboardingCarousel({ onComplete }: Props) {
     setSignInVisible(true);
   };
 
+  const handleSkipOnboarding = () => {
+    // Skip directly to role selection (last slide)
+    goTo(3);
+  };
+
   const handleSignInSuccess = () => {
     setSignInVisible(false);
     onComplete();
@@ -55,7 +60,11 @@ export function OnboardingCarousel({ onComplete }: Props) {
       style={{ flex: 1 }}
       contentContainerStyle={{ width: SCREEN_WIDTH * 4 }}
     >
-      <OnboardingSplash onGetStarted={handleGetStarted} onSignIn={handleSignIn} />
+      <OnboardingSplash
+        onGetStarted={handleGetStarted}
+        onSignIn={handleSignIn}
+        onSkip={handleSkipOnboarding}
+      />
       <OnboardingFeature
         variant="sponsors"
         onNext={() => goTo(2)}
