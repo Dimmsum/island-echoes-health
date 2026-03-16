@@ -3,17 +3,18 @@ import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../constants/layout';
 import { IconCalendar, IconChevronLeft } from './userDesignAIcons';
-import { patients } from './userDesignAMockData';
 import { userDesignATheme as c } from './userDesignATheme';
+import { useUserSponsoredPatient } from '../../lib/userSponsoredPatient';
 
 type Props = {
-  patientId: number;
+  patientLinkId: string;
   onBack: () => void;
 };
 
-export function PatientDetailScreen({ patientId, onBack }: Props) {
+export function PatientDetailScreen({ patientLinkId, onBack }: Props) {
   const insets = useSafeAreaInsets();
-  const p = patients.find((x) => x.id === patientId) ?? patients[0];
+  const state = useUserSponsoredPatient(patientLinkId);
+  const p = state.status === 'loaded' ? state.data : null;
 
   return (
     <View style={styles.root}>

@@ -8,6 +8,7 @@ import { PatientDetailScreen } from './PatientDetailScreen';
 import { AppointmentsScreen } from './AppointmentsScreen';
 import { AppointmentDetailScreen } from './AppointmentDetailScreen';
 import { ProfileScreen } from './ProfileScreen';
+import { SettingsScreen } from './SettingsScreen';
 import { userDesignATheme as c } from './userDesignATheme';
 import { IconCalendar, IconHome, IconUser, IconUsers } from './userDesignAIcons';
 
@@ -20,8 +21,9 @@ type Props = {
 export function UserTabsNavigator({ onSignOut }: Props) {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<TabKey>('home');
-  const [activePatientId, setActivePatientId] = useState<number | null>(null);
-  const [activeAppointmentId, setActiveAppointmentId] = useState<number | null>(null);
+  const [activePatientLinkId, setActivePatientLinkId] = useState<string | null>(null);
+  const [activeAppointmentId, setActiveAppointmentId] = useState<string | null>(null);
+  const [profileSub, setProfileSub] = useState<'profile' | 'settings'>('profile');
   const TAB_BAR_BASE_HEIGHT = layout.s(56);
 
   const renderContent = () => {
@@ -35,12 +37,12 @@ export function UserTabsNavigator({ onSignOut }: Props) {
           />
         );
       case 'patients':
-        if (activePatientId != null) {
-          return <PatientDetailScreen patientId={activePatientId} onBack={() => setActivePatientId(null)} />;
+        if (activePatientLinkId != null) {
+          return <PatientDetailScreen patientLinkId={activePatientLinkId} onBack={() => setActivePatientLinkId(null)} />;
         }
         return (
           <PatientsScreen
-            onOpenPatientDetail={(id) => setActivePatientId(id)}
+            onOpenPatientDetail={(linkId) => setActivePatientLinkId(linkId)}
             onLinkPatient={() => {}}
           />
         );
@@ -54,7 +56,10 @@ export function UserTabsNavigator({ onSignOut }: Props) {
           />
         );
       case 'profile':
-        return <ProfileScreen onSignOut={onSignOut} />;
+        if (profileSub === 'settings') {
+          return <SettingsScreen onBack={() => setProfileSub('profile')} onSignOut={onSignOut} />;
+        }
+        return <ProfileScreen onOpenSettings={() => setProfileSub('settings')} />;
       default:
         return null;
     }
@@ -81,7 +86,12 @@ export function UserTabsNavigator({ onSignOut }: Props) {
       <TouchableOpacity
         key={key}
         style={styles.tab}
-        onPress={() => setTab(key)}
+        onPress={() => {
+          setTab(key);
+          if (key !== 'profile') {
+            setProfileSub('profile');
+          }
+        }}
         activeOpacity={0.85}
         accessibilityRole="button"
         accessibilityState={active ? { selected: true } : {}}

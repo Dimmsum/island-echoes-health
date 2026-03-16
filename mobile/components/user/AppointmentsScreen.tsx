@@ -3,17 +3,19 @@ import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../constants/layout';
 import { IconClock } from './userDesignAIcons';
-import { appointments, patients } from './userDesignAMockData';
 import { userDesignATheme as c } from './userDesignATheme';
+import { useUserHomeData } from '../../lib/userHome';
 
 type Props = {
-  onOpenAppointmentDetail: (appointmentId: number) => void;
+  onOpenAppointmentDetail: (appointmentId: string) => void;
 };
 
 export function AppointmentsScreen({ onOpenAppointmentDetail }: Props) {
   const insets = useSafeAreaInsets();
-  const upcoming = appointments.filter((a) => a.status === 'Scheduled');
-  const past = appointments.filter((a) => a.status === 'Completed');
+  const home = useUserHomeData();
+  const all = home.status === 'loaded' ? home.data.upcomingAppointments : [];
+  const upcoming = all.filter((a) => a.status === 'scheduled');
+  const past: typeof all = []; // TODO: wire past visits API when available
 
   return (
     <View style={styles.root}>
@@ -35,8 +37,18 @@ export function AppointmentsScreen({ onOpenAppointmentDetail }: Props) {
             </View>
           </View>
 
+          {home.status === 'loading' && (
+            <Text style={styles.loadingText}>Loading your appointments…</Text>
+          )}
+          {home.status === 'error' && (
+            <Text style={styles.errorText}>{home.error}</Text>
+          )}
+          {home.status === 'loaded' && upcoming.length === 0 && (
+            <Text style={styles.emptyText}>No upcoming appointments found.</Text>
+          )}
+
           {upcoming.map((a) => (
-            <AppointmentCard key={a.id} appointmentId={a.id} onPress={() => onOpenAppointmentDetail(a.id)} />
+            <AppointmentCard key={a.id} appointment={a} onPress={() => onOpenAppointmentDetail(a.id)} />
           ))}
 
           <View style={[styles.badgeRow, { marginTop: layout.s(4) }]}>
@@ -46,7 +58,7 @@ export function AppointmentsScreen({ onOpenAppointmentDetail }: Props) {
           </View>
 
           {past.map((a) => (
-            <AppointmentCard key={a.id} appointmentId={a.id} onPress={() => onOpenAppointmentDetail(a.id)} />
+            <AppointmentCard key={a.id} appointment={a} onPress={() => onOpenAppointmentDetail(a.id)} />
           ))}
         </View>
       </ScrollView>
@@ -54,26 +66,43 @@ export function AppointmentsScreen({ onOpenAppointmentDetail }: Props) {
   );
 }
 
-function AppointmentCard({ appointmentId, onPress }: { appointmentId: number; onPress: () => void }) {
-  const a = appointments.find((x) => x.id === appointmentId) ?? appointments[0];
-  const p = patients.find((x) => x.id === a.patientId);
-  const isPast = a.status === 'Completed';
+type CardProps = {
+  appointment: {
+    id: string;
+    scheduled_at: string;
+    status: string;
+    clinician_name: string | null;
+    patient_name: string | null;
+  };
+  onPress: () => void;
+};
+
+function AppointmentCard({ appointment, onPress }: CardProps) {
+  const a = appointment;
+  const isPast = a.status === 'completed';
+  const date = new Date(a.scheduled_at);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = date.toLocaleString('en-US', { month: 'short' });
+  const year = String(date.getFullYear());
+  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const title = a.clinician_name ? 'Visit with ' + a.clinician_name : 'Scheduled visit';
+  const clinic = a.patient_name ? a.patient_name : 'Your care plan';
 
   return (
     <TouchableOpacity style={styles.apptCard} activeOpacity={0.9} onPress={onPress}>
       <View style={styles.apptTop}>
         <View style={[styles.dateBlock, isPast && styles.dateBlockPast]}>
-          <Text style={[styles.dayNum, isPast && styles.dayNumPast]}>{a.day}</Text>
-          <Text style={[styles.monthStr, isPast && styles.monthStrPast]}>{a.month}</Text>
-          <Text style={[styles.yearStr, isPast && styles.yearStrPast]}>{a.year}</Text>
+          <Text style={[styles.dayNum, isPast && styles.dayNumPast]}>{day}</Text>
+          <Text style={[styles.monthStr, isPast && styles.monthStrPast]}>{month}</Text>
+          <Text style={[styles.yearStr, isPast && styles.yearStrPast]}>{year}</Text>
         </View>
 
         <View style={{ flex: 1 }}>
-          <Text style={styles.apptTitle}>{a.title}</Text>
-          <Text style={styles.apptClinic}>{a.clinic}</Text>
+          <Text style={styles.apptTitle}>{title}</Text>
+          <Text style={styles.apptClinic}>{clinic}</Text>
           <View style={styles.timeRow}>
             <IconClock size={12} color={c.g500} />
-            <Text style={styles.apptTime}>{a.time}</Text>
+            <Text style={styles.apptTime}>{time}</Text>
             <View style={{ marginLeft: layout.s(6) }}>
               <StatusPill status={a.status} />
             </View>
@@ -81,15 +110,7 @@ function AppointmentCard({ appointmentId, onPress }: { appointmentId: number; on
         </View>
       </View>
 
-      {p ? (
-        <View style={styles.apptFooter}>
-          <View style={[styles.patientAvatarSm, p.avatarClass === 'green' ? styles.avatarSmGreen : styles.avatarSmYellow]}>
-            <Text style={[styles.avatarSmText, p.avatarClass === 'yellow' && styles.avatarSmTextYellow]}>{p.initials}</Text>
-          </View>
-          <Text style={styles.footerName}>{p.name}</Text>
-          <Text style={styles.footerPlan}>{p.plan.replace(' Care Plan', '')}</Text>
-        </View>
-      ) : null}
+      {/* In this first pass we omit footer sponsor details; can be added when API exposes them */}
     </TouchableOpacity>
   );
 }

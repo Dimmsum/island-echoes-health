@@ -1,18 +1,32 @@
-import React, { useMemo, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Image, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../constants/layout';
 import { userDesignATheme as c } from './userDesignATheme';
+import { useMe } from '../../lib/me';
+import { IconUser } from './userDesignAIcons';
 
 type Props = {
-  onSignOut: () => void;
+  onOpenSettings: () => void;
 };
 
-export function ProfileScreen({ onSignOut }: Props) {
+export function ProfileScreen({ onOpenSettings }: Props) {
   const insets = useSafeAreaInsets();
-  const [fullName, setFullName] = useState('Sarah Mitchell');
-  const [phone, setPhone] = useState('+1 (876) 555-0142');
-  const email = 'sarah.mitchell@email.com';
+  const me = useMe();
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (me.status === 'loaded') {
+      const profile = me.data.profile;
+      setFullName(profile?.full_name ?? '');
+      setPhone(profile?.phone ?? '');
+      setAvatarUrl(profile?.avatar_url ?? null);
+    }
+  }, [me.status, me.data]);
+
+  const email = me.status === 'loaded' ? me.data.user.email : '';
 
   const initials = useMemo(() => {
     const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -21,16 +35,31 @@ export function ProfileScreen({ onSignOut }: Props) {
 
   return (
     <View style={styles.root}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={{ paddingBottom: insets.bottom + layout.s(24) }}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + layout.s(16) }}>
         <View style={[styles.hero, { paddingTop: insets.top + layout.s(16) }]}>
-          <Text style={styles.heroTitle}>Profile</Text>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials.toUpperCase()}</Text>
+          <View style={styles.heroTopRow}>
+            <View />
+            <TouchableOpacity
+              style={styles.settingsBtn}
+              activeOpacity={0.8}
+              onPress={onOpenSettings}
+            >
+              <Text style={styles.settingsText}>Settings</Text>
+            </TouchableOpacity>
           </View>
+          <TouchableOpacity
+            style={styles.avatar}
+            activeOpacity={0.85}
+            onPress={() => {
+              // TODO: implement image picker + upload to /api/profile/avatar
+            }}
+          >
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <IconUser size={32} color={c.y900} />
+            )}
+          </TouchableOpacity>
           <Text style={styles.name}>{fullName}</Text>
           <Text style={styles.email}>{email}</Text>
         </View>
@@ -59,18 +88,7 @@ export function ProfileScreen({ onSignOut }: Props) {
             <Field label="Email">
               <TextInput value={email} editable={false} style={[styles.input, styles.inputReadonly]} />
             </Field>
-            <Text style={styles.formInfo}>
-              Changes to your profile will be synced to your account. Email address cannot be changed here.
-            </Text>
           </View>
-
-          <TouchableOpacity style={styles.saveBtn} activeOpacity={0.9} onPress={() => {}}>
-            <Text style={styles.saveBtnText}>Save changes</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.signoutBtn, { marginBottom: layout.s(20) }]} activeOpacity={0.9} onPress={onSignOut}>
-            <Text style={styles.signoutText}>Sign out</Text>
-          </TouchableOpacity>
 
           <Text style={styles.paymentsTitle}>Payments & sponsorships</Text>
 
@@ -84,8 +102,10 @@ export function ProfileScreen({ onSignOut }: Props) {
           <TouchableOpacity style={styles.sponsorBtn} activeOpacity={0.9} onPress={() => {}}>
             <Text style={styles.sponsorBtnText}>+ Sponsor a care plan</Text>
           </TouchableOpacity>
+
         </View>
       </ScrollView>
+
     </View>
   );
 }
@@ -108,13 +128,12 @@ const styles = StyleSheet.create({
     paddingBottom: layout.s(32),
     alignItems: 'center',
   },
-  heroTitle: {
-    fontFamily: Platform.OS === 'ios' ? 'Playfair Display' : 'serif',
-    color: c.white,
-    fontSize: layout.f(20),
-    fontWeight: '600',
-    alignSelf: 'flex-start',
-    marginBottom: layout.s(20),
+  heroTopRow: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: layout.s(12),
   },
   avatar: {
     width: layout.s(72),
@@ -126,6 +145,11 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: 'rgba(255,255,255,0.15)',
     marginBottom: layout.s(12),
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: layout.s(36),
   },
   avatarText: {
     fontSize: layout.f(26),
@@ -177,47 +201,6 @@ const styles = StyleSheet.create({
   },
   inputReadonly: {
     opacity: 0.6,
-  },
-  formInfo: {
-    fontSize: layout.f(11),
-    color: c.text3,
-    lineHeight: layout.f(11 * 1.5),
-    marginTop: layout.s(12),
-    paddingVertical: layout.s(10),
-    paddingHorizontal: layout.s(12),
-    backgroundColor: c.g50,
-    borderRadius: layout.s(8),
-    borderLeftWidth: layout.s(3),
-    borderLeftColor: c.g300,
-  },
-  saveBtn: {
-    width: '100%',
-    backgroundColor: c.g700,
-    borderRadius: layout.s(10),
-    paddingVertical: layout.s(13),
-    paddingHorizontal: layout.s(12),
-    marginBottom: layout.s(10),
-  },
-  saveBtnText: {
-    fontSize: layout.f(13.5),
-    fontWeight: '600',
-    color: c.white,
-    textAlign: 'center',
-  },
-  signoutBtn: {
-    width: '100%',
-    borderWidth: 1.5,
-    borderColor: 'rgba(200,0,0,0.2)',
-    borderRadius: layout.s(10),
-    paddingVertical: layout.s(13),
-    paddingHorizontal: layout.s(12),
-    backgroundColor: 'transparent',
-  },
-  signoutText: {
-    fontSize: layout.f(13.5),
-    fontWeight: '600',
-    color: '#c0392b',
-    textAlign: 'center',
   },
   paymentsTitle: {
     fontSize: layout.f(14),
@@ -274,5 +257,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: c.y900,
     textAlign: 'center',
+  },
+  settingsBtn: {
+    paddingHorizontal: layout.s(10),
+    paddingVertical: layout.s(6),
+    borderRadius: layout.s(999),
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(0,0,0,0.12)',
+  },
+  settingsText: {
+    color: '#ffebe8',
+    fontSize: layout.f(13),
+    fontWeight: '600',
   },
 });

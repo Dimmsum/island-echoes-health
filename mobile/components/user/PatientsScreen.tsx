@@ -3,16 +3,18 @@ import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../constants/layout';
 import { IconChevronRight, IconPlus } from './userDesignAIcons';
-import { patients } from './userDesignAMockData';
+import { useUserHomeData } from '../../lib/userHome';
 import { userDesignATheme as c } from './userDesignATheme';
 
 type Props = {
   onLinkPatient: () => void;
-  onOpenPatientDetail: (patientId: number) => void;
+  onOpenPatientDetail: (patientLinkId: string) => void;
 };
 
 export function PatientsScreen({ onLinkPatient, onOpenPatientDetail }: Props) {
   const insets = useSafeAreaInsets();
+  const home = useUserHomeData();
+  const linkedPatients = home.status === 'loaded' ? home.data.linkedPatients : [];
 
   return (
     <View style={styles.root}>
@@ -41,25 +43,48 @@ export function PatientsScreen({ onLinkPatient, onOpenPatientDetail }: Props) {
             <IconChevronRight size={16} color={c.g300} />
           </TouchableOpacity>
 
-          {patients.map((p) => (
+          {home.status === 'loading' && (
+            <Text style={styles.loadingText}>Loading your linked patients…</Text>
+          )}
+          {home.status === 'error' && (
+            <Text style={styles.errorText}>{home.error}</Text>
+          )}
+          {home.status === 'loaded' && linkedPatients.length === 0 && (
+            <Text style={styles.emptyText}>No linked patients yet. Start by linking a patient above.</Text>
+          )}
+
+          {linkedPatients.map((link) => {
+            const p = link.patient;
+            const plan = link.care_plan;
+            if (!p) return null;
+            const initials =
+              p.full_name
+                .split(' ')
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((part) => part[0]?.toUpperCase())
+                .join('') || '?';
+            const ageLabel = p.age != null ? `${p.age} yrs` : 'Age N/A';
+            const planName = plan?.name ?? 'Care plan';
+            return (
             <TouchableOpacity
-              key={p.id}
+              key={link.id}
               style={styles.patientRow}
               activeOpacity={0.85}
-              onPress={() => onOpenPatientDetail(p.id)}
+              onPress={() => onOpenPatientDetail(link.id)}
             >
-              <View style={[styles.avatar, p.avatarClass === 'yellow' && styles.avatarAlt]}>
-                <Text style={[styles.avatarText, p.avatarClass === 'yellow' && styles.avatarTextAlt]}>{p.initials}</Text>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.pName}>{p.name}</Text>
+                <Text style={styles.pName}>{p.full_name}</Text>
                 <Text style={styles.pPlan}>
-                  {p.plan} • {p.age} yrs
+                  {planName} • {ageLabel}
                 </Text>
               </View>
               <Text style={styles.openLink}>Open →</Text>
             </TouchableOpacity>
-          ))}
+          );})}
         </View>
       </ScrollView>
     </View>

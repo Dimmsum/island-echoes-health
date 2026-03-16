@@ -6,7 +6,7 @@ export async function getMe(req: AuthRequest, res: Response): Promise<void> {
   const supabase = createSupabaseForUser(req.accessToken);
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, role, full_name, avatar_url")
+    .select("id, role, full_name, avatar_url, phone")
     .eq("id", req.user.id)
     .single();
   res.json({

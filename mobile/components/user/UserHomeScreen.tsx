@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../constants/layout';
 import { userDesignATheme as c } from './userDesignATheme';
 import { IconCalendar, IconChevronRight, IconUsers } from './userDesignAIcons';
+import { useUserHomeData } from '../../lib/userHome';
+import { useMe } from '../../lib/me';
 
 type Props = {
   onNavigatePatients: () => void;
@@ -13,6 +15,13 @@ type Props = {
 
 export function UserHomeScreen({ onNavigatePatients, onNavigateAppointments, onNavigatePayments }: Props) {
   const insets = useSafeAreaInsets();
+  const home = useUserHomeData();
+  const me = useMe();
+  const upcoming = home.status === 'loaded' ? home.data.upcomingAppointments.slice(0, 1) : [];
+  const firstName =
+    me.status === 'loaded'
+      ? ((me.data.profile?.full_name || me.data.user.email || '').split(' ')[0] || 'there')
+      : 'there';
 
   return (
     <View style={styles.root}>
@@ -27,7 +36,8 @@ export function UserHomeScreen({ onNavigatePatients, onNavigateAppointments, onN
             <Text style={styles.heroBadgeText}>Your care journey</Text>
           </View>
           <Text style={styles.heroTitle}>
-            Welcome back,{'\n'}Sarah.
+            Welcome back,{'\n'}
+            {firstName}.
           </Text>
           <Text style={styles.heroSub}>
             Stay connected with your care team and keep track of everyone&apos;s health journey in one place.
@@ -80,15 +90,39 @@ export function UserHomeScreen({ onNavigatePatients, onNavigateAppointments, onN
             <Text style={styles.sectionTitle}>Appointments</Text>
           </View>
 
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <IconCalendar size={22} color={c.g400} />
+          {home.status === 'loading' && (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>Loading your appointments…</Text>
             </View>
-            <Text style={styles.emptyTitle}>No upcoming appointments</Text>
-            <Text style={styles.emptySub}>
-              Appointments for patients you sponsor will appear here once scheduled.
-            </Text>
-          </View>
+          )}
+          {home.status === 'error' && (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>Unable to load appointments</Text>
+              <Text style={styles.emptySub}>{home.error}</Text>
+            </View>
+          )}
+          {home.status === 'loaded' && upcoming.length === 0 && (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIcon}>
+                <IconCalendar size={22} color={c.g400} />
+              </View>
+              <Text style={styles.emptyTitle}>No upcoming appointments</Text>
+              <Text style={styles.emptySub}>
+                Appointments for patients you sponsor will appear here once scheduled.
+              </Text>
+            </View>
+          )}
+          {home.status === 'loaded' && upcoming.length > 0 && (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIcon}>
+                <IconCalendar size={22} color={c.g400} />
+              </View>
+              <Text style={styles.emptyTitle}>Next appointment</Text>
+              <Text style={styles.emptySub}>
+                {new Date(upcoming[0].scheduled_at).toLocaleString()}
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>

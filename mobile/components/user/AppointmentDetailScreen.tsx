@@ -1,20 +1,26 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../constants/layout';
 import { IconChevronLeft, IconDoc } from './userDesignAIcons';
-import { appointments, patients } from './userDesignAMockData';
 import { userDesignATheme as c } from './userDesignATheme';
+import { useUserHomeAppointment } from '../../lib/userHomeAppointment';
 
 type Props = {
-  appointmentId: number;
+  appointmentId: string;
   onBack: () => void;
 };
 
 export function AppointmentDetailScreen({ appointmentId, onBack }: Props) {
   const insets = useSafeAreaInsets();
-  const a = appointments.find((x) => x.id === appointmentId) ?? appointments[0];
-  const p = patients.find((x) => x.id === a.patientId);
+  const state = useUserHomeAppointment(appointmentId);
+  const a = state.status === 'loaded' ? state.data.appointment : null;
+  const p = state.status === 'loaded' ? state.data.patient : null;
+  const clinician = state.status === 'loaded' ? state.data.clinician : null;
+  const dateLabel = useMemo(
+    () => (a ? new Date(a.scheduled_at).toLocaleString() : ''),
+    [a]
+  );
 
   return (
     <View style={styles.root}>
@@ -33,28 +39,34 @@ export function AppointmentDetailScreen({ appointmentId, onBack }: Props) {
             <Text style={styles.headerBadgeText}>Appointment</Text>
           </View>
 
-          <Text style={styles.headerTitle}>{a.title}</Text>
+          <Text style={styles.headerTitle}>
+            {a ? 'Scheduled visit' : 'Loading…'}
+          </Text>
 
-          {p ? (
+          {p && clinician && (
             <View style={styles.headerMetaRow}>
-              <View style={[styles.patientAvatarSm, p.avatarClass === 'green' ? styles.avatarSmGreen : styles.avatarSmYellow]}>
-                <Text style={[styles.avatarSmText, p.avatarClass === 'yellow' && styles.avatarSmTextYellow]}>{p.initials}</Text>
+              <View style={[styles.patientAvatarSm, styles.avatarSmGreen]}>
+                <Text style={styles.avatarSmText}>
+                  {p.full_name
+                    .split(' ')
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((part) => part[0]?.toUpperCase())
+                    .join('') || '?'}
+                </Text>
               </View>
               <Text style={styles.headerMetaText}>
-                {p.name} · {a.clinician}
+                {p.full_name} · {clinician.full_name}
               </Text>
             </View>
-          ) : null}
+          )}
         </View>
 
         <View style={styles.content}>
           <Text style={[styles.sectionH, { marginBottom: layout.s(10) }]}>Details</Text>
           <View style={styles.detailCard}>
-            <KV k="Date & time" v={`${a.day} ${a.month} ${a.year}, ${a.time}`} />
-            <KV k="Clinic" v={a.clinic} />
-            <KV k="Location" v={a.location} />
-            <KV k="Visit type" v={a.type} />
-            <KV k="Status" v={<StatusPill status={a.status} />} />
+            <KV k="Date & time" v={dateLabel || '—'} />
+            <KV k="Status" v={a ? <StatusPill status={a.status} /> : '—'} />
           </View>
 
           <Text style={[styles.sectionH, { marginBottom: layout.s(10) }]}>Visit notes</Text>
