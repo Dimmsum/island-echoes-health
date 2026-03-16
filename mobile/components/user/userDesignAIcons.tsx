@@ -92,3 +92,13 @@ export function IconDoc({ size = 20, color = '#3a9a5c', strokeWidth = 2 }: Props
   );
 }
 
+export function IconCamera({ size = 20, color = '#276840', strokeWidth = 2 }: Props) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect x={3} y={7} width={18} height={14} rx={3} stroke={color} strokeWidth={strokeWidth} />
+      <Path d="M9 7l1.2-2h3.6L15 7" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Circle cx={12} cy={14} r={4} stroke={color} strokeWidth={strokeWidth} />
+    </Svg>
+  );
+}
+

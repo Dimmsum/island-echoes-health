@@ -1,10 +1,13 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Image, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../constants/layout';
 import { userDesignATheme as c } from './userDesignATheme';
 import { useMe } from '../../lib/me';
-import { IconUser } from './userDesignAIcons';
+import { IconCamera, IconDoc, IconUser } from './userDesignAIcons';
+import { API_BASE } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 
 type Props = {
   onOpenSettings: () => void;
@@ -16,6 +19,8 @@ export function ProfileScreen({ onOpenSettings }: Props) {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (me.status === 'loaded') {
@@ -32,6 +37,83 @@ export function ProfileScreen({ onOpenSettings }: Props) {
     const parts = fullName.trim().split(/\s+/).filter(Boolean);
     return (parts[0]?.[0] ?? 'S') + (parts[1]?.[0] ?? '');
   }, [fullName]);
+
+  async function handlePickFromLibrary() {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'We need access to your photos to upload a profile picture.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+      });
+      if (result.canceled || result.assets.length === 0) return;
+      await uploadAvatar(result.assets[0].uri);
+    } catch {
+      Alert.alert('Upload failed', 'Something went wrong while picking your photo. Please try again.');
+    }
+  }
+
+  async function handleTakePhoto() {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'We need access to your camera to take a profile photo.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+      });
+      if (result.canceled || result.assets.length === 0) return;
+      await uploadAvatar(result.assets[0].uri);
+    } catch {
+      Alert.alert('Upload failed', 'Something went wrong while taking your photo. Please try again.');
+    }
+  }
+
+  async function uploadAvatar(uri: string) {
+    try {
+      setIsUploading(true);
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+      if (!accessToken) {
+        Alert.alert('Not signed in', 'Please sign in again to update your photo.');
+        return;
+      }
+      const fileName = uri.split('/').pop() || 'avatar.jpg';
+      const ext = fileName.split('.').pop() || 'jpg';
+      const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+
+      const form = new FormData();
+      form.append('avatar', {
+        uri,
+        name: fileName,
+        type: mime,
+      } as unknown as Blob);
+
+      const res = await fetch(`${API_BASE}/api/profile/avatar`, {
+        method: 'POST',
+        body: form,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      const json = (await res.json().catch(() => ({}))) as { error?: string; url?: string };
+      if (!res.ok || json.error) {
+        Alert.alert('Upload failed', json.error || 'Unable to upload your photo. Please try again.');
+        return;
+      }
+      if (json.url) {
+        setAvatarUrl(json.url);
+      }
+      setShowAvatarModal(false);
+    } finally {
+      setIsUploading(false);
+    }
+  }
 
   return (
     <View style={styles.root}>
@@ -50,9 +132,7 @@ export function ProfileScreen({ onOpenSettings }: Props) {
           <TouchableOpacity
             style={styles.avatar}
             activeOpacity={0.85}
-            onPress={() => {
-              // TODO: implement image picker + upload to /api/profile/avatar
-            }}
+            onPress={() => setShowAvatarModal(true)}
           >
             {avatarUrl ? (
               <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
@@ -105,6 +185,84 @@ export function ProfileScreen({ onOpenSettings }: Props) {
 
         </View>
       </ScrollView>
+
+      <Modal
+        transparent
+        visible={showAvatarModal}
+        animationType="fade"
+        onRequestClose={() => setShowAvatarModal(false)}
+      >
+        <View style={styles.avatarModalBackdrop}>
+          <View style={styles.avatarModalCard}>
+            <TouchableOpacity
+              activeOpacity={1}
+              style={styles.avatarModalImageWrap}
+            >
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarModalImage} />
+              ) : (
+                <View style={styles.avatarModalFallback}>
+                  <IconUser size={40} color={c.y900} />
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.avatarActions}>
+              <TouchableOpacity
+                style={styles.avatarActionBtn}
+                activeOpacity={0.85}
+                disabled={isUploading}
+                onPress={handleTakePhoto}
+              >
+                <View style={styles.avatarActionContent}>
+                  <View style={styles.avatarActionIconWrap}>
+                    <IconCamera size={16} color={c.g700} />
+                  </View>
+                  <Text style={styles.avatarActionText}>Take photo</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.avatarActionBtn}
+                activeOpacity={0.85}
+                disabled={isUploading}
+                onPress={handlePickFromLibrary}
+              >
+                <View style={styles.avatarActionContent}>
+                  <View style={styles.avatarActionIconWrap}>
+                    <IconDoc size={16} color={c.g700} />
+                  </View>
+                  <Text style={styles.avatarActionText}>Upload photo</Text>
+                </View>
+              </TouchableOpacity>
+              {avatarUrl && (
+                <TouchableOpacity
+                  style={[styles.avatarActionBtn, styles.avatarRemoveBtn]}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    // TODO: implement remove avatar via API
+                    setAvatarUrl(null);
+                    setShowAvatarModal(false);
+                  }}
+                >
+                  <View style={styles.avatarActionContent}>
+                    <View style={[styles.avatarActionIconWrap, styles.avatarRemoveIconWrap]}>
+                      <IconUser size={14} color="#b03a2e" />
+                    </View>
+                    <Text style={[styles.avatarActionText, styles.avatarRemoveText]}>Remove photo</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[styles.avatarActionBtn, styles.avatarCancelBtn]}
+                activeOpacity={0.85}
+                onPress={() => setShowAvatarModal(false)}
+              >
+                <Text style={styles.avatarActionText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
     </View>
   );
@@ -270,5 +428,78 @@ const styles = StyleSheet.create({
     color: '#ffebe8',
     fontSize: layout.f(13),
     fontWeight: '600',
+  },
+  avatarModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: layout.s(24),
+  },
+  avatarModalCard: {
+    width: '100%',
+    maxWidth: layout.s(360),
+    backgroundColor: c.white,
+    borderRadius: layout.s(18),
+    paddingVertical: layout.s(18),
+    paddingHorizontal: layout.s(18),
+  },
+  avatarModalImageWrap: {
+    alignItems: 'center',
+    marginBottom: layout.s(16),
+  },
+  avatarModalImage: {
+    width: layout.s(120),
+    height: layout.s(120),
+    borderRadius: layout.s(60),
+  },
+  avatarModalFallback: {
+    width: layout.s(120),
+    height: layout.s(120),
+    borderRadius: layout.s(60),
+    backgroundColor: c.y500,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarActions: {
+    gap: layout.s(8),
+  },
+  avatarActionBtn: {
+    borderRadius: layout.s(10),
+    paddingVertical: layout.s(10),
+    paddingHorizontal: layout.s(12),
+    backgroundColor: c.g50,
+    alignItems: 'center',
+  },
+  avatarCancelBtn: {
+    backgroundColor: '#f4f4f4',
+    marginTop: layout.s(4),
+  },
+  avatarRemoveBtn: {
+    backgroundColor: '#ffecec',
+  },
+  avatarActionText: {
+    fontSize: layout.f(13),
+    fontWeight: '600',
+    color: c.text1,
+  },
+  avatarRemoveText: {
+    color: '#b03a2e',
+  },
+  avatarActionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.s(8),
+  },
+  avatarActionIconWrap: {
+    width: layout.s(24),
+    height: layout.s(24),
+    borderRadius: layout.s(12),
+    backgroundColor: c.off,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarRemoveIconWrap: {
+    backgroundColor: '#ffe1de',
   },
 });
