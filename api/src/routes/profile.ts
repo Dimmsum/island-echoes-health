@@ -64,3 +64,19 @@ export async function uploadAvatar(req: AuthRequest, res: Response): Promise<voi
   }
   res.json({ error: null, url: `${baseUrl}?t=${Date.now()}` });
 }
+
+export async function deleteAvatar(req: AuthRequest, res: Response): Promise<void> {
+  const supabase = createSupabaseForUser(req.accessToken);
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ avatar_url: null, updated_at: new Date().toISOString() })
+    .eq("id", req.user.id);
+
+  if (error) {
+    res.status(500).json({ error: "Failed to remove profile photo. Please try again." });
+    return;
+  }
+
+  res.json({ error: null });
+}
