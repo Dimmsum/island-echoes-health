@@ -21,3 +21,10 @@ export function getWebhookSecret(): string {
   if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET is not set (required for webhook signature verification)");
   return secret;
 }
+
+/** Base URL where users land after Stripe (e.g. web dashboard). */
+export function getAppBaseUrl(): string {
+  const fromEnv = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL;
+  if (fromEnv) return fromEnv.replace(/\/$/, "");
+  return "http://localhost:3000";
+}

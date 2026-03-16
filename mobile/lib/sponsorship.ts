@@ -66,3 +66,19 @@ export async function declineConsentRequestMobile(
   return postConsentAction('/api/sponsorship/decline', { consentRequestId, declineReason });
 }
 
+export async function getStripeCustomerPortalUrlMobile(): Promise<{ url?: string; error: string | null }> {
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (!accessToken) return { error: 'Not signed in.' };
+
+  const res = await apiFetch('/api/stripe/portal', {
+    method: 'POST',
+    accessToken,
+  });
+  const json = (await res.json().catch(() => ({}))) as { url?: string; error?: string } | undefined;
+  if (!res.ok || !json || json.error || !json.url) {
+    return { error: json?.error || 'Unable to open billing portal. Please try again.' };
+  }
+  return { url: json.url, error: null };
+}
+

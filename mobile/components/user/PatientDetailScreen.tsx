@@ -1,10 +1,11 @@
-import React from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../constants/layout';
 import { IconCalendar, IconChevronLeft } from './userDesignAIcons';
 import { userDesignATheme as c } from './userDesignATheme';
 import { useUserSponsoredPatient } from '../../lib/userSponsoredPatient';
+import { getStripeCustomerPortalUrlMobile } from '../../lib/sponsorship';
 
 type Props = {
   patientLinkId: string;
@@ -15,6 +16,8 @@ export function PatientDetailScreen({ patientLinkId, onBack }: Props) {
   const insets = useSafeAreaInsets();
   const state = useUserSponsoredPatient(patientLinkId);
   const p = state.status === 'loaded' ? state.data : null;
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState<string | null>(null);
 
   const initials =
     p?.full_name
@@ -125,9 +128,26 @@ export function PatientDetailScreen({ patientLinkId, onBack }: Props) {
             <Text style={styles.emptyTitle}>No data yet</Text>
             <Text style={styles.emptySub}>Visit history will appear here once appointments are recorded.</Text>
           </View>
-
-          <TouchableOpacity style={styles.manageBtn} activeOpacity={0.85} onPress={() => {}}>
-            <Text style={styles.manageBtnText}>Adjust or cancel sponsorship</Text>
+          {billingError && <Text style={styles.billingError}>{billingError}</Text>}
+          <TouchableOpacity
+            style={styles.manageBtn}
+            activeOpacity={0.85}
+            disabled={billingLoading}
+            onPress={async () => {
+              setBillingError(null);
+              setBillingLoading(true);
+              const result = await getStripeCustomerPortalUrlMobile();
+              setBillingLoading(false);
+              if (result.error || !result.url) {
+                setBillingError(result.error || 'Unable to open billing portal. Please try again.');
+                return;
+              }
+              Linking.openURL(result.url);
+            }}
+          >
+            <Text style={styles.manageBtnText}>
+              {billingLoading ? 'Opening billing portal…' : 'Manage or cancel in Stripe'}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -388,6 +408,12 @@ const styles = StyleSheet.create({
     fontSize: layout.f(13.5),
     fontWeight: '600',
     color: c.g600,
+    textAlign: 'center',
+  },
+  billingError: {
+    fontSize: layout.f(11.5),
+    color: '#c0392b',
+    marginBottom: layout.s(8),
     textAlign: 'center',
   },
 });
