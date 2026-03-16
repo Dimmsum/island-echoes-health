@@ -151,6 +151,11 @@ app.post(
   upload.single("avatar"),
   (req, res, next) => profile.uploadAvatar(req as Parameters<typeof profile.uploadAvatar>[0], res).catch(next),
 );
+app.delete(
+  "/api/profile/avatar",
+  authMiddleware,
+  (req, res, next) => profile.deleteAvatar(req as Parameters<typeof profile.deleteAvatar>[0], res).catch(next),
+);
 
 // Admin (admin role required)
 app.get(

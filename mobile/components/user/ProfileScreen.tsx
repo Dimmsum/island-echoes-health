@@ -239,9 +239,33 @@ export function ProfileScreen({ onOpenSettings }: Props) {
                   style={[styles.avatarActionBtn, styles.avatarRemoveBtn]}
                   activeOpacity={0.85}
                   onPress={() => {
-                    // TODO: implement remove avatar via API
-                    setAvatarUrl(null);
-                    setShowAvatarModal(false);
+                    // Remove avatar via API
+                    (async () => {
+                      try {
+                        setIsUploading(true);
+                        const { data } = await supabase.auth.getSession();
+                        const accessToken = data.session?.access_token;
+                        if (!accessToken) {
+                          Alert.alert('Not signed in', 'Please sign in again to update your photo.');
+                          return;
+                        }
+                        const res = await fetch(`${API_BASE}/api/profile/avatar`, {
+                          method: 'DELETE',
+                          headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                          },
+                        });
+                        const json = (await res.json().catch(() => ({}))) as { error?: string };
+                        if (!res.ok || json.error) {
+                          Alert.alert('Remove failed', json.error || 'Unable to remove your photo. Please try again.');
+                          return;
+                        }
+                        setAvatarUrl(null);
+                        setShowAvatarModal(false);
+                      } finally {
+                        setIsUploading(false);
+                      }
+                    })();
                   }}
                 >
                   <View style={styles.avatarActionContent}>
