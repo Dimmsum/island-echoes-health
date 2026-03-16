@@ -43,7 +43,7 @@ function PayButton({ clientSecret, onCancel }: { clientSecret: string; onCancel:
     <div className="space-y-4">
       <PaymentElement
         options={{ layout: "tabs" }}
-        onChange={(e) => setError(e.error?.message ?? null)}
+        onChange={(e) => setError((e as { error?: { message?: string } }).error?.message ?? null)}
       />
       {error && (
         <p className="text-sm text-red-600" role="alert">

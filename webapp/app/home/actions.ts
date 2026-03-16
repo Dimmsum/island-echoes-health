@@ -20,6 +20,10 @@ export type CreatePaymentResult =
   | { error: string | null; clientSecret?: undefined; publishableKey?: undefined; consentRequestId?: undefined }
   | { error: null; clientSecret: string; publishableKey: string | undefined; consentRequestId: string };
 
+export type PurchasePlanResult =
+  | { error: string }
+  | { error: null; redirectUrl: string };
+
 /** Calls API to create a Stripe PaymentIntent for sponsorship. Returns clientSecret for Stripe Elements. */
 export async function createPaymentForPlan(
   patientEmail: string,

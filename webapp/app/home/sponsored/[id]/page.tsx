@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchApiJson } from "@/lib/api";
+import { EndSponsorshipButton } from "../../EndSponsorshipButton";
 
 type Props = {
   params: Promise<{ id: string }>;
