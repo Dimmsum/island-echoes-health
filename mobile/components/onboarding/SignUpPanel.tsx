@@ -18,6 +18,7 @@ import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { theme } from '../../constants/theme';
 import { layout } from '../../constants/layout';
 import { signUp as authSignUp, resendVerificationEmail } from '../../lib/auth';
+import { submitClinicianRequest } from '../../lib/api';
 
 const PARISHES = [
   'Kingston', 'St. Andrew', 'St. Thomas', 'Portland', 'St. Mary', 'St. Ann',
@@ -79,13 +80,12 @@ function dobToApi(ddMmYyyy: string): string | undefined {
 export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress }: Props) {
   const isClinic = role === 'clinic';
   const flow = isClinic ? 'clinic' : 'user';
-  const totalSteps = 4;
+  const totalSteps = isClinic ? 3 : 4;
   const [step, setStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [showPass2, setShowPass2] = useState(false);
-  const [showCPass, setShowCPass] = useState(false);
   const animValue = useRef(new Animated.Value(0)).current;
 
   // User form
@@ -103,25 +103,22 @@ export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress 
   const [resendLoading, setResendLoading] = useState(false);
   const resendCooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Clinic form
+  // Clinician form (request flow: no password until approved)
   const [cName, setCName] = useState('');
-  const [cType, setCType] = useState('');
-  const [cParish, setCParish] = useState('');
-  const [cReg, setCReg] = useState('');
-  const [cAddr, setCAddr] = useState('');
   const [cEmail, setCEmail] = useState('');
-  const [cPhone, setCPhone] = useState('');
-  const [cCFirst, setCCFirst] = useState('');
-  const [cCLast, setCCLast] = useState('');
-  const [cCRole, setCCRole] = useState('');
-  const [cPass, setCPass] = useState('');
+  const [cReg, setCReg] = useState('');
+  const [cSpecialty, setCSpecialty] = useState('');
+  const [cInstitution, setCInstitution] = useState('');
+  const [cLicenseUri, setCLicenseUri] = useState<string | null>(null);
+  const [cLicenseMime, setCLicenseMime] = useState<string>('image/jpeg');
+  const [cLicenseName, setCLicenseName] = useState<string>('license.jpg');
 
   const [picker, setPicker] = useState<{ type: string; options: string[]; onSelect: (v: string) => void } | null>(null);
 
-  const isSuccess = (flow === 'user' && step === 5) || (flow === 'clinic' && step === 4);
+  const isSuccess = (flow === 'user' && step === 5) || (flow === 'clinic' && step === 3);
   const progressPct = isSuccess ? 100 : ((step - 1) / totalSteps) * 100;
 
-  const roleLabel = role === 'sponsor' ? 'Sponsor' : role === 'patient' ? 'Patient' : 'Clinic';
+  const roleLabel = role === 'sponsor' ? 'Sponsor' : role === 'patient' ? 'Patient' : 'Clinician';
   const roleDotColor = role === 'sponsor' ? theme.gold : role === 'patient' ? 'rgba(255,255,255,0.6)' : theme.accentTeal;
 
   const validateStep = (): boolean => {
@@ -155,24 +152,18 @@ export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress 
       }
     } else {
       if (step === 1) {
-        if (!cName.trim() || !cType || !cParish) {
-          setError('Please fill in all fields.');
+        if (!cEmail.trim() || !cReg.trim() || !cSpecialty.trim()) {
+          setError('Please fill in work email, license number, and specialty.');
+          return false;
+        }
+        if (!cEmail.includes('@')) {
+          setError('Please enter a valid work email address.');
           return false;
         }
       }
       if (step === 2) {
-        if (!cReg.trim() || !cAddr.trim() || !cEmail.trim() || !cPhone.trim()) {
-          setError('Please fill in all fields.');
-          return false;
-        }
-        if (!cEmail.includes('@')) {
-          setError('Please enter a valid email address.');
-          return false;
-        }
-      }
-      if (step === 3) {
-        if (!cCFirst.trim() || !cCLast.trim() || !cCRole || cPass.length < 8) {
-          setError('Please fill in all fields and use a password of at least 8 characters.');
+        if (!cLicenseUri) {
+          setError('Please add your medical license image.');
           return false;
         }
       }
@@ -220,11 +211,29 @@ export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress 
       return;
     }
 
-    if (flow === 'clinic' && step === 3) {
-      setStep(4);
-    } else {
-      setStep((s) => s + 1);
+    if (flow === 'clinic' && step === 2) {
+      setLoading(true);
+      setError(null);
+      const result = await submitClinicianRequest({
+        email: cEmail.trim(),
+        name: cName.trim() || null,
+        license_number: cReg.trim(),
+        specialty: cSpecialty.trim(),
+        institution_or_clinic_name: cInstitution.trim() || null,
+        license_image_uri: cLicenseUri,
+        license_image_mime: cLicenseMime,
+        license_image_name: cLicenseName,
+      });
+      setLoading(false);
+      if ('error' in result) {
+        setError(result.error);
+        return;
+      }
+      setStep(3);
+      return;
     }
+
+    setStep((s) => s + 1);
   };
 
   const handleBack = () => {
@@ -240,7 +249,7 @@ export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress 
     setPicker({ type, options, onSelect });
   };
 
-  const strength = flow === 'user' ? getPasswordStrength(step === 3 ? uPass : '') : getPasswordStrength(step === 3 ? cPass : '');
+  const strength = flow === 'user' ? getPasswordStrength(step === 3 ? uPass : '') : 'none';
 
   const slideAnim = useRef(new Animated.Value(layout.height)).current;
   useEffect(() => {
@@ -508,28 +517,33 @@ export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress 
   };
 
   const renderClinicStep = () => {
+    // Clinician flow: step 1 = details, step 2 = license image, step 3 = success
     if (step === 1) {
       return (
         <View style={styles.step}>
-          <Text style={styles.eyebrow}>Step 1 of 4</Text>
-          <Text style={styles.title}>Clinic{'\n'}<Text style={styles.titleEm}>details</Text></Text>
-          <Text style={styles.sub}>Tell us about your facility.</Text>
+          <Text style={styles.eyebrow}>Step 1 of 3</Text>
+          <Text style={styles.title}>Clinician{'\n'}<Text style={styles.titleEm}>details</Text></Text>
+          <Text style={styles.sub}>Register for the clinician and staff portal. We verify all clinicians before they go live.</Text>
           <View style={styles.fields}>
             <View style={styles.field}>
-              <Text style={styles.label}>Clinic / facility name</Text>
-              <TextInput style={styles.input} value={cName} onChangeText={setCName} placeholder="e.g. Portmore Health Centre" placeholderTextColor="rgba(255,255,255,0.2)" />
+              <Text style={styles.label}>Work email <Text style={styles.required}>*</Text></Text>
+              <TextInput style={styles.input} value={cEmail} onChangeText={setCEmail} placeholder="you@clinic.org" placeholderTextColor="rgba(255,255,255,0.2)" keyboardType="email-address" autoCapitalize="none" />
             </View>
             <View style={styles.field}>
-              <Text style={styles.label}>Facility type</Text>
-              <TouchableOpacity style={styles.selectTouch} onPress={() => openPicker('type', FACILITY_TYPES, setCType)}>
-                <Text style={[styles.selectText, !cType && styles.selectPlaceholder]}>{cType || 'Select type'}</Text>
-              </TouchableOpacity>
+              <Text style={styles.label}>Full name</Text>
+              <TextInput style={styles.input} value={cName} onChangeText={setCName} placeholder="Jane Doe" placeholderTextColor="rgba(255,255,255,0.2)" />
             </View>
             <View style={styles.field}>
-              <Text style={styles.label}>Parish / region</Text>
-              <TouchableOpacity style={styles.selectTouch} onPress={() => openPicker('parish', PARISHES, setCParish)}>
-                <Text style={[styles.selectText, !cParish && styles.selectPlaceholder]}>{cParish || 'Select parish'}</Text>
-              </TouchableOpacity>
+              <Text style={styles.label}>License number <Text style={styles.required}>*</Text></Text>
+              <TextInput style={styles.input} value={cReg} onChangeText={setCReg} placeholder="e.g. MD-12345" placeholderTextColor="rgba(255,255,255,0.2)" />
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.label}>Specialty <Text style={styles.required}>*</Text></Text>
+              <TextInput style={styles.input} value={cSpecialty} onChangeText={setCSpecialty} placeholder="e.g. Family Medicine, Psychiatry" placeholderTextColor="rgba(255,255,255,0.2)" />
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.label}>Institution / clinic name</Text>
+              <TextInput style={styles.input} value={cInstitution} onChangeText={setCInstitution} placeholder="Optional" placeholderTextColor="rgba(255,255,255,0.2)" />
             </View>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
@@ -539,82 +553,83 @@ export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress 
     if (step === 2) {
       return (
         <View style={styles.step}>
-          <Text style={styles.eyebrow}>Step 2 of 4</Text>
-          <Text style={styles.title}>Credentials{'\n'}<Text style={styles.titleEm}>& location</Text></Text>
-          <Text style={styles.sub}>We verify all clinics before they go live.</Text>
+          <Text style={styles.eyebrow}>Step 2 of 3</Text>
+          <Text style={styles.title}>Medical{'\n'}<Text style={styles.titleEm}>license</Text></Text>
+          <Text style={styles.sub}>Upload an image or PDF of your medical license. You'll set your password after your account is approved.</Text>
           <View style={styles.fields}>
             <View style={styles.field}>
-              <Text style={styles.label}>Registration / licence number</Text>
-              <TextInput style={styles.input} value={cReg} onChangeText={setCReg} placeholder="e.g. MoH-2024-00123" placeholderTextColor="rgba(255,255,255,0.2)" />
-              <Text style={styles.hint}>Issued by the Ministry of Health & Wellness, Jamaica.</Text>
-            </View>
-            <View style={styles.field}>
-              <Text style={styles.label}>Street address</Text>
-              <TextInput style={styles.input} value={cAddr} onChangeText={setCAddr} placeholder="e.g. 14 Main Street, Portmore" placeholderTextColor="rgba(255,255,255,0.2)" />
-            </View>
-            <View style={styles.field}>
-              <Text style={styles.label}>Contact email</Text>
-              <TextInput style={styles.input} value={cEmail} onChangeText={setCEmail} placeholder="clinic@example.com" placeholderTextColor="rgba(255,255,255,0.2)" keyboardType="email-address" autoCapitalize="none" />
-            </View>
-            <View style={styles.field}>
-              <Text style={styles.label}>Contact phone</Text>
-              <TextInput style={styles.input} value={cPhone} onChangeText={setCPhone} placeholder="+1 (876) 000-0000" placeholderTextColor="rgba(255,255,255,0.2)" keyboardType="phone-pad" />
-            </View>
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          </View>
-        </View>
-      );
-    }
-    if (step === 3) {
-      return (
-        <View style={styles.step}>
-          <Text style={styles.eyebrow}>Step 3 of 4</Text>
-          <Text style={styles.title}>Your{'\n'}<Text style={styles.titleEm}>details</Text></Text>
-          <Text style={styles.sub}>Who is the primary contact managing this account?</Text>
-          <View style={styles.fields}>
-            <View style={styles.field}>
-              <Text style={styles.label}>First name</Text>
-              <TextInput style={styles.input} value={cCFirst} onChangeText={setCCFirst} placeholder="Dr. Janet" placeholderTextColor="rgba(255,255,255,0.2)" />
-            </View>
-            <View style={styles.field}>
-              <Text style={styles.label}>Last name</Text>
-              <TextInput style={styles.input} value={cCLast} onChangeText={setCCLast} placeholder="Brown" placeholderTextColor="rgba(255,255,255,0.2)" />
-            </View>
-            <View style={styles.field}>
-              <Text style={styles.label}>Job title / role</Text>
-              <TouchableOpacity style={styles.selectTouch} onPress={() => openPicker('role', CONTACT_ROLES, setCCRole)}>
-                <Text style={[styles.selectText, !cCRole && styles.selectPlaceholder]}>{cCRole || 'Select role'}</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.field}>
-              <Text style={styles.label}>Create password</Text>
-              <View style={styles.passWrap}>
-                <TextInput style={[styles.input, styles.passInput]} value={cPass} onChangeText={setCPass} placeholder="Min. 8 characters" placeholderTextColor="rgba(255,255,255,0.2)" secureTextEntry={!showCPass} />
-                <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowCPass(!showCPass)}>
-                  <Svg width={18} height={18} viewBox="0 0 18 18" fill="none"><Path d="M1 9C1 9 4 3 9 3C14 3 17 9 17 9C17 9 14 15 9 15C4 15 1 9 1 9Z" stroke="rgba(255,255,255,0.35)" strokeWidth={1.5}/><Circle cx="9" cy="9" r={2.5} stroke="rgba(255,255,255,0.35)" strokeWidth={1.5}/></Svg>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.strengthWrap}>
-                <View style={styles.strengthBars}>
-                  <View style={[styles.strengthBar, strength === 'weak' && styles.strengthWeak, strength === 'medium' && styles.strengthMedium, strength === 'strong' && styles.strengthStrong]} />
-                  <View style={[styles.strengthBar, (strength === 'medium' || strength === 'strong') && styles.strengthMedium, strength === 'strong' && styles.strengthStrong]} />
-                  <View style={[styles.strengthBar, strength === 'strong' && styles.strengthStrong]} />
+              <Text style={styles.label}>License image <Text style={styles.required}>*</Text></Text>
+              <Text style={styles.hint}>JPEG, PNG, WebP or PDF, max 5 MB</Text>
+              <View style={styles.avatarRow}>
+                <View style={styles.avatarCircle}>
+                  {cLicenseUri ? (
+                    <Image source={{ uri: cLicenseUri }} style={styles.avatarImage} />
+                  ) : (
+                    <Text style={styles.avatarPlaceholderText}>📄</Text>
+                  )}
                 </View>
-                <Text style={styles.strengthLbl}>
-                  {strength === 'none' && 'Enter a password'}
-                  {strength === 'weak' && 'Weak'}
-                  {strength === 'medium' && 'Medium'}
-                  {strength === 'strong' && 'Strong'}
-                </Text>
+                <View style={styles.avatarButtons}>
+                  <TouchableOpacity
+                    style={styles.avatarBtn}
+                    activeOpacity={0.85}
+                    onPress={async () => {
+                      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                      if (status !== 'granted') {
+                        setError('Permission is required to choose a file.');
+                        return;
+                      }
+                      const result = await ImagePicker.launchImageLibraryAsync({
+                        mediaTypes: ['images'],
+                        allowsEditing: false,
+                        quality: 0.9,
+                      });
+                      if (result.canceled || !result.assets?.[0]) return;
+                      const asset = result.assets[0];
+                      setCLicenseUri(asset.uri);
+                      setCLicenseMime((asset as { mimeType?: string }).mimeType || 'image/jpeg');
+                      setCLicenseName(asset.fileName || 'license.jpg');
+                      setError(null);
+                    }}
+                  >
+                    <Text style={styles.avatarBtnText}>Choose file</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.avatarBtn}
+                    activeOpacity={0.85}
+                    onPress={async () => {
+                      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                      if (status !== 'granted') {
+                        setError('Camera permission is required.');
+                        return;
+                      }
+                      const result = await ImagePicker.launchCameraAsync({
+                        allowsEditing: false,
+                        quality: 0.9,
+                      });
+                      if (result.canceled || !result.assets?.[0]) return;
+                      const asset = result.assets[0];
+                      setCLicenseUri(asset.uri);
+                      setCLicenseMime((asset as { mimeType?: string }).mimeType || 'image/jpeg');
+                      setCLicenseName(asset.fileName || 'license.jpg');
+                      setError(null);
+                    }}
+                  >
+                    <Text style={styles.avatarBtnText}>Take photo</Text>
+                  </TouchableOpacity>
+                  {cLicenseUri ? (
+                    <TouchableOpacity style={styles.avatarBtn} onPress={() => { setCLicenseUri(null); setError(null); }}>
+                      <Text style={styles.avatarBtnText}>Remove</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
               </View>
             </View>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
-            <Text style={styles.terms}>By continuing you agree to our <Text style={styles.termsLink}>Terms of Service</Text> and <Text style={styles.termsLink}>Privacy Policy</Text>.</Text>
           </View>
         </View>
       );
     }
-    // step 4 - Submitted
+    // step 3 - Submitted
     return (
       <View style={styles.step}>
         <View style={styles.successWrap}>
@@ -625,19 +640,19 @@ export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress 
             </Svg>
           </View>
           <Text style={styles.successTitle}>Application{'\n'}<Text style={[styles.titleEm, { color: theme.accentTeal }]}>submitted</Text></Text>
-          <Text style={styles.successSub}>Your clinic application is under review. We'll verify your credentials within 24–48 hours and notify you by email.</Text>
+          <Text style={styles.successSub}>Your clinician application is under review. An administrator will review it; you'll receive an email when your account is approved. You'll set your password then.</Text>
           <View style={styles.infoCards}>
             <View style={styles.infoCard}>
               <View style={[styles.infoIcon, { backgroundColor: 'rgba(93,202,165,0.12)' }]}>
                 <Svg width={20} height={20} viewBox="0 0 20 20" fill="none"><Path d="M3 4H17V15C17 15.6 16.6 16 16 16H4C3.4 16 3 15.6 3 15V4Z" stroke={theme.accentTeal} strokeWidth={1.5}/><Path d="M3 7H17" stroke={theme.accentTeal} strokeWidth={1.5}/><Rect x="6" y="2" width="2" height="4" rx={1} fill={theme.accentTeal}/><Rect x="12" y="2" width="2" height="4" rx={1} fill={theme.accentTeal}/></Svg>
               </View>
-              <View><Text style={styles.infoLabel}>Review in progress</Text><Text style={styles.infoDesc}>Our team is checking your registration details.</Text></View>
+              <View><Text style={styles.infoLabel}>Review in progress</Text><Text style={styles.infoDesc}>Our team is checking your license and details.</Text></View>
             </View>
             <View style={styles.infoCard}>
               <View style={[styles.infoIcon, { backgroundColor: 'rgba(231,211,28,0.1)' }]}>
                 <Svg width={20} height={20} viewBox="0 0 20 20" fill="none"><Path d="M3 4L10 11L17 4" stroke={theme.gold} strokeWidth={1.5} strokeLinecap="round"/><Path d="M3 4H17V15C17 15.6 16.6 16 16 16H4C3.4 16 3 15.6 3 15V4Z" stroke={theme.gold} strokeWidth={1.5}/></Svg>
               </View>
-              <View><Text style={styles.infoLabel}>Watch your inbox</Text><Text style={styles.infoDesc}>Confirmation sent to {cEmail || 'your email'}.</Text></View>
+              <View><Text style={styles.infoLabel}>Watch your inbox</Text><Text style={styles.infoDesc}>We'll email you at {cEmail || 'your email'} when approved.</Text></View>
             </View>
           </View>
         </View>
@@ -649,7 +664,7 @@ export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress 
     ? 'Loading...'
     : isSuccess
       ? 'Start exploring →'
-      : (flow === 'clinic' && step === 3)
+      : (flow === 'clinic' && step === 2)
         ? 'Submit application →'
         : step === 4 && flow === 'user'
           ? 'Continue →'
@@ -836,6 +851,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: 'rgba(255,255,255,0.45)',
     fontWeight: '500',
+  },
+  required: {
+    color: 'rgba(255,255,255,0.6)',
   },
   input: {
     backgroundColor: 'rgba(255,255,255,0.06)',

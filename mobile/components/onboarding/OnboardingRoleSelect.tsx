@@ -43,7 +43,7 @@ const ROLES = [
   },
   {
     key: 'clinic' as const,
-    label: 'I represent a Clinic',
+    label: 'I\'m a Clinician',
     desc: 'Manage referrals, records and sponsored treatments.',
     iconBg: 'rgba(93,202,165,0.1)',
     Icon: () => (
