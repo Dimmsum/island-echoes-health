@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ScreenContent } from 'components/ScreenContent';
+import { HomeRouter } from 'components/HomeRouter';
 import { LoadingScreen } from 'components/LoadingScreen';
 import { OnboardingCarousel } from 'components/onboarding/OnboardingCarousel';
 import { StatusBar } from 'expo-status-bar';
@@ -58,7 +58,12 @@ export default function App() {
           <OnboardingCarousel onComplete={handleOnboardingComplete} />
         )}
         {showHome && (
-          <ScreenContent title="Home" path="App.tsx" />
+          <HomeRouter
+            onSignOut={() => {
+              AsyncStorage.removeItem(ONBOARDING_KEY).catch(() => {});
+              setOnboardingDone(false);
+            }}
+          />
         )}
       </View>
       <StatusBar style="light" />

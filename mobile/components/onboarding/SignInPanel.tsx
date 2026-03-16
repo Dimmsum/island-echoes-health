@@ -147,19 +147,27 @@ export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClin
     onSuccess();
   };
 
-  const handleSignInClinic = () => {
+  const handleSignInClinic = async () => {
     setClinicError(null);
-    const id = clinicId.trim();
-    if (!id) {
-      setClinicError('Please enter your clinic ID or email.');
+    const email = clinicId.trim();
+    if (!email || !email.includes('@')) {
+      setClinicError('Please enter your registered clinic email address.');
       return;
     }
     if (!clinicPassword) {
       setClinicError('Please enter your staff password.');
       return;
     }
-    setMfaFor('clinic');
-    openMfa('clinic');
+    setClinicLoading(true);
+    const result = await signInWithPassword(email, clinicPassword);
+    setClinicLoading(false);
+    if ('error' in result) {
+      setClinicError(result.error);
+      return;
+    }
+    closeClinicLayer();
+    onClose();
+    onSuccess();
   };
 
   const handleMfaVerify = () => {
@@ -381,20 +389,6 @@ export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClin
                 <Text style={styles.forgot}>Forgot password?</Text>
               </TouchableOpacity>
               {userError ? <Text style={[styles.errorText, userError.includes('reset') && styles.errorTextHint]}>{userError}</Text> : null}
-
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>or continue with</Text>
-                <View style={styles.dividerLine} />
-              </View>
-              <View style={styles.ssoRow}>
-                <TouchableOpacity style={styles.ssoBtn} activeOpacity={0.97}>
-                  <Text style={styles.ssoBtnText}>Google</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.ssoBtn} activeOpacity={0.97}>
-                  <Text style={styles.ssoBtnText}>GitHub</Text>
-                </TouchableOpacity>
-              </View>
             </ScrollView>
             <View style={styles.footer}>
               <TouchableOpacity
@@ -451,12 +445,12 @@ export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClin
             <Text style={styles.welcomeSub}>Access your clinic dashboard and patient records.</Text>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Clinic ID or email</Text>
+              <Text style={styles.label}>Clinic email</Text>
               <TextInput
                 style={styles.input}
                 value={clinicId}
                 onChangeText={(t) => { setClinicId(t); setClinicError(null); }}
-                placeholder="clinic@example.com or ID"
+                placeholder="you@clinic.com"
                 placeholderTextColor="rgba(255,255,255,0.2)"
                 keyboardType="email-address"
                 autoCapitalize="none"

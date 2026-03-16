@@ -1,5 +1,12 @@
 import { supabase } from './supabase';
 
+/**
+ * Auth uses Supabase directly (recommended for mobile):
+ * - Session persistence & refresh are handled by the Supabase client (see lib/storage.ts).
+ * - The same session access_token is used for authenticated API calls (lib/api.ts).
+ * - No need to proxy sign-in through the API server.
+ */
+
 export type SignUpPayload = {
   email: string;
   password: string;
@@ -61,6 +68,11 @@ export async function signInWithPassword(
   email: string,
   password: string
 ): Promise<{ session: unknown } | { error: string }> {
+  const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    return { error: 'App is not configured for sign-in. Missing Supabase URL or key.' };
+  }
   const { data, error } = await supabase.auth.signInWithPassword({
     email: email.trim(),
     password,
@@ -68,4 +80,20 @@ export async function signInWithPassword(
   if (error) return { error: error.message };
   if (!data.session) return { error: 'Sign in failed' };
   return { session: data.session };
+}
+
+export type UserRole = 'user' | 'clinician' | 'admin';
+
+/** Returns the current user's role from profiles, or null if not signed in / no profile. */
+export async function getCurrentUserRole(): Promise<UserRole | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return null;
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  const role = profile?.role;
+  if (role === 'clinician' || role === 'admin' || role === 'user') return role;
+  return null;
 }
