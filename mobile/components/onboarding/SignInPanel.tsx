@@ -12,7 +12,7 @@ import {
   ScrollView,
   Easing,
 } from 'react-native';
-import Svg, { Path, Circle, Rect, Defs, RadialGradient, Stop, Ellipse, Line } from 'react-native-svg';
+import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { theme } from '../../constants/theme';
 import { layout } from '../../constants/layout';
 import { signInWithPassword } from '../../lib/auth';
@@ -33,6 +33,7 @@ const easing = Easing.bezier(0.77, 0, 0.175, 1);
 
 export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClinicSignUpPress }: Props) {
   const [view, setView] = useState<'role' | 'user'>('role');
+  const [selectedRole, setSelectedRole] = useState<SignInRole | null>(null);
   const [clinicLayerVisible, setClinicLayerVisible] = useState(false);
   const [mfaVisible, setMfaVisible] = useState(false);
   const [mfaFor, setMfaFor] = useState<SignInRole | null>(null);
@@ -65,6 +66,7 @@ export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClin
     } else {
       panelAnim.setValue(layout.height);
       setView('role');
+      setSelectedRole(null);
       setClinicLayerVisible(false);
       setMfaVisible(false);
       clinicLayerAnim.setValue(layout.width);
@@ -72,6 +74,16 @@ export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClin
       reelAnim.setValue(0);
     }
   }, [visible, panelAnim, clinicLayerAnim, mfaLayerAnim, reelAnim]);
+
+  const handleContinue = () => {
+    if (selectedRole === 'user') {
+      setView('user');
+      Animated.timing(reelAnim, { toValue: 1, duration: 450, useNativeDriver: true, easing }).start();
+    } else if (selectedRole === 'clinic') {
+      setClinicLayerVisible(true);
+      Animated.timing(clinicLayerAnim, { toValue: 0, duration: 450, useNativeDriver: true, easing }).start();
+    }
+  };
 
   const openUserForm = () => {
     setView('user');
@@ -217,11 +229,11 @@ export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClin
         {/* ─── Header (shared for role + user) ─── */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={handleBackFromUser} activeOpacity={0.85}>
-            <Svg width={18} height={18} viewBox="0 0 18 18" fill="none">
-              <Path d="M14 9H4M8 14L3 9L8 4" stroke="white" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+            <Svg width={22} height={22} viewBox="0 0 22 22" fill="none">
+              <Path d="M17 11H5M10 16L5 11L10 6" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
           </TouchableOpacity>
-          <Text style={styles.headerLabel}>{view === 'user' ? 'Sign in' : 'Sign in'}</Text>
+          {view === 'user' ? <Text style={styles.headerLabel}>Sign in</Text> : <View style={styles.headerSpacer} />}
         </View>
 
         {/* ─── Reel: View 0 = Role chooser, View 1 = User form ─── */}
@@ -229,69 +241,89 @@ export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClin
           <Animated.View style={[styles.reel, { transform: [{ translateX: reelTranslateX }] }]}>
             {/* VIEW 0: Role chooser */}
             <View style={styles.reelPage}>
-            <View style={styles.scene}>
-              <Svg style={StyleSheet.absoluteFill} viewBox="0 0 390 220" preserveAspectRatio="xMidYMid slice">
-                <Defs>
-                  <RadialGradient id="siSky" cx="50%" cy="20%">
-                    <Stop offset="0%" stopColor="#0a2e14" />
-                    <Stop offset="100%" stopColor="#000e04" />
-                  </RadialGradient>
-                  <RadialGradient id="siFadeG" cx="0.5" cy="1">
-                    <Stop offset="0%" stopColor={theme.green} stopOpacity="0" />
-                    <Stop offset="100%" stopColor={theme.green} stopOpacity="1" />
-                  </RadialGradient>
-                </Defs>
-                <Rect width={390} height={220} fill="url(#siSky)" />
-                <Circle cx={60} cy={38} r={0.9} fill="white" opacity={0.5} />
-                <Circle cx={145} cy={22} r={1.2} fill="white" opacity={0.45} />
-                <Circle cx={250} cy={30} r={0.8} fill="white" opacity={0.55} />
-                <Circle cx={330} cy={48} r={1} fill="white" opacity={0.4} />
-                <Circle cx={195} cy={28} r={1.6} fill={theme.gold} opacity={0.9} />
-                <Circle cx={195} cy={28} r={4.5} fill={theme.gold} opacity={0.1} />
-                <Ellipse cx={195} cy={240} rx={260} ry={120} fill="rgba(0,60,22,0.2)" />
-                <Path d="M0 175 Q80 155 140 162 Q195 168 240 155 Q285 142 340 155 Q365 162 390 150 L390 220 L0 220Z" fill="#001a08" />
-                <Path d="M0 195 Q70 180 130 186 Q195 192 250 178 Q305 165 390 178 L390 220 L0 220Z" fill="#001008" />
-                <Rect x={191} y={148} width={5} height={14} rx={1.5} fill="rgba(231,211,28,0.45)" />
-                <Rect x={186} y={152} width={15} height={5} rx={1.5} fill="rgba(231,211,28,0.45)" />
-                <Line x1={58} y1={197} x2={61} y2={168} stroke="#001e08" strokeWidth={3.5} strokeLinecap="round" />
-                <Line x1={330} y1={196} x2={333} y2={165} stroke="#001e08" strokeWidth={3.5} strokeLinecap="round" />
-              </Svg>
-            </View>
-            <View style={styles.roleChooserContent}>
-              <Text style={styles.roleEyebrow}>Welcome back</Text>
-              <Text style={styles.roleTitle}>
-                Sign in{'\n'}as <Text style={styles.roleTitleEm}>who?</Text>
-              </Text>
-              <Text style={styles.roleSub}>Choose how you'd like to access Island Echoes Health.</Text>
-            </View>
-            <View style={styles.roleTiles}>
-              <TouchableOpacity style={styles.tile} onPress={openUserForm} activeOpacity={0.97}>
-                <View style={[styles.tileIcon, { backgroundColor: 'rgba(231,211,28,0.12)' }]}>
-                  <Svg width={28} height={28} viewBox="0 0 28 28" fill="none">
-                    <Circle cx={14} cy={10} r={5.5} fill="rgba(231,211,28,0.8)" />
-                    <Path d="M5 24C5 19.6 9.1 16 14 16C18.9 16 23 19.6 23 24" stroke="rgba(231,211,28,0.8)" strokeWidth={2} strokeLinecap="round" />
-                  </Svg>
+            <ScrollView
+              style={styles.roleChooserScroll}
+              contentContainerStyle={styles.roleChooserScrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.roleChooserTop}>
+                <View style={styles.roleChooserContent}>
+                  <Text style={styles.roleEyebrow}>WELCOME BACK</Text>
+<Text style={styles.roleTitle}>
+                  Sign in{'\n'}as <Text style={styles.roleTitleEm}>who?</Text>
+                </Text>
+                  <Text style={styles.roleSub}>Choose how you'd like to access Island Echoes Health.</Text>
                 </View>
-                <Text style={styles.tileLabel} numberOfLines={2}>Sponsor or Patient</Text>
-                <Text style={styles.tileSub} numberOfLines={1}>Personal account</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.tile} onPress={openClinicLayer} activeOpacity={0.97}>
-                <View style={[styles.tileIcon, { backgroundColor: 'rgba(93,202,165,0.12)' }]}>
-                  <Svg width={28} height={28} viewBox="0 0 28 28" fill="none">
-                    <Rect x={4} y={12} width={20} height={14} rx={2.5} stroke="rgba(93,202,165,0.8)" strokeWidth={1.8} fill="none" />
-                    <Path d="M8 12V9C8 7 9.5 5.5 11.5 5.5H16.5C18.5 5.5 20 7 20 9V12" stroke="rgba(93,202,165,0.8)" strokeWidth={1.8} fill="none" />
-                    <Rect x={12} y={16.5} width={4.5} height={1.8} rx={0.9} fill="rgba(93,202,165,0.8)" />
-                    <Rect x={13.6} y={14.8} width={1.8} height={5} rx={0.9} fill="rgba(93,202,165,0.8)" />
-                  </Svg>
+                <View style={styles.roleTiles}>
+                  <TouchableOpacity
+                    style={[styles.tile, selectedRole === 'user' && styles.tileSelected]}
+                    onPress={() => setSelectedRole('user')}
+                    activeOpacity={0.97}
+                  >
+                    <View style={[styles.tileIcon, { backgroundColor: 'rgba(231,211,28,0.12)' }]}>
+                      <Svg width={28} height={28} viewBox="0 0 28 28" fill="none">
+                        <Circle cx={14} cy={10} r={5.5} fill="rgba(231,211,28,0.8)" />
+                        <Path d="M5 24C5 19.6 9.1 16 14 16C18.9 16 23 19.6 23 24" stroke="rgba(231,211,28,0.8)" strokeWidth={2} strokeLinecap="round" />
+                      </Svg>
+                    </View>
+                    <Text style={styles.tileLabel} numberOfLines={2}>Sponsor or Patient</Text>
+                    <Text style={styles.tileSub} numberOfLines={1}>Personal account</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.tile, selectedRole === 'clinic' && styles.tileSelected]}
+                    onPress={() => setSelectedRole('clinic')}
+                    activeOpacity={0.97}
+                  >
+                    <View style={[styles.tileIcon, { backgroundColor: 'rgba(93,202,165,0.12)' }]}>
+                      <Svg width={28} height={28} viewBox="0 0 28 28" fill="none">
+                        <Rect x={4} y={12} width={20} height={14} rx={2.5} stroke="rgba(93,202,165,0.8)" strokeWidth={1.8} fill="none" />
+                        <Path d="M8 12V9C8 7 9.5 5.5 11.5 5.5H16.5C18.5 5.5 20 7 20 9V12" stroke="rgba(93,202,165,0.8)" strokeWidth={1.8} fill="none" />
+                        <Rect x={12} y={16.5} width={4.5} height={1.8} rx={0.9} fill="rgba(93,202,165,0.8)" />
+                        <Rect x={13.6} y={14.8} width={1.8} height={5} rx={0.9} fill="rgba(93,202,165,0.8)" />
+                      </Svg>
+                    </View>
+                    <Text style={styles.tileLabel} numberOfLines={2}>Clinician</Text>
+                    <Text style={styles.tileSub} numberOfLines={1}>Clinic account</Text>
+                  </TouchableOpacity>
                 </View>
-                <Text style={styles.tileLabel} numberOfLines={2}>Clinician</Text>
-                <Text style={styles.tileSub} numberOfLines={1}>Clinic account</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity style={styles.signUpNudge} onPress={handleSignUpPress} activeOpacity={0.8}>
-              <Text style={styles.signUpNudgeText}>Don't have an account? </Text>
-              <Text style={styles.signUpNudgeLink}>Sign up</Text>
-            </TouchableOpacity>
+              </View>
+              <View style={styles.roleChooserBottom}>
+                <TouchableOpacity
+                  style={[styles.continueBtn, !selectedRole && styles.continueBtnDisabled]}
+                  onPress={handleContinue}
+                  activeOpacity={0.97}
+                  disabled={!selectedRole}
+                >
+                  <Text style={styles.continueBtnText}>Continue</Text>
+                </TouchableOpacity>
+                <View style={styles.orDivider}>
+                  <View style={styles.orLine} />
+                  <Text style={styles.orText}>OR</Text>
+                  <View style={styles.orLine} />
+                </View>
+                <TouchableOpacity
+                  style={styles.googleSignInBtn}
+                  onPress={() => {}}
+                  activeOpacity={0.97}
+                >
+                  <Svg width={20} height={20} viewBox="0 0 24 24">
+                    <Path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <Path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <Path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                    <Path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                  </Svg>
+                  <Text style={styles.googleSignInBtnText}>Sign in with Google</Text>
+                </TouchableOpacity>
+                <View style={styles.roleFooter}>
+                  <View style={styles.roleFooterDivider} />
+                  <TouchableOpacity style={styles.signUpNudge} onPress={handleSignUpPress} activeOpacity={0.8}>
+                    <Text style={styles.signUpNudgeText}>Don't have an account? </Text>
+                    <Text style={styles.signUpNudgeLink}>Sign up</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </ScrollView>
           </View>
 
           {/* VIEW 1: User sign-in form */}
@@ -392,8 +424,8 @@ export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClin
         <Animated.View style={[styles.overlayLayer, styles.clinicLayer, { transform: [{ translateX: clinicLayerAnim }] }]}>
           <View style={styles.header}>
             <TouchableOpacity style={styles.backBtn} onPress={closeClinicLayer} activeOpacity={0.85}>
-              <Svg width={18} height={18} viewBox="0 0 18 18" fill="none">
-                <Path d="M14 9H4M8 14L3 9L8 4" stroke="white" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+              <Svg width={22} height={22} viewBox="0 0 22 22" fill="none">
+                <Path d="M17 11H5M10 16L5 11L10 6" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
             </TouchableOpacity>
             <Text style={styles.headerLabel}>Clinician sign in</Text>
@@ -491,8 +523,8 @@ export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClin
         <Animated.View style={[styles.overlayLayer, styles.mfaLayer, { transform: [{ translateY: mfaLayerAnim }] }]}>
           <View style={styles.header}>
             <TouchableOpacity style={styles.backBtn} onPress={closeMfa} activeOpacity={0.85}>
-              <Svg width={18} height={18} viewBox="0 0 18 18" fill="none">
-                <Path d="M14 9H4M8 14L3 9L8 4" stroke="white" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+              <Svg width={22} height={22} viewBox="0 0 22 22" fill="none">
+                <Path d="M17 11H5M10 16L5 11L10 6" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
             </TouchableOpacity>
             <Text style={styles.headerLabel}>{mfaFor === 'clinic' ? 'Clinic two-factor auth' : 'Two-factor verification'}</Text>
@@ -582,9 +614,9 @@ const styles = StyleSheet.create({
     paddingBottom: layout.s(16),
   },
   backBtn: {
-    width: layout.s(40),
-    height: layout.s(40),
-    borderRadius: layout.s(12),
+    width: layout.s(52),
+    height: layout.s(52),
+    borderRadius: layout.s(16),
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.13)',
@@ -598,6 +630,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     letterSpacing: 0.5,
   },
+  headerSpacer: { flex: 1 },
   reelWrapper: {
     flex: 1,
     width: layout.width,
@@ -616,27 +649,41 @@ const styles = StyleSheet.create({
     minHeight: 0,
     flex: 1,
   },
-  scene: {
-    height: layout.s(220),
-    overflow: 'hidden',
+  roleChooserScroll: {
+    flex: 1,
+  },
+  roleChooserScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'space-between',
+    paddingTop: layout.s(24),
+    paddingBottom: layout.s(40),
+  },
+  roleChooserTop: {
+    flex: 1,
+  },
+  roleChooserBottom: {
+    paddingTop: 0,
+    marginTop: -layout.s(32),
   },
   roleChooserContent: {
     paddingHorizontal: layout.s(28),
-    paddingBottom: layout.s(28),
+    paddingTop: layout.s(12),
+    paddingBottom: layout.s(24),
   },
   roleEyebrow: {
     fontSize: layout.f(10),
-    letterSpacing: 2,
+    letterSpacing: 2.5,
     textTransform: 'uppercase',
-    color: 'rgba(255,255,255,0.38)',
-    marginBottom: layout.s(10),
+    color: theme.gold,
+    marginBottom: layout.s(12),
+    fontWeight: '500',
   },
   roleTitle: {
     fontFamily: Platform.OS === 'ios' ? 'Playfair Display' : 'serif',
-    fontSize: layout.f(42),
+    fontSize: layout.f(44),
     fontWeight: '700',
     color: theme.white,
-    lineHeight: layout.s(40),
+    lineHeight: layout.s(46),
     letterSpacing: -0.5,
   },
   roleTitleEm: {
@@ -647,23 +694,28 @@ const styles = StyleSheet.create({
     fontSize: layout.f(13),
     color: 'rgba(255,255,255,0.4)',
     lineHeight: layout.s(22),
-    marginTop: layout.s(10),
+    marginTop: layout.s(12),
   },
   roleTiles: {
     flexDirection: 'row',
     gap: layout.s(12),
     paddingHorizontal: layout.s(28),
+    paddingTop: layout.s(8),
   },
   tile: {
     flex: 1,
     minWidth: 0,
     backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.12)',
     borderRadius: layout.s(22),
-    paddingVertical: layout.s(24),
+    paddingVertical: layout.s(28),
     paddingHorizontal: layout.s(18),
     alignItems: 'center',
+  },
+  tileSelected: {
+    borderColor: theme.gold,
+    backgroundColor: 'rgba(231,211,28,0.08)',
   },
   tileIcon: {
     width: layout.s(56),
@@ -687,15 +739,77 @@ const styles = StyleSheet.create({
     marginTop: layout.s(-6),
     textAlign: 'center',
   },
-  signUpNudge: {
+  continueBtn: {
+    marginHorizontal: layout.s(28),
+    height: layout.s(56),
+    backgroundColor: theme.greenMid,
+    borderRadius: layout.s(18),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: layout.s(14),
+  },
+  continueBtnDisabled: {
+    opacity: 0.5,
+  },
+  continueBtnText: {
+    fontSize: layout.f(16),
+    fontWeight: '700',
+    color: theme.white,
+  },
+  orDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: layout.s(28),
+    marginTop: layout.s(14),
+    marginBottom: layout.s(14),
+    gap: layout.s(14),
+  },
+  orLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  orText: {
+    fontSize: layout.f(15),
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 0.5,
+  },
+  googleSignInBtn: {
+    marginHorizontal: layout.s(28),
+    height: layout.s(52),
+    backgroundColor: theme.white,
+    borderWidth: 0,
+    borderRadius: layout.s(16),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: layout.s(10),
+    marginTop: layout.s(14),
+    marginBottom: layout.s(20),
+  },
+  googleSignInBtnText: {
+    fontSize: layout.f(15),
+    fontWeight: '600',
+    color: '#1f1f1f',
+  },
+  roleFooter: {
     paddingHorizontal: layout.s(28),
-    paddingTop: layout.s(28),
+    alignItems: 'center',
+  },
+  roleFooterDivider: {
+    height: 1,
+    width: '100%',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginBottom: layout.s(12),
+  },
+  signUpNudge: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  signUpNudgeText: { fontSize: layout.f(12.5), color: 'rgba(255,255,255,0.3)' },
-  signUpNudgeLink: { fontSize: layout.f(12.5), color: theme.gold, fontWeight: '500' },
+  signUpNudgeText: { fontSize: layout.f(12.5), color: 'rgba(255,255,255,0.35)' },
+  signUpNudgeLink: { fontSize: layout.f(12.5), color: theme.gold, fontWeight: '600' },
 
   userFormPage: {
     paddingTop: 0,

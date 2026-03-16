@@ -34,7 +34,6 @@ export function OnboardingCarousel({ onComplete }: Props) {
 
   const handleGetStarted = () => goTo(1);
   const handleSignIn = () => {
-    goTo(3);
     setSignInVisible(true);
   };
 
