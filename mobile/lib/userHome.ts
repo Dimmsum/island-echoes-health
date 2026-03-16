@@ -20,11 +20,18 @@ export type UpcomingAppointment = {
   patient_name: string | null;
 };
 
+export type PendingConsent = {
+  id: string;
+  patient_email: string;
+  care_plan: { id: string; name: string } | null;
+  sponsor_name: string;
+};
+
 export type UserHomeResponse = {
   profile: { role: string; full_name: string | null } | null;
   linkedPatients: LinkedPatient[];
   mySponsors: unknown[];
-  pendingConsents: unknown[];
+  pendingConsents: PendingConsent[];
   upcomingAppointments: UpcomingAppointment[];
   notifications: unknown[];
   carePlans: { id: string; name: string; slug?: string; price_cents?: number | null; features?: string[] | null }[];

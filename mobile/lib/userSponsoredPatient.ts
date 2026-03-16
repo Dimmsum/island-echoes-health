@@ -14,6 +14,15 @@ export interface SponsoredPatientResponse {
   metrics_count?: number | null;
 }
 
+type SponsoredPatientApiResponse = {
+  link: { id: string; started_at: string; care_plan_id: string; patient_id: string };
+  patient: { id: string; full_name: string; date_of_birth: string | null } | null;
+  carePlan: { id: string; name: string; slug: string | null; price_cents: number | null } | null;
+  metrics: { id: string; recorded_at: string }[];
+  appointments: { id: string; scheduled_at: string; status: string }[];
+  error?: string;
+};
+
 export type SponsoredPatientState =
   | { status: 'loading'; data: null; error: null }
   | { status: 'loaded'; data: SponsoredPatientResponse; error: null }
@@ -35,8 +44,8 @@ export function useUserSponsoredPatient(linkId: string): SponsoredPatientState {
       }
 
       try {
-        const res = await apiFetch(`/api/home/patient/${linkId}`, { accessToken });
-        const json = (await res.json()) as SponsoredPatientResponse & { error?: string };
+        const res = await apiFetch(`/api/home/sponsored/${linkId}`, { accessToken });
+        const json = (await res.json()) as SponsoredPatientApiResponse;
         if (!res.ok || json.error) {
           if (!cancelled) {
             setState({
@@ -48,8 +57,30 @@ export function useUserSponsoredPatient(linkId: string): SponsoredPatientState {
           return;
         }
 
+        const now = new Date();
+        const ageYears =
+          json.patient?.date_of_birth != null
+            ? Math.floor(
+                (now.getTime() - new Date(json.patient.date_of_birth).getTime()) /
+                  (365.25 * 24 * 60 * 60 * 1000),
+              )
+            : null;
+
+        const summary: SponsoredPatientResponse = {
+          id: json.link.id,
+          full_name: json.patient?.full_name ?? 'Patient',
+          age_years: ageYears,
+          plan_name: json.carePlan?.name ?? null,
+          started_at: json.link.started_at,
+          monthly_amount_cents: json.carePlan?.price_cents ?? null,
+          total_visits: json.appointments?.length ?? 0,
+          upcoming_visits:
+            json.appointments?.filter((a) => new Date(a.scheduled_at).getTime() >= now.getTime()).length ?? 0,
+          metrics_count: json.metrics?.length ?? 0,
+        };
+
         if (!cancelled) {
-          setState({ status: 'loaded', data: json, error: null });
+          setState({ status: 'loaded', data: summary, error: null });
         }
       } catch {
         if (!cancelled) {

@@ -16,6 +16,63 @@ export function PatientDetailScreen({ patientLinkId, onBack }: Props) {
   const state = useUserSponsoredPatient(patientLinkId);
   const p = state.status === 'loaded' ? state.data : null;
 
+  const initials =
+    p?.full_name
+      ?.split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('') || '?';
+
+  const planName = p?.plan_name ?? 'Care plan';
+  const ageLabel = p?.age_years != null ? `${p.age_years} yrs` : 'Age N/A';
+  const sinceLabel = p?.started_at ? new Date(p.started_at).toLocaleDateString() : '—';
+  const priceLabel =
+    p?.monthly_amount_cents != null ? `$${(p.monthly_amount_cents / 100).toFixed(0)}` : '$0';
+
+  if (state.status === 'loading') {
+    return (
+      <View style={styles.root}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={{ paddingBottom: insets.bottom + layout.s(24) }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
+            <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.85}>
+              <IconChevronLeft size={14} color={c.y300} />
+              <Text style={styles.backText}>Back to patients</Text>
+            </TouchableOpacity>
+            <Text style={styles.heroName}>Loading…</Text>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  if (state.status === 'error' || !p) {
+    return (
+      <View style={styles.root}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={{ paddingBottom: insets.bottom + layout.s(24) }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
+            <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.85}>
+              <IconChevronLeft size={14} color={c.y300} />
+              <Text style={styles.backText}>Back to patients</Text>
+            </TouchableOpacity>
+            <Text style={styles.heroName}>Unable to load patient</Text>
+            {state.status === 'error' && (
+              <Text style={[styles.backText, { marginTop: layout.s(6) }]}>{state.error}</Text>
+            )}
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.root}>
       <ScrollView
@@ -31,15 +88,15 @@ export function PatientDetailScreen({ patientLinkId, onBack }: Props) {
 
           <View style={styles.heroRow}>
             <View style={styles.heroAvatar}>
-              <Text style={styles.heroAvatarText}>{p.initials}</Text>
+              <Text style={styles.heroAvatarText}>{initials}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.heroName}>{p.name}</Text>
+              <Text style={styles.heroName}>{p.full_name}</Text>
               <View style={styles.pillsWrap}>
-                <Pill kind="green">{p.plan}</Pill>
-                <Pill>{p.age} yrs</Pill>
-                <Pill kind="yellow">Since {p.since}</Pill>
-                <Pill>{p.price}/mo</Pill>
+                <Pill kind="green">{planName}</Pill>
+                <Pill>{ageLabel}</Pill>
+                <Pill kind="yellow">Since {sinceLabel}</Pill>
+                <Pill>{priceLabel}/mo</Pill>
               </View>
             </View>
           </View>
@@ -47,9 +104,9 @@ export function PatientDetailScreen({ patientLinkId, onBack }: Props) {
 
         <View style={styles.content}>
           <View style={styles.statsRow}>
-            <StatCard value={p.visits} label="Total visits" />
-            <StatCard value={p.upcoming} label="Upcoming" />
-            <StatCard value={p.metrics} label="Metrics" />
+            <StatCard value={p.total_visits ?? 0} label="Total visits" />
+            <StatCard value={p.upcoming_visits ?? 0} label="Upcoming" />
+            <StatCard value={p.metrics_count ?? 0} label="Metrics" />
           </View>
 
           <Text style={styles.sectionH}>Latest vitals</Text>

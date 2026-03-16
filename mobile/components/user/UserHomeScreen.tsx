@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../constants/layout';
@@ -6,6 +6,7 @@ import { userDesignATheme as c } from './userDesignATheme';
 import { IconCalendar, IconChevronRight, IconUsers } from './userDesignAIcons';
 import { useUserHomeData } from '../../lib/userHome';
 import { useMe } from '../../lib/me';
+import { acceptConsentRequestMobile, declineConsentRequestMobile } from '../../lib/sponsorship';
 
 type Props = {
   onNavigatePatients: () => void;
@@ -18,6 +19,9 @@ export function UserHomeScreen({ onNavigatePatients, onNavigateAppointments, onN
   const home = useUserHomeData();
   const me = useMe();
   const upcoming = home.status === 'loaded' ? home.data.upcomingAppointments.slice(0, 1) : [];
+  const pendingConsents = home.status === 'loaded' ? home.data.pendingConsents : [];
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [consentError, setConsentError] = useState<string | null>(null);
   const firstName =
     me.status === 'loaded'
       ? ((me.data.profile?.full_name || me.data.user.email || '').split(' ')[0] || 'there')
@@ -78,6 +82,67 @@ export function UserHomeScreen({ onNavigatePatients, onNavigateAppointments, onN
               <Text style={styles.scBtnText}>Get started →</Text>
             </View>
           </TouchableOpacity>
+
+          {home.status === 'loaded' && pendingConsents.length > 0 && (
+            <View style={styles.consentSection}>
+              <Text style={styles.consentTitle}>Consent requests</Text>
+              <Text style={styles.consentSubtitle}>
+                Accepting allows the sponsor to see your health information and appointment schedules.
+              </Text>
+              {consentError && <Text style={styles.consentError}>{consentError}</Text>}
+              {pendingConsents.map((r) => (
+                <View key={r.id} style={styles.consentCard}>
+                  <Text style={styles.consentSponsor}>{r.sponsor_name}</Text>
+                  <Text style={styles.consentBody}>
+                    wants to sponsor you on{' '}
+                    <Text style={styles.consentPlan}>{r.care_plan?.name ?? 'a plan'}</Text>.
+                  </Text>
+                  <View style={styles.consentButtonsRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.consentPrimaryBtn,
+                        pendingId !== null && styles.consentBtnDisabled,
+                      ]}
+                      activeOpacity={0.85}
+                      disabled={pendingId !== null}
+                      onPress={async () => {
+                        setPendingId(r.id);
+                        setConsentError(null);
+                        const result = await acceptConsentRequestMobile(r.id);
+                        setPendingId(null);
+                        if (result.error) {
+                          setConsentError(result.error);
+                        }
+                      }}
+                    >
+                      <Text style={styles.consentPrimaryText}>
+                        {pendingId === r.id ? 'Accepting…' : 'Accept'}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.consentSecondaryBtn,
+                        pendingId !== null && styles.consentBtnDisabled,
+                      ]}
+                      activeOpacity={0.85}
+                      disabled={pendingId !== null}
+                      onPress={async () => {
+                        setPendingId(r.id);
+                        setConsentError(null);
+                        const result = await declineConsentRequestMobile(r.id);
+                        setPendingId(null);
+                        if (result.error) {
+                          setConsentError(result.error);
+                        }
+                      }}
+                    >
+                      <Text style={styles.consentSecondaryText}>Decline</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
 
           <View style={styles.sectionRow}>
             <View style={styles.sectionBadge}>
@@ -286,6 +351,84 @@ const styles = StyleSheet.create({
     fontSize: layout.f(12),
     fontWeight: '600',
     color: c.y900,
+  },
+  consentSection: {
+    marginBottom: layout.s(24),
+  },
+  consentTitle: {
+    fontSize: layout.f(15),
+    fontWeight: '600',
+    color: c.text1,
+    marginBottom: layout.s(4),
+  },
+  consentSubtitle: {
+    fontSize: layout.f(11.5),
+    color: c.text3,
+    marginBottom: layout.s(10),
+  },
+  consentError: {
+    fontSize: layout.f(11.5),
+    color: '#c0392b',
+    marginBottom: layout.s(8),
+  },
+  consentCard: {
+    backgroundColor: c.white,
+    borderRadius: layout.s(14),
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,0,0,0.06)',
+    paddingVertical: layout.s(14),
+    paddingHorizontal: layout.s(14),
+    marginBottom: layout.s(10),
+  },
+  consentSponsor: {
+    fontSize: layout.f(13.5),
+    fontWeight: '600',
+    color: c.text1,
+    marginBottom: layout.s(2),
+  },
+  consentBody: {
+    fontSize: layout.f(11.5),
+    color: c.text3,
+    marginBottom: layout.s(10),
+  },
+  consentPlan: {
+    fontWeight: '600',
+    color: c.text1,
+  },
+  consentButtonsRow: {
+    flexDirection: 'row',
+    gap: layout.s(8),
+  },
+  consentPrimaryBtn: {
+    flex: 1,
+    borderRadius: layout.s(999),
+    backgroundColor: c.g700,
+    paddingVertical: layout.s(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  consentPrimaryText: {
+    fontSize: layout.f(12.5),
+    fontWeight: '600',
+    color: c.white,
+  },
+  consentSecondaryBtn: {
+    flex: 1,
+    borderRadius: layout.s(999),
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.12)',
+    backgroundColor: c.white,
+    paddingVertical: layout.s(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  consentSecondaryText: {
+    fontSize: layout.f(12.5),
+    fontWeight: '600',
+    color: c.text1,
+  },
+  consentBtnDisabled: {
+    opacity: 0.7,
   },
   sectionRow: {
     flexDirection: 'row',
