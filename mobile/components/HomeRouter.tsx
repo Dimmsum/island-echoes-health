@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { HomeScreen } from './HomeScreen';
 import { ClinicianHomeScreen } from './ClinicianHomeScreen';
+import { UserTabsNavigator } from './user/UserTabsNavigator';
 import { getCurrentUserRole } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { theme } from '../constants/theme';
@@ -44,7 +44,7 @@ export function HomeRouter({ onSignOut }: Props) {
     return <ClinicianHomeScreen onSignOut={onSignOut} />;
   }
 
-  return <HomeScreen onSignOut={onSignOut} />;
+  return <UserTabsNavigator onSignOut={onSignOut} />;
 }
 
 const styles = StyleSheet.create({

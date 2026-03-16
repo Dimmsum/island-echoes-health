@@ -99,7 +99,7 @@ export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress 
   const [uPass, setUPass] = useState('');
   const [uPass2, setUPass2] = useState('');
   const [uAvatarUri, setUAvatarUri] = useState<string | null>(null);
-  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendCooldown, setResendCooldown] = useState<number>(0);
   const [resendLoading, setResendLoading] = useState(false);
   const resendCooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -328,7 +328,7 @@ export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress 
         <View style={styles.step}>
           <Text style={styles.eyebrow}>Step 2 of 4</Text>
           <Text style={styles.title}>A little{'\n'}<Text style={styles.titleEm}>more info</Text></Text>
-          <Text style={styles.sub}>{role === 'sponsor' ? 'Tell us about your organisation (optional).' : 'Just a couple more details.'}</Text>
+              <Text style={styles.sub}>{role === 'sponsor' ? 'Tell us about your organisation (optional).' : 'Just a couple more details.'}</Text>
           <View style={styles.fields}>
             <View style={styles.field}>
               <Text style={styles.label}>Profile photo</Text>
@@ -499,7 +499,7 @@ export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress 
             <Svg width={36} height={36} viewBox="0 0 36 36" fill="none"><Path d="M8 18L14 24L28 10" stroke={theme.gold} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"/></Svg>
           </View>
           <Text style={styles.successTitle}>Welcome,{'\n'}<Text style={styles.titleEm}>{uFirst || 'there'}!</Text></Text>
-          <Text style={styles.successSub}>Your account is ready. Here's what you can do with Island Echoes Health.</Text>
+          <Text style={styles.successSub}>Your account is ready. Here&apos;s what you can do with Island Echoes Health.</Text>
           <View style={styles.infoCards}>
             <View style={styles.infoCard}>
               <View style={[styles.infoIcon, { backgroundColor: 'rgba(231,211,28,0.12)' }]}>
@@ -561,7 +561,7 @@ export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress 
         <View style={styles.step}>
           <Text style={styles.eyebrow}>Step 2 of 3</Text>
           <Text style={styles.title}>Medical{'\n'}<Text style={styles.titleEm}>license</Text></Text>
-          <Text style={styles.sub}>Upload an image or PDF of your medical license. You'll set your password after your account is approved.</Text>
+          <Text style={styles.sub}>Upload an image or PDF of your medical license. You&apos;ll set your password after your account is approved.</Text>
           <View style={styles.fields}>
             <View style={styles.field}>
               <Text style={styles.label}>License image <Text style={styles.required}>*</Text></Text>
@@ -646,7 +646,7 @@ export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress 
             </Svg>
           </View>
           <Text style={styles.successTitle}>Application{'\n'}<Text style={[styles.titleEm, { color: theme.accentTeal }]}>submitted</Text></Text>
-          <Text style={styles.successSub}>Your clinician application is under review. An administrator will review it; you'll receive an email when your account is approved. You'll set your password then.</Text>
+          <Text style={styles.successSub}>Your clinician application is under review. An administrator will review it; you&apos;ll receive an email when your account is approved. You&apos;ll set your password then.</Text>
           <View style={styles.infoCards}>
             <View style={styles.infoCard}>
               <View style={[styles.infoIcon, { backgroundColor: 'rgba(93,202,165,0.12)' }]}>
@@ -658,7 +658,10 @@ export function SignUpPanel({ visible, role, onClose, onComplete, onSignInPress 
               <View style={[styles.infoIcon, { backgroundColor: 'rgba(231,211,28,0.1)' }]}>
                 <Svg width={20} height={20} viewBox="0 0 20 20" fill="none"><Path d="M3 4L10 11L17 4" stroke={theme.gold} strokeWidth={1.5} strokeLinecap="round"/><Path d="M3 4H17V15C17 15.6 16.6 16 16 16H4C3.4 16 3 15.6 3 15V4Z" stroke={theme.gold} strokeWidth={1.5}/></Svg>
               </View>
-              <View><Text style={styles.infoLabel}>Watch your inbox</Text><Text style={styles.infoDesc}>We'll email you at {cEmail || 'your email'} when approved.</Text></View>
+              <View>
+                <Text style={styles.infoLabel}>Watch your inbox</Text>
+                <Text style={styles.infoDesc}>We&apos;ll email you at {cEmail || 'your email'} when approved.</Text>
+              </View>
             </View>
           </View>
         </View>

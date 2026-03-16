@@ -85,29 +85,10 @@ export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClin
     }
   };
 
-  const openUserForm = () => {
-    setView('user');
-    Animated.timing(reelAnim, { toValue: 1, duration: 450, useNativeDriver: true, easing }).start();
-  };
-
-  const openClinicLayer = () => {
-    setClinicLayerVisible(true);
-    Animated.timing(clinicLayerAnim, { toValue: 0, duration: 450, useNativeDriver: true, easing }).start();
-  };
-
   const closeClinicLayer = () => {
     Animated.timing(clinicLayerAnim, { toValue: layout.width, duration: 450, useNativeDriver: true, easing }).start(() => {
       setClinicLayerVisible(false);
     });
-  };
-
-  const openMfa = (forRole: SignInRole) => {
-    setMfaFor(forRole);
-    setMfaCode(['', '', '', '', '', '']);
-    setMfaError(null);
-    setMfaVisible(true);
-    Animated.timing(mfaLayerAnim, { toValue: 0, duration: 450, useNativeDriver: true, easing }).start();
-    setTimeout(() => mfaInputRefs.current[0]?.focus(), 400);
   };
 
   const closeMfa = () => {
@@ -205,7 +186,12 @@ export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClin
   };
 
   const handleClinicSignUpPress = () => {
-    onClinicSignUpPress?.() ?? (closeClinicLayer(), onClose());
+    if (onClinicSignUpPress) {
+      onClinicSignUpPress();
+      return;
+    }
+    closeClinicLayer();
+    onClose();
   };
 
   const updateMfaDigit = (index: number, value: string) => {
@@ -261,7 +247,7 @@ export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClin
 <Text style={styles.roleTitle}>
                   Sign in{'\n'}as <Text style={styles.roleTitleEm}>who?</Text>
                 </Text>
-                  <Text style={styles.roleSub}>Choose how you'd like to access Island Echoes Health.</Text>
+                  <Text style={styles.roleSub}>Choose how you&apos;d like to access Island Echoes Health.</Text>
                 </View>
                 <View style={styles.roleTiles}>
                   <TouchableOpacity
@@ -326,7 +312,7 @@ export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClin
                 <View style={styles.roleFooter}>
                   <View style={styles.roleFooterDivider} />
                   <TouchableOpacity style={styles.signUpNudge} onPress={handleSignUpPress} activeOpacity={0.8}>
-                    <Text style={styles.signUpNudgeText}>Don't have an account? </Text>
+                    <Text style={styles.signUpNudgeText}>Don&apos;t have an account? </Text>
                     <Text style={styles.signUpNudgeLink}>Sign up</Text>
                   </TouchableOpacity>
                 </View>
@@ -404,7 +390,7 @@ export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClin
                 )}
               </TouchableOpacity>
               <TouchableOpacity style={styles.signUpRow} onPress={handleSignUpPress} activeOpacity={0.8}>
-                <Text style={styles.signUpRowText}>Don't have an account? </Text>
+                <Text style={styles.signUpRowText}>Don&apos;t have an account? </Text>
                 <Text style={styles.signUpRowLink}>Create one</Text>
               </TouchableOpacity>
             </View>
@@ -487,7 +473,7 @@ export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClin
                 <Circle cx={9} cy={12} r={0.7} fill="rgba(93,202,165,0.7)" />
               </Svg>
               <Text style={styles.mfaNoticeText}>
-                Clinic accounts require <Text style={styles.mfaNoticeStrong}>two-factor authentication</Text>. You'll verify via a code sent to your registered email or phone.
+                Clinic accounts require <Text style={styles.mfaNoticeStrong}>two-factor authentication</Text>. You&apos;ll verify via a code sent to your registered email or phone.
               </Text>
             </View>
           </ScrollView>
@@ -540,11 +526,11 @@ export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClin
               </Svg>
             </View>
             <Text style={styles.mfaTitle}>
-              Verify it's{'\n'}<Text style={styles.welcomeTitleEm}>you</Text>
+              Verify it&apos;s{'\n'}<Text style={styles.welcomeTitleEm}>you</Text>
             </Text>
             <Text style={styles.mfaSub}>
               {mfaFor === 'clinic'
-                ? "Enter the 6-digit code we sent to your clinic's registered email."
+                ? 'Enter the 6-digit code we sent to your clinic&apos;s registered email.'
                 : 'Enter the 6-digit code we sent to your registered email address.'}
             </Text>
             <View style={styles.otpRow}>
@@ -565,7 +551,7 @@ export function SignInPanel({ visible, onClose, onSuccess, onSignUpPress, onClin
             </View>
             {mfaError ? <Text style={styles.errorText}>{mfaError}</Text> : null}
             <View style={styles.resendRow}>
-              <Text style={styles.resendText}>Didn't receive a code? </Text>
+              <Text style={styles.resendText}>Didn&apos;t receive a code? </Text>
               <TouchableOpacity onPress={handleMfaResend} activeOpacity={0.8}>
                 <Text style={styles.resendLink}>Resend</Text>
               </TouchableOpacity>
