@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import Stripe from "stripe";
 import { createSupabaseForUser, createClientAdmin } from "../lib/supabase.js";
 import { createNotification } from "../lib/notifications.js";
-import { getStripe, getStripePublishableKey, getWebhookSecret, isStripeConfigured } from "../lib/stripe.js";
+import { getStripe, getStripePublishableKey, getWebhookSecret, getAppBaseUrl, isStripeConfigured } from "../lib/stripe.js";
 import type { AuthRequest } from "../middleware/auth.js";
 
 /**
@@ -175,4 +175,51 @@ export async function handleStripeWebhook(req: Request, res: Response): Promise<
   }
 
   res.status(200).json({ received: true });
+}
+
+/**
+ * POST /api/stripe/portal
+ * Creates a Stripe Customer Portal session so sponsors can manage or cancel their subscriptions.
+ */
+export async function createCustomerPortalSession(req: AuthRequest, res: Response): Promise<void> {
+  if (!isStripeConfigured()) {
+    res.status(503).json({ error: "Payments are not configured." });
+    return;
+  }
+
+  const supabase = createSupabaseForUser(req.accessToken);
+  const userId = req.user.id;
+
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("stripe_customer_id")
+    .eq("id", userId)
+    .single();
+
+  if (error) {
+    res.status(500).json({ error: "Failed to load billing profile." });
+    return;
+  }
+  if (!profile?.stripe_customer_id) {
+    res.status(400).json({
+      error:
+        "No Stripe billing profile found. Start a sponsorship first so we can create your billing account.",
+    });
+    return;
+  }
+
+  const stripe = getStripe();
+  const returnUrl = `${getAppBaseUrl()}/home/profile`;
+
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer: profile.stripe_customer_id,
+      return_url: returnUrl,
+    });
+    res.json({ url: session.url });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Failed to create Stripe portal session.";
+    console.error("createCustomerPortalSession failed:", e);
+    res.status(500).json({ error: message });
+  }
 }

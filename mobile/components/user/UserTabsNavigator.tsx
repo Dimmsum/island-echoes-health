@@ -9,6 +9,7 @@ import { AppointmentsScreen } from './AppointmentsScreen';
 import { AppointmentDetailScreen } from './AppointmentDetailScreen';
 import { ProfileScreen } from './ProfileScreen';
 import { SettingsScreen } from './SettingsScreen';
+import { LinkPatientScreen } from './LinkPatientScreen';
 import { userDesignATheme as c } from './userDesignATheme';
 import { IconCalendar, IconHome, IconUser, IconUsers } from './userDesignAIcons';
 
@@ -24,6 +25,7 @@ export function UserTabsNavigator({ onSignOut }: Props) {
   const [activePatientLinkId, setActivePatientLinkId] = useState<string | null>(null);
   const [activeAppointmentId, setActiveAppointmentId] = useState<string | null>(null);
   const [profileSub, setProfileSub] = useState<'profile' | 'settings'>('profile');
+  const [patientsSub, setPatientsSub] = useState<'list' | 'link'>('list');
   const TAB_BAR_BASE_HEIGHT = layout.s(56);
 
   const renderContent = () => {
@@ -40,10 +42,13 @@ export function UserTabsNavigator({ onSignOut }: Props) {
         if (activePatientLinkId != null) {
           return <PatientDetailScreen patientLinkId={activePatientLinkId} onBack={() => setActivePatientLinkId(null)} />;
         }
+        if (patientsSub === 'link') {
+          return <LinkPatientScreen onBack={() => setPatientsSub('list')} />;
+        }
         return (
           <PatientsScreen
             onOpenPatientDetail={(linkId) => setActivePatientLinkId(linkId)}
-            onLinkPatient={() => {}}
+            onLinkPatient={() => setPatientsSub('link')}
           />
         );
       case 'appointments':
@@ -90,6 +95,9 @@ export function UserTabsNavigator({ onSignOut }: Props) {
           setTab(key);
           if (key !== 'profile') {
             setProfileSub('profile');
+          }
+          if (key !== 'patients') {
+            setPatientsSub('list');
           }
         }}
         activeOpacity={0.85}

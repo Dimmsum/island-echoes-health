@@ -5,6 +5,7 @@ import { HomeRouter } from 'components/HomeRouter';
 import { LoadingScreen } from 'components/LoadingScreen';
 import { OnboardingCarousel } from 'components/onboarding/OnboardingCarousel';
 import { StatusBar } from 'expo-status-bar';
+import { StripeProvider } from '@stripe/stripe-react-native';
 
 import './global.css';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -45,28 +46,31 @@ export default function App() {
 
   const showOnboarding = phase === 'done' && onboardingDone !== true;
   const showHome = phase === 'done' && onboardingDone === true;
+  const stripeKey = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 
   return (
-    <SafeAreaProvider>
-      <View style={StyleSheet.absoluteFill}>
-        {phase !== 'done' && (
-          <Animated.View style={[StyleSheet.absoluteFill, { opacity }]} pointerEvents={phase === 'fading' ? 'none' : 'auto'}>
-            <LoadingScreen />
-          </Animated.View>
-        )}
-        {showOnboarding && (
-          <OnboardingCarousel onComplete={handleOnboardingComplete} />
-        )}
-        {showHome && (
-          <HomeRouter
-            onSignOut={() => {
-              AsyncStorage.removeItem(ONBOARDING_KEY).catch(() => {});
-              setOnboardingDone(false);
-            }}
-          />
-        )}
-      </View>
-      <StatusBar style="light" />
-    </SafeAreaProvider>
+    <StripeProvider publishableKey={stripeKey || 'pk_test_123'}>
+      <SafeAreaProvider>
+        <View style={StyleSheet.absoluteFill}>
+          {phase !== 'done' && (
+            <Animated.View style={[StyleSheet.absoluteFill, { opacity }]} pointerEvents={phase === 'fading' ? 'none' : 'auto'}>
+              <LoadingScreen />
+            </Animated.View>
+          )}
+          {showOnboarding && (
+            <OnboardingCarousel onComplete={handleOnboardingComplete} />
+          )}
+          {showHome && (
+            <HomeRouter
+              onSignOut={() => {
+                AsyncStorage.removeItem(ONBOARDING_KEY).catch(() => {});
+                setOnboardingDone(false);
+              }}
+            />
+          )}
+        </View>
+        <StatusBar style="light" />
+      </SafeAreaProvider>
+    </StripeProvider>
   );
 }

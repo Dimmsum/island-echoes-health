@@ -66,6 +66,7 @@ export function ProfileScreen({ onOpenSettings }: Props) {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.8,
+        cameraType: ImagePicker.CameraType.front,
       });
       if (result.canceled || result.assets.length === 0) return;
       await uploadAvatar(result.assets[0].uri);
@@ -318,20 +319,17 @@ const styles = StyleSheet.create({
     marginBottom: layout.s(12),
   },
   avatar: {
-    width: layout.s(72),
-    height: layout.s(72),
-    borderRadius: layout.s(36),
-    backgroundColor: c.y500,
+    width: layout.s(84),
+    height: layout.s(84),
+    borderRadius: layout.s(42),
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.15)',
     marginBottom: layout.s(12),
   },
   avatarImage: {
     width: '100%',
     height: '100%',
-    borderRadius: layout.s(36),
+    borderRadius: layout.s(42),
   },
   avatarText: {
     fontSize: layout.f(26),

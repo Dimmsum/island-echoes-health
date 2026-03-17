@@ -104,6 +104,14 @@ app.post(
     stripe.createSponsorshipPayment(req as Parameters<typeof stripe.createSponsorshipPayment>[0], res).catch(next),
 );
 app.post(
+  "/api/stripe/portal",
+  authMiddleware,
+  (req, res, next) =>
+    stripe.createCustomerPortalSession(req as Parameters<typeof stripe.createCustomerPortalSession>[0], res).catch(
+      next,
+    ),
+);
+app.post(
   "/api/sponsorship/consent-requests",
   authMiddleware,
   (req, res, next) =>
