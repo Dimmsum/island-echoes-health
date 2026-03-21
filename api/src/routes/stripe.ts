@@ -447,20 +447,16 @@ export async function createSubscriptionPortalSession(
   }
 
   if (plan.sponsor_id !== userId) {
-    res
-      .status(403)
-      .json({
-        error: "Only the sponsor can manage billing for this sponsorship.",
-      });
+    res.status(403).json({
+      error: "Only the sponsor can manage billing for this sponsorship.",
+    });
     return;
   }
 
   if (!plan.stripe_subscription_id) {
-    res
-      .status(400)
-      .json({
-        error: "No active Stripe subscription found for this sponsorship.",
-      });
+    res.status(400).json({
+      error: "No active Stripe subscription found for this sponsorship.",
+    });
     return;
   }
 
