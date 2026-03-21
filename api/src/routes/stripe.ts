@@ -323,6 +323,37 @@ export async function handleStripeWebhook(
     }
   }
 
+  if (
+    event.type === "customer.subscription.deleted" ||
+    event.type === "customer.subscription.updated"
+  ) {
+    const subscription = event.data.object as Stripe.Subscription;
+    const isCanceledNow =
+      subscription.status === "canceled" ||
+      event.type === "customer.subscription.deleted";
+
+    if (isCanceledNow) {
+      const admin = createClientAdmin();
+      const endedAtIso = subscription.ended_at
+        ? new Date(subscription.ended_at * 1000).toISOString()
+        : new Date().toISOString();
+
+      const { error: updateError } = await admin
+        .from("sponsor_patient_plans")
+        .update({ ended_at: endedAtIso })
+        .eq("stripe_subscription_id", subscription.id)
+        .is("ended_at", null);
+
+      if (updateError) {
+        console.error(
+          "Failed to sync canceled subscription to sponsor_patient_plans:",
+          subscription.id,
+          updateError,
+        );
+      }
+    }
+  }
+
   res.status(200).json({ received: true });
 }
 
