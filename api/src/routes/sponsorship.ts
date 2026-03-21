@@ -13,6 +13,14 @@ export async function createConsentRequest(
   req: AuthRequest,
   res: Response,
 ): Promise<void> {
+  if (process.env.ALLOW_LEGACY_SIMULATED_SPONSORSHIP !== "true") {
+    res.status(410).json({
+      error:
+        "Legacy simulated sponsorship is disabled. Use /api/sponsorship/create-payment instead.",
+    });
+    return;
+  }
+
   const supabase = createSupabaseForUser(req.accessToken);
   const userId = req.user.id;
   const { patientEmail, carePlanId } = req.body as {
@@ -272,6 +280,11 @@ export async function endSponsorship(
     const cancelResult = await cancelSubscription(plan.stripe_subscription_id);
     if ("error" in cancelResult) {
       console.error("cancelSubscription failed:", cancelResult.error);
+      res.status(502).json({
+        error:
+          "Unable to cancel Stripe subscription right now. Sponsorship was not ended. Please try again.",
+      });
+      return;
     }
   }
 

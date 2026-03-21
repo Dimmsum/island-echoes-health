@@ -5,7 +5,7 @@ import { layout } from '../../constants/layout';
 import { IconCalendar, IconChevronLeft } from './userDesignAIcons';
 import { userDesignATheme as c } from './userDesignATheme';
 import { useUserSponsoredPatient } from '../../lib/userSponsoredPatient';
-import { getStripeCustomerPortalUrlMobile } from '../../lib/sponsorship';
+import { getStripeSubscriptionPortalUrlMobile } from '../../lib/sponsorship';
 
 type Props = {
   patientLinkId: string;
@@ -136,7 +136,7 @@ export function PatientDetailScreen({ patientLinkId, onBack }: Props) {
             onPress={async () => {
               setBillingError(null);
               setBillingLoading(true);
-              const result = await getStripeCustomerPortalUrlMobile();
+              const result = await getStripeSubscriptionPortalUrlMobile(patientLinkId);
               setBillingLoading(false);
               if (result.error || !result.url) {
                 setBillingError(result.error || 'Unable to open billing portal. Please try again.');

@@ -86,3 +86,25 @@ export async function getStripeCustomerPortalUrlMobile(): Promise<{
   }
   return { url: json.url, error: null };
 }
+
+export async function getStripeSubscriptionPortalUrlMobile(planId: string): Promise<{
+  url?: string;
+  error: string | null;
+}> {
+  if (!planId) return { error: 'Missing sponsorship plan ID.' };
+
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (!accessToken) return { error: 'Not signed in.' };
+
+  const res = await apiFetch('/api/stripe/portal/subscription', {
+    method: 'POST',
+    accessToken,
+    body: JSON.stringify({ planId }),
+  });
+  const json = (await res.json().catch(() => ({}))) as { url?: string; error?: string } | undefined;
+  if (!res.ok || !json || json.error || !json.url) {
+    return { error: json?.error || 'Unable to open sponsorship billing portal. Please try again.' };
+  }
+  return { url: json.url, error: null };
+}

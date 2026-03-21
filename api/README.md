@@ -40,9 +40,10 @@ Copy from the web app or set:
 - `GET /me` – Current user + profile
 - `GET /care-plans` – List care plans
 - `GET /home`, `GET /home/profile`, `GET /home/sponsored/:id`, `GET /home/appointments`, `GET /home/appointments/:id` – Home dashboard and related reads
-- `POST /sponsorship/create-payment` – Create sponsorship payment (Stripe); returns `clientSecret` for the client to confirm. Body: `{ patientEmail, carePlanId }`.
-- `POST /sponsorship/consent-requests`, `POST /sponsorship/accept`, `POST /sponsorship/decline` – Sponsorship flow (legacy consent-requests skips real payment)
-- `POST /stripe/webhook` – Stripe webhook (raw body; used by Stripe to notify payment success)
+- `POST /sponsorship/create-payment` – Start Stripe setup checkout; returns `checkoutUrl` + `consentRequestId`. Body: `{ patientEmail, carePlanId }`.
+- `POST /sponsorship/accept`, `POST /sponsorship/decline`, `POST /sponsorship/end` – Sponsorship lifecycle APIs.
+- `POST /sponsorship/consent-requests` – Legacy simulated endpoint (disabled unless `ALLOW_LEGACY_SIMULATED_SPONSORSHIP=true`).
+- `POST /stripe/webhook` – Stripe webhook (raw body; setup/session/subscription sync)
 - `GET /notifications` – List notifications for current user (query: `limit`, default 50, max 100). Returns `{ notifications: [...] }` with `id`, `type`, `title`, `body`, `read_at`, `created_at`, `reference_id`.
 - `PATCH /notifications/:id/read`, `DELETE /notifications` – Mark one read, clear all
 - `PATCH /profile`, `POST /profile/avatar` – Profile (avatar is multipart)

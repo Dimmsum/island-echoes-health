@@ -149,6 +149,29 @@ export async function handleStripeWebhook(
     return;
   }
 
+  const admin = createClientAdmin();
+  const { error: webhookEventError } = await admin
+    .from("stripe_webhook_events")
+    .insert({
+      id: event.id,
+      type: event.type,
+      stripe_created_at: new Date(event.created * 1000).toISOString(),
+    });
+
+  if (webhookEventError) {
+    const code = (webhookEventError as { code?: string }).code;
+    if (code === "23505") {
+      // Duplicate delivery from Stripe. Treat as success for idempotency.
+      res.status(200).json({ received: true, duplicate: true });
+      return;
+    }
+
+    console.error("Failed to record webhook event:", event.id, webhookEventError);
+    // Return 500 so Stripe retries instead of silently losing the event.
+    res.status(500).json({ error: "Failed to process webhook." });
+    return;
+  }
+
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
     if (session.mode !== "setup") {
@@ -166,7 +189,6 @@ export async function handleStripeWebhook(
       return;
     }
 
-    const admin = createClientAdmin();
     const { data: request } = await admin
       .from("sponsorship_consent_requests")
       .select(
@@ -281,10 +303,9 @@ export async function handleStripeWebhook(
       return;
     }
 
-    const admin = createClientAdmin();
     const { data: request } = await admin
       .from("sponsorship_consent_requests")
-      .select("id, patient_id, sponsor_id, care_plan_id")
+      .select("id, patient_id, sponsor_id, care_plan_id, payment_simulated_at")
       .eq("id", consentRequestId)
       .single();
 
@@ -294,10 +315,13 @@ export async function handleStripeWebhook(
       return;
     }
 
-    await admin
-      .from("sponsorship_consent_requests")
-      .update({ payment_simulated_at: new Date().toISOString() })
-      .eq("id", consentRequestId);
+    // Guard against duplicate webhook deliveries re-notifying users.
+    if (!request.payment_simulated_at) {
+      await admin
+        .from("sponsorship_consent_requests")
+        .update({ payment_simulated_at: new Date().toISOString() })
+        .eq("id", consentRequestId);
+    }
 
     const { data: plan } = await admin
       .from("care_plans")
@@ -312,7 +336,7 @@ export async function handleStripeWebhook(
       .single();
     const sponsorName = sponsorProfile?.full_name ?? "A sponsor";
 
-    if (request.patient_id) {
+    if (request.patient_id && !request.payment_simulated_at) {
       await createNotification(
         request.patient_id,
         "consent_request",
@@ -328,12 +352,12 @@ export async function handleStripeWebhook(
     event.type === "customer.subscription.updated"
   ) {
     const subscription = event.data.object as Stripe.Subscription;
-    const isCanceledNow =
-      subscription.status === "canceled" ||
-      event.type === "customer.subscription.deleted";
+    const terminalStatuses = new Set(["canceled", "unpaid", "incomplete_expired"]);
+    const shouldEndAccess =
+      event.type === "customer.subscription.deleted" ||
+      terminalStatuses.has(subscription.status);
 
-    if (isCanceledNow) {
-      const admin = createClientAdmin();
+    if (shouldEndAccess) {
       const endedAtIso = subscription.ended_at
         ? new Date(subscription.ended_at * 1000).toISOString()
         : new Date().toISOString();

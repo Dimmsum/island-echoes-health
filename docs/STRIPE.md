@@ -1,50 +1,49 @@
-# Stripe payments (sandbox / live)
+# Stripe Sponsorship Billing
 
-Payments are handled **on the API server**. The mobile app (or web app) never sees the Stripe secret key; it only uses the **publishable key** and a **client secret** from the API to confirm payment with Stripe’s SDK.
+Stripe is implemented as a setup-then-subscribe flow managed on the API server.
 
-## Flow
+## Current Flow
 
-1. **Client** calls `POST /api/sponsorship/create-payment` with `{ patientEmail, carePlanId }` and `Authorization: Bearer <access_token>`.
-2. **API** creates a pending consent request, creates a Stripe PaymentIntent (amount from the care plan’s `price_cents`), saves `stripe_payment_intent_id` on the request, and returns:
-   - `clientSecret` – use with Stripe SDK to confirm payment
-   - `consentRequestId`
-   - `publishableKey` (optional; you can also set it from env in the app)
-3. **Client** uses the Stripe SDK (mobile or web) to confirm the PaymentIntent with `clientSecret`. Card details go only to Stripe.
-4. **Stripe** sends a `payment_intent.succeeded` webhook to your API.
-5. **API** (webhook handler) sets `payment_simulated_at` on the consent request and sends the “consent request” notification to the patient (if they have an account).
+1. Sponsor starts a request with `POST /api/sponsorship/create-payment`.
+2. API creates a pending consent request and returns a Stripe Checkout `checkoutUrl` in setup mode.
+3. Sponsor completes Checkout to save a reusable payment method.
+4. Stripe sends `checkout.session.completed`; API stores `stripe_payment_method_id` and (if possible) notifies the patient.
+5. Patient accepts with `POST /api/sponsorship/accept`.
+6. API creates a monthly Stripe Subscription, then inserts an active `sponsor_patient_plans` link.
+7. Sponsor manages/cancels billing from Stripe Customer Portal:
+   - Generic: `POST /api/stripe/portal`
+   - Subscription-specific cancel flow: `POST /api/stripe/portal/subscription`
+8. Stripe sends subscription webhooks; API ends local sponsorship access by setting `ended_at` when subscription is terminal (`canceled`, `unpaid`, `incomplete_expired`, or `deleted` event).
 
-## API env (server)
+## Webhook Safety
 
-Set in the API server environment (e.g. `.env`):
+- Webhook endpoint uses raw body + signature verification.
+- Processed Stripe event IDs are stored in `stripe_webhook_events` for idempotency.
+- Duplicate event deliveries are acknowledged and skipped safely.
 
-- **`STRIPE_SECRET_KEY`** – Stripe secret key (test key for sandbox: `sk_test_...`).
-- **`STRIPE_PUBLISHABLE_KEY`** – Publishable key (test: `pk_test_...`). Returned by the create-payment endpoint; can also be used in the client from env.
-- **`STRIPE_WEBHOOK_SECRET`** – Webhook signing secret (from Stripe Dashboard → Developers → Webhooks → “Signing secret”). Required so the API can verify webhook events.
+## Environment Variables
 
-If `STRIPE_SECRET_KEY` is missing, `POST /api/sponsorship/create-payment` returns 503 and payments are disabled.
+Set in API runtime:
 
-## Webhook URL
+- `STRIPE_SECRET_KEY`
+- `STRIPE_PUBLISHABLE_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- Optional: `ALLOW_LEGACY_SIMULATED_SPONSORSHIP=true` to re-enable legacy simulated endpoint (disabled by default)
 
-- **Local:** Use [Stripe CLI](https://stripe.com/docs/stripe-cli): `stripe listen --forward-to localhost:4001/api/stripe/webhook` and set `STRIPE_WEBHOOK_SECRET` to the printed signing secret.
-- **Production:** In Stripe Dashboard → Developers → Webhooks, add endpoint `https://your-api-host/api/stripe/webhook` and subscribe to `payment_intent.succeeded`. Use that endpoint’s signing secret as `STRIPE_WEBHOOK_SECRET`.
+If `STRIPE_SECRET_KEY` is missing, Stripe-powered endpoints return 503.
 
-The webhook route is registered with **raw body** for signature verification; do not send the webhook through a proxy that parses or rewrites the body.
+## Local Webhook Testing
 
-## Mobile app (client) integration
+- Run Stripe CLI:
+  - `stripe listen --forward-to localhost:4001/api/stripe/webhook`
+- Set `STRIPE_WEBHOOK_SECRET` to the signing secret shown by Stripe CLI.
 
-1. Install Stripe’s SDK (e.g. [Stripe React Native](https://stripe.com/docs/payments/accept-a-payment?platform=react-native) or the native SDK for your stack).
-2. Get a payment session from your API:
-   - `POST /api/sponsorship/create-payment` with body `{ patientEmail, carePlanId }` and auth header.
-   - Store `clientSecret` and optionally `publishableKey` from the response.
-3. Initialize Stripe with the **publishable key** (from response or env). Do **not** put the secret key in the app.
-4. Use the SDK to collect payment details and confirm the PaymentIntent with `clientSecret` (e.g. `stripe.confirmPayment(...)` or the equivalent for your SDK).
-5. On success, show a message like “Payment submitted; the patient will be notified.” The backend will set the consent request as paid and notify the patient when the webhook is received.
+## Database Notes
 
-## Database
+- `sponsor_patient_plans.stripe_subscription_id` stores the Stripe subscription backing a sponsorship link.
+- `stripe_webhook_events` stores processed Stripe event IDs (idempotency).
+- Active link uniqueness is enforced with a partial unique index (`ended_at is null`), so historical ended links no longer block re-sponsorship later.
 
-- Migration `00025_stripe_payment_intent_on_consent.sql` adds `stripe_payment_intent_id` to `sponsorship_consent_requests`.
-- When the webhook runs, the API sets `payment_simulated_at` on the same row (paid time). Existing flows that use `payment_simulated_at` continue to work.
+## Legacy Endpoint
 
-## Legacy endpoint
-
-`POST /api/sponsorship/consent-requests` still exists: it creates a consent request and sets `payment_simulated_at` immediately (no real payment). Use it only for testing without Stripe. For real payments, use `POST /api/sponsorship/create-payment` and then confirm with Stripe on the client.
+`POST /api/sponsorship/consent-requests` is legacy simulated behavior and now returns 410 unless explicitly re-enabled with `ALLOW_LEGACY_SIMULATED_SPONSORSHIP=true`.
