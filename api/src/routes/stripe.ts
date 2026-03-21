@@ -383,7 +383,36 @@ export async function createCustomerPortalSession(
     res.status(500).json({ error: "Failed to load billing profile." });
     return;
   }
-  if (!profile?.stripe_customer_id) {
+
+  const stripe = getStripe();
+  let stripeCustomerId = profile?.stripe_customer_id ?? null;
+
+  if (!stripeCustomerId) {
+    const { data: latestPlan } = await supabase
+      .from("sponsor_patient_plans")
+      .select("stripe_subscription_id")
+      .eq("sponsor_id", userId)
+      .not("stripe_subscription_id", "is", null)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (latestPlan?.stripe_subscription_id) {
+      try {
+        const subscription = await stripe.subscriptions.retrieve(
+          latestPlan.stripe_subscription_id,
+        );
+        stripeCustomerId =
+          typeof subscription.customer === "string"
+            ? subscription.customer
+            : subscription.customer?.id ?? null;
+      } catch (lookupError) {
+        console.error("Failed to derive customer from subscription:", lookupError);
+      }
+    }
+  }
+
+  if (!stripeCustomerId) {
     res.status(400).json({
       error:
         "No Stripe billing profile found. Start a sponsorship first so we can create your billing account.",
@@ -391,12 +420,19 @@ export async function createCustomerPortalSession(
     return;
   }
 
-  const stripe = getStripe();
+  if (!profile?.stripe_customer_id) {
+    const admin = createClientAdmin();
+    await admin
+      .from("profiles")
+      .update({ stripe_customer_id: stripeCustomerId })
+      .eq("id", userId);
+  }
+
   const returnUrl = `${getAppBaseUrl()}/home/profile`;
 
   try {
     const session = await stripe.billingPortal.sessions.create({
-      customer: profile.stripe_customer_id,
+      customer: stripeCustomerId,
       return_url: returnUrl,
     });
     res.json({ url: session.url });
@@ -460,26 +496,35 @@ export async function createSubscriptionPortalSession(
     return;
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("stripe_customer_id")
-    .eq("id", userId)
-    .single();
-
-  if (profileError || !profile?.stripe_customer_id) {
-    res.status(400).json({
-      error:
-        "No Stripe billing profile found. Start a sponsorship first so we can create your billing account.",
-    });
-    return;
-  }
-
   const stripe = getStripe();
   const returnUrl = `${getAppBaseUrl()}/home`;
 
   try {
+    const subscription = await stripe.subscriptions.retrieve(
+      plan.stripe_subscription_id,
+    );
+
+    const stripeCustomerId =
+      typeof subscription.customer === "string"
+        ? subscription.customer
+        : subscription.customer?.id ?? null;
+
+    if (!stripeCustomerId) {
+      res.status(500).json({
+        error: "Could not determine billing customer for this sponsorship.",
+      });
+      return;
+    }
+
+    const admin = createClientAdmin();
+    await admin
+      .from("profiles")
+      .update({ stripe_customer_id: stripeCustomerId })
+      .eq("id", userId)
+      .is("stripe_customer_id", null);
+
     const session = await stripe.billingPortal.sessions.create({
-      customer: profile.stripe_customer_id,
+      customer: stripeCustomerId,
       return_url: returnUrl,
       flow_data: {
         type: "subscription_cancel",
