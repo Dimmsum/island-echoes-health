@@ -170,19 +170,26 @@ export async function endSponsorship(
   return { error: null };
 }
 
-export async function getStripeCustomerPortalUrl(): Promise<BillingPortalResult> {
+export async function getStripeCustomerPortalUrl(
+  planId?: string,
+): Promise<BillingPortalResult> {
   const supabase = await createClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session?.access_token) return { error: "Not signed in." };
 
-  const res = await fetch(`${API_BASE}/api/stripe/portal`, {
+  const endpoint = planId
+    ? `${API_BASE}/api/stripe/portal/subscription`
+    : `${API_BASE}/api/stripe/portal`;
+
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${session.access_token}`,
       "Content-Type": "application/json",
     },
+    body: planId ? JSON.stringify({ planId }) : undefined,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data?.error || !data?.url) {

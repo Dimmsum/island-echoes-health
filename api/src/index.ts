@@ -131,6 +131,14 @@ app.post("/api/stripe/portal", authMiddleware, (req, res, next) =>
     )
     .catch(next),
 );
+app.post("/api/stripe/portal/subscription", authMiddleware, (req, res, next) =>
+  stripe
+    .createSubscriptionPortalSession(
+      req as Parameters<typeof stripe.createSubscriptionPortalSession>[0],
+      res,
+    )
+    .catch(next),
+);
 app.post(
   "/api/sponsorship/consent-requests",
   authMiddleware,
