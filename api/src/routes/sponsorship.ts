@@ -9,10 +9,16 @@ import {
 } from "../lib/stripe.js";
 import type { AuthRequest } from "../middleware/auth.js";
 
-export async function createConsentRequest(req: AuthRequest, res: Response): Promise<void> {
+export async function createConsentRequest(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
   const supabase = createSupabaseForUser(req.accessToken);
   const userId = req.user.id;
-  const { patientEmail, carePlanId } = req.body as { patientEmail?: string; carePlanId?: string };
+  const { patientEmail, carePlanId } = req.body as {
+    patientEmail?: string;
+    carePlanId?: string;
+  };
 
   const email = (patientEmail as string)?.trim()?.toLowerCase();
   if (!email) {
@@ -24,13 +30,21 @@ export async function createConsentRequest(req: AuthRequest, res: Response): Pro
     return;
   }
 
-  const { data: plan } = await supabase.from("care_plans").select("id, name").eq("id", carePlanId).single();
+  const { data: plan } = await supabase
+    .from("care_plans")
+    .select("id, name")
+    .eq("id", carePlanId)
+    .single();
   if (!plan) {
     res.status(400).json({ error: "Invalid plan." });
     return;
   }
 
-  const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", userId).single();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", userId)
+    .single();
   const sponsorName = profile?.full_name ?? "A sponsor";
 
   const { data: consentRequest, error: insertError } = await supabase
@@ -51,7 +65,9 @@ export async function createConsentRequest(req: AuthRequest, res: Response): Pro
   }
 
   const admin = createClientAdmin();
-  const { data: patientUserId } = await admin.rpc("get_user_id_by_email", { e: email });
+  const { data: patientUserId } = await admin.rpc("get_user_id_by_email", {
+    e: email,
+  });
   if (patientUserId) {
     await admin
       .from("sponsorship_consent_requests")
@@ -62,14 +78,17 @@ export async function createConsentRequest(req: AuthRequest, res: Response): Pro
       "consent_request",
       `${sponsorName} wants to sponsor your care`,
       `${sponsorName} has purchased the ${plan.name} plan for you. Accept to allow them to see your health information and appointment schedules.`,
-      consentRequest.id
+      consentRequest.id,
     );
   }
 
   res.json({ error: null, consentRequestId: consentRequest.id });
 }
 
-export async function acceptConsent(req: AuthRequest, res: Response): Promise<void> {
+export async function acceptConsent(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
   const supabase = createSupabaseForUser(req.accessToken);
   const userId = req.user.id;
   const { consentRequestId } = req.body as { consentRequestId?: string };
@@ -80,7 +99,9 @@ export async function acceptConsent(req: AuthRequest, res: Response): Promise<vo
 
   const { data: request, error: fetchError } = await supabase
     .from("sponsorship_consent_requests")
-    .select("id, sponsor_id, patient_id, care_plan_id, status, stripe_payment_method_id")
+    .select(
+      "id, sponsor_id, patient_id, care_plan_id, status, stripe_payment_method_id",
+    )
     .eq("id", consentRequestId)
     .single();
 
@@ -89,7 +110,9 @@ export async function acceptConsent(req: AuthRequest, res: Response): Promise<vo
     return;
   }
   if (request.patient_id !== userId) {
-    res.status(403).json({ error: "You can only respond to your own consent requests." });
+    res
+      .status(403)
+      .json({ error: "You can only respond to your own consent requests." });
     return;
   }
   if (request.status !== "pending") {
@@ -98,7 +121,8 @@ export async function acceptConsent(req: AuthRequest, res: Response): Promise<vo
   }
   if (!request.stripe_payment_method_id) {
     res.status(400).json({
-      error: "Sponsor has not completed payment setup. They must add a payment method first.",
+      error:
+        "Sponsor has not completed payment setup. They must add a payment method first.",
     });
     return;
   }
@@ -179,20 +203,26 @@ export async function acceptConsent(req: AuthRequest, res: Response): Promise<vo
     return;
   }
 
-  const { error: linkError } = await supabase.from("sponsor_patient_plans").insert({
-    sponsor_id: request.sponsor_id,
-    patient_id: request.patient_id,
-    care_plan_id: request.care_plan_id,
-    consent_request_id: consentRequestId,
-    stripe_subscription_id: subResult.subscriptionId,
-  });
+  const { error: linkError } = await supabase
+    .from("sponsor_patient_plans")
+    .insert({
+      sponsor_id: request.sponsor_id,
+      patient_id: request.patient_id,
+      care_plan_id: request.care_plan_id,
+      consent_request_id: consentRequestId,
+      stripe_subscription_id: subResult.subscriptionId,
+    });
 
   if (linkError) {
     res.status(500).json({ error: "Failed to link. Please try again." });
     return;
   }
 
-  const { data: patientProfile } = await supabase.from("profiles").select("full_name").eq("id", userId).single();
+  const { data: patientProfile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", userId)
+    .single();
   const patientName = patientProfile?.full_name ?? "Your patient";
 
   await createNotification(
@@ -200,13 +230,16 @@ export async function acceptConsent(req: AuthRequest, res: Response): Promise<vo
     "sponsorship_accepted",
     "Sponsorship accepted",
     `${patientName} accepted your care plan sponsorship. You can now view their health information and appointment schedules.`,
-    consentRequestId
+    consentRequestId,
   );
 
   res.json({ error: null });
 }
 
-export async function endSponsorship(req: AuthRequest, res: Response): Promise<void> {
+export async function endSponsorship(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
   const supabase = createSupabaseForUser(req.accessToken);
   const userId = req.user.id;
   const { planId } = req.body as { planId?: string };
@@ -229,7 +262,9 @@ export async function endSponsorship(req: AuthRequest, res: Response): Promise<v
   }
 
   if (plan.sponsor_id !== userId && plan.patient_id !== userId) {
-    res.status(403).json({ error: "You can only end a sponsorship you are part of." });
+    res
+      .status(403)
+      .json({ error: "You can only end a sponsorship you are part of." });
     return;
   }
 
@@ -253,10 +288,16 @@ export async function endSponsorship(req: AuthRequest, res: Response): Promise<v
   res.json({ error: null });
 }
 
-export async function declineConsent(req: AuthRequest, res: Response): Promise<void> {
+export async function declineConsent(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
   const supabase = createSupabaseForUser(req.accessToken);
   const userId = req.user.id;
-  const { consentRequestId, declineReason } = req.body as { consentRequestId?: string; declineReason?: string };
+  const { consentRequestId, declineReason } = req.body as {
+    consentRequestId?: string;
+    declineReason?: string;
+  };
   if (!consentRequestId) {
     res.status(400).json({ error: "consentRequestId is required." });
     return;
@@ -273,7 +314,9 @@ export async function declineConsent(req: AuthRequest, res: Response): Promise<v
     return;
   }
   if (request.patient_id !== userId) {
-    res.status(403).json({ error: "You can only respond to your own consent requests." });
+    res
+      .status(403)
+      .json({ error: "You can only respond to your own consent requests." });
     return;
   }
   if (request.status !== "pending") {

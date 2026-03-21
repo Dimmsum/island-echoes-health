@@ -20,7 +20,10 @@ export function isStripeConfigured(): boolean {
 
 export function getWebhookSecret(): string {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET is not set (required for webhook signature verification)");
+  if (!secret)
+    throw new Error(
+      "STRIPE_WEBHOOK_SECRET is not set (required for webhook signature verification)",
+    );
   return secret;
 }
 
@@ -112,7 +115,9 @@ export async function getOrCreatePriceForCarePlan(
   const stripe = getStripe();
   try {
     const products = await stripe.products.list({ active: true, limit: 100 });
-    let productId = products.data.find((p) => p.name === STRIPE_PRODUCT_NAME)?.id;
+    let productId = products.data.find(
+      (p) => p.name === STRIPE_PRODUCT_NAME,
+    )?.id;
 
     if (!productId) {
       const product = await stripe.products.create({
@@ -190,7 +195,8 @@ export async function createSubscription(
     return { subscriptionId: subscription.id };
   } catch (e) {
     const err = e as Stripe.errors.StripeError;
-    const message = err?.message ?? (e instanceof Error ? e.message : "Subscription failed.");
+    const message =
+      err?.message ?? (e instanceof Error ? e.message : "Subscription failed.");
     console.error("createSubscription failed:", e);
     return { error: message };
   }

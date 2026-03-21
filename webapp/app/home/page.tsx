@@ -29,7 +29,9 @@ export default async function HomePage() {
     linkedPatients: Parameters<typeof UserHome>[0]["linkedPatients"];
     mySponsors: Parameters<typeof UserHome>[0]["mySponsors"];
     pendingConsents: Parameters<typeof UserHome>[0]["pendingConsents"];
-    upcomingAppointments: Parameters<typeof UserHome>[0]["upcomingAppointments"];
+    upcomingAppointments: Parameters<
+      typeof UserHome
+    >[0]["upcomingAppointments"];
     notifications: Parameters<typeof UserHome>[0]["notifications"];
     carePlans: Parameters<typeof UserHome>[0]["carePlans"];
   }>(session.access_token, "/api/home");

@@ -53,7 +53,9 @@ async function postConsentAction(
   return { error: null };
 }
 
-export async function acceptConsentRequestMobile(consentRequestId: string): Promise<{ error: string | null }> {
+export async function acceptConsentRequestMobile(
+  consentRequestId: string
+): Promise<{ error: string | null }> {
   if (!consentRequestId) return { error: 'Missing consent request.' };
   return postConsentAction('/api/sponsorship/accept', { consentRequestId });
 }
@@ -66,7 +68,10 @@ export async function declineConsentRequestMobile(
   return postConsentAction('/api/sponsorship/decline', { consentRequestId, declineReason });
 }
 
-export async function getStripeCustomerPortalUrlMobile(): Promise<{ url?: string; error: string | null }> {
+export async function getStripeCustomerPortalUrlMobile(): Promise<{
+  url?: string;
+  error: string | null;
+}> {
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
   if (!accessToken) return { error: 'Not signed in.' };
@@ -81,4 +86,3 @@ export async function getStripeCustomerPortalUrlMobile(): Promise<{ url?: string
   }
   return { url: json.url, error: null };
 }
-

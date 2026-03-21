@@ -13,7 +13,9 @@ export function BillingPortalButton() {
     const result = await getStripeCustomerPortalUrl();
     setPending(false);
     if (result.error || !result.url) {
-      setError(result.error || "Unable to open billing portal. Please try again.");
+      setError(
+        result.error || "Unable to open billing portal. Please try again.",
+      );
       return;
     }
     window.location.href = result.url;
@@ -27,7 +29,9 @@ export function BillingPortalButton() {
         disabled={pending}
         className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
       >
-        {pending ? "Opening Stripe billing portal..." : "Manage billing in Stripe"}
+        {pending
+          ? "Opening Stripe billing portal..."
+          : "Manage billing in Stripe"}
       </button>
       {error && <p className="text-xs text-red-600">{error}</p>}
     </div>

@@ -16,7 +16,10 @@ import type { AuthRequest } from "../middleware/auth.js";
  * Body: { patientEmail, carePlanId }
  * Creates a pending consent request and Stripe Checkout Session (setup mode) to collect a reusable payment method.
  */
-export async function createSponsorshipPayment(req: AuthRequest, res: Response): Promise<void> {
+export async function createSponsorshipPayment(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
   if (!isStripeConfigured()) {
     res.status(503).json({ error: "Payments are not configured." });
     return;
@@ -24,7 +27,10 @@ export async function createSponsorshipPayment(req: AuthRequest, res: Response):
 
   const supabase = createSupabaseForUser(req.accessToken);
   const userId = req.user.id;
-  const { patientEmail, carePlanId } = req.body as { patientEmail?: string; carePlanId?: string };
+  const { patientEmail, carePlanId } = req.body as {
+    patientEmail?: string;
+    carePlanId?: string;
+  };
 
   const email = (patientEmail as string)?.trim()?.toLowerCase();
   if (!email) {
@@ -58,12 +64,16 @@ export async function createSponsorshipPayment(req: AuthRequest, res: Response):
     .single();
 
   if (insertError) {
-    res.status(500).json({ error: "Failed to create request. Please try again." });
+    res
+      .status(500)
+      .json({ error: "Failed to create request. Please try again." });
     return;
   }
 
   const admin = createClientAdmin();
-  const { data: patientUserId } = await admin.rpc("get_user_id_by_email", { e: email });
+  const { data: patientUserId } = await admin.rpc("get_user_id_by_email", {
+    e: email,
+  });
   if (patientUserId) {
     await admin
       .from("sponsorship_consent_requests")
@@ -86,7 +96,10 @@ export async function createSponsorshipPayment(req: AuthRequest, res: Response):
   });
 
   if ("error" in checkoutResult) {
-    await supabase.from("sponsorship_consent_requests").delete().eq("id", consentRequest.id);
+    await supabase
+      .from("sponsorship_consent_requests")
+      .delete()
+      .eq("id", consentRequest.id);
     res.status(500).json({ error: checkoutResult.error });
     return;
   }
@@ -101,7 +114,10 @@ export async function createSponsorshipPayment(req: AuthRequest, res: Response):
  * POST /api/stripe/webhook
  * Raw body required for signature verification. Stripe sends payment_intent.succeeded etc.
  */
-export async function handleStripeWebhook(req: Request, res: Response): Promise<void> {
+export async function handleStripeWebhook(
+  req: Request,
+  res: Response,
+): Promise<void> {
   if (!isStripeConfigured()) {
     res.status(503).end();
     return;
@@ -124,7 +140,7 @@ export async function handleStripeWebhook(req: Request, res: Response): Promise<
     event = getStripe().webhooks.constructEvent(
       rawBody as Buffer,
       sig,
-      getWebhookSecret()
+      getWebhookSecret(),
     ) as Stripe.Event;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Invalid signature";
@@ -142,7 +158,10 @@ export async function handleStripeWebhook(req: Request, res: Response): Promise<
 
     const consentRequestId = session.metadata?.consent_request_id;
     if (!consentRequestId) {
-      console.warn("checkout.session.completed missing metadata.consent_request_id", session.id);
+      console.warn(
+        "checkout.session.completed missing metadata.consent_request_id",
+        session.id,
+      );
       res.status(200).json({ received: true });
       return;
     }
@@ -150,19 +169,30 @@ export async function handleStripeWebhook(req: Request, res: Response): Promise<
     const admin = createClientAdmin();
     const { data: request } = await admin
       .from("sponsorship_consent_requests")
-      .select("id, sponsor_id, patient_id, patient_email, care_plan_id, stripe_payment_method_id")
+      .select(
+        "id, sponsor_id, patient_id, patient_email, care_plan_id, stripe_payment_method_id",
+      )
       .eq("id", consentRequestId)
       .single();
 
     if (!request) {
-      console.warn("Consent request not found for checkout.session.completed:", consentRequestId);
+      console.warn(
+        "Consent request not found for checkout.session.completed:",
+        consentRequestId,
+      );
       res.status(200).json({ received: true });
       return;
     }
 
-    const setupIntentId = typeof session.setup_intent === "string" ? session.setup_intent : session.setup_intent?.id;
+    const setupIntentId =
+      typeof session.setup_intent === "string"
+        ? session.setup_intent
+        : session.setup_intent?.id;
     if (!setupIntentId) {
-      console.warn("checkout.session.completed missing setup_intent", session.id);
+      console.warn(
+        "checkout.session.completed missing setup_intent",
+        session.id,
+      );
       res.status(200).json({ received: true });
       return;
     }
@@ -182,9 +212,11 @@ export async function handleStripeWebhook(req: Request, res: Response): Promise<
     const customerId =
       typeof session.customer === "string"
         ? session.customer
-        : session.customer?.id ??
-          (typeof setupIntent.customer === "string" ? setupIntent.customer : setupIntent.customer?.id) ??
-          null;
+        : (session.customer?.id ??
+          (typeof setupIntent.customer === "string"
+            ? setupIntent.customer
+            : setupIntent.customer?.id) ??
+          null);
 
     await admin
       .from("sponsorship_consent_requests")
@@ -200,7 +232,10 @@ export async function handleStripeWebhook(req: Request, res: Response): Promise<
 
     let patientId = request.patient_id;
     if (!patientId && request.patient_email) {
-      const { data: lookedUpPatientId } = await admin.rpc("get_user_id_by_email", { e: request.patient_email });
+      const { data: lookedUpPatientId } = await admin.rpc(
+        "get_user_id_by_email",
+        { e: request.patient_email },
+      );
       patientId = lookedUpPatientId ?? null;
       if (patientId) {
         await admin
@@ -211,9 +246,17 @@ export async function handleStripeWebhook(req: Request, res: Response): Promise<
     }
 
     if (patientId && !request.stripe_payment_method_id) {
-      const { data: plan } = await admin.from("care_plans").select("name").eq("id", request.care_plan_id).single();
+      const { data: plan } = await admin
+        .from("care_plans")
+        .select("name")
+        .eq("id", request.care_plan_id)
+        .single();
       const planName = plan?.name ?? "a care plan";
-      const { data: sponsorProfile } = await admin.from("profiles").select("full_name").eq("id", request.sponsor_id).single();
+      const { data: sponsorProfile } = await admin
+        .from("profiles")
+        .select("full_name")
+        .eq("id", request.sponsor_id)
+        .single();
       const sponsorName = sponsorProfile?.full_name ?? "A sponsor";
 
       await createNotification(
@@ -230,7 +273,10 @@ export async function handleStripeWebhook(req: Request, res: Response): Promise<
     const pi = event.data.object as Stripe.PaymentIntent;
     const consentRequestId = pi.metadata?.consent_request_id;
     if (!consentRequestId) {
-      console.warn("payment_intent.succeeded missing metadata.consent_request_id", pi.id);
+      console.warn(
+        "payment_intent.succeeded missing metadata.consent_request_id",
+        pi.id,
+      );
       res.status(200).json({ received: true });
       return;
     }
@@ -253,9 +299,17 @@ export async function handleStripeWebhook(req: Request, res: Response): Promise<
       .update({ payment_simulated_at: new Date().toISOString() })
       .eq("id", consentRequestId);
 
-    const { data: plan } = await admin.from("care_plans").select("name").eq("id", request.care_plan_id).single();
+    const { data: plan } = await admin
+      .from("care_plans")
+      .select("name")
+      .eq("id", request.care_plan_id)
+      .single();
     const planName = plan?.name ?? "a care plan";
-    const { data: sponsorProfile } = await admin.from("profiles").select("full_name").eq("id", request.sponsor_id).single();
+    const { data: sponsorProfile } = await admin
+      .from("profiles")
+      .select("full_name")
+      .eq("id", request.sponsor_id)
+      .single();
     const sponsorName = sponsorProfile?.full_name ?? "A sponsor";
 
     if (request.patient_id) {
@@ -264,7 +318,7 @@ export async function handleStripeWebhook(req: Request, res: Response): Promise<
         "consent_request",
         `${sponsorName} wants to sponsor your care`,
         `${sponsorName} has purchased the ${planName} plan for you. Accept to allow them to see your health information and appointment schedules.`,
-        consentRequestId
+        consentRequestId,
       );
     }
   }
@@ -276,7 +330,10 @@ export async function handleStripeWebhook(req: Request, res: Response): Promise<
  * POST /api/stripe/portal
  * Creates a Stripe Customer Portal session so sponsors can manage or cancel their subscriptions.
  */
-export async function createCustomerPortalSession(req: AuthRequest, res: Response): Promise<void> {
+export async function createCustomerPortalSession(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
   if (!isStripeConfigured()) {
     res.status(503).json({ error: "Payments are not configured." });
     return;
@@ -313,7 +370,10 @@ export async function createCustomerPortalSession(req: AuthRequest, res: Respons
     });
     res.json({ url: session.url });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Failed to create Stripe portal session.";
+    const message =
+      e instanceof Error
+        ? e.message
+        : "Failed to create Stripe portal session.";
     console.error("createCustomerPortalSession failed:", e);
     res.status(500).json({ error: message });
   }

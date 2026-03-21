@@ -5,10 +5,15 @@ import { createClient } from "@/lib/supabase/server";
 
 export type HomeActionResult = { error: string | null };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:4001";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:4001";
 
 export type CreatePaymentResult =
-  | { error: string | null; redirectUrl?: undefined; consentRequestId?: undefined }
+  | {
+      error: string | null;
+      redirectUrl?: undefined;
+      consentRequestId?: undefined;
+    }
   | { error: null; redirectUrl: string; consentRequestId: string };
 
 export type PurchasePlanResult =
@@ -45,9 +50,10 @@ export async function createPaymentForPlan(
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const message = res.status === 503
-      ? "Payments are not configured. Please try again later."
-      : (data?.error ?? "Failed to start payment setup.");
+    const message =
+      res.status === 503
+        ? "Payments are not configured. Please try again later."
+        : (data?.error ?? "Failed to start payment setup.");
     return { error: message };
   }
 
@@ -180,7 +186,9 @@ export async function getStripeCustomerPortalUrl(): Promise<BillingPortalResult>
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data?.error || !data?.url) {
-    return { error: data?.error ?? "Unable to open billing portal. Please try again." };
+    return {
+      error: data?.error ?? "Unable to open billing portal. Please try again.",
+    };
   }
 
   return { error: null, url: data.url };

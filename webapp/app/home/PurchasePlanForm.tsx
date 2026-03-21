@@ -17,26 +17,66 @@ type Props = {
 };
 
 const CheckIcon = ({ className }: { className?: string }) => (
-  <svg className={className || "h-5 w-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+  <svg
+    className={className || "h-5 w-5"}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M5 13l4 4L19 7"
+    />
   </svg>
 );
 
 const UserIcon = ({ className }: { className?: string }) => (
-  <svg className={className || "h-5 w-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+  <svg
+    className={className || "h-5 w-5"}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+    />
   </svg>
 );
 
 const ArrowLeftIcon = ({ className }: { className?: string }) => (
-  <svg className={className || "h-5 w-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+  <svg
+    className={className || "h-5 w-5"}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M15 19l-7-7 7-7"
+    />
   </svg>
 );
 
 const MailIcon = ({ className }: { className?: string }) => (
-  <svg className={className || "h-5 w-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+  <svg
+    className={className || "h-5 w-5"}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+    />
   </svg>
 );
 
@@ -49,7 +89,9 @@ export function PurchasePlanForm({ carePlans }: Props) {
   const [error, setError] = useState<string | null>(null);
   const selectedPlan = carePlans.find((p) => p.id === planId);
 
-  const showSetupSuccess = searchParams.get("setup") === "success" || searchParams.get("redirect_status") === "succeeded";
+  const showSetupSuccess =
+    searchParams.get("setup") === "success" ||
+    searchParams.get("redirect_status") === "succeeded";
 
   function handleContinue(e: React.FormEvent) {
     e.preventDefault();
@@ -86,7 +128,8 @@ export function PurchasePlanForm({ carePlans }: Props) {
     return (
       <div className="rounded-xl border border-[#1F5F2E]/20 bg-[#E6E15A]/20 p-5">
         <p className="text-sm font-medium text-[#1F5F2E]">
-          Payment method setup complete. The patient will receive a consent request and the subscription starts after they accept.
+          Payment method setup complete. The patient will receive a consent
+          request and the subscription starts after they accept.
         </p>
       </div>
     );
@@ -101,7 +144,9 @@ export function PurchasePlanForm({ carePlans }: Props) {
               <CheckIcon />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-slate-900">Confirm sponsorship setup</h2>
+              <h2 className="text-xl font-semibold text-slate-900">
+                Confirm sponsorship setup
+              </h2>
               <p className="mt-0.5 text-sm text-slate-600">
                 Review the details before proceeding
               </p>
@@ -113,7 +158,9 @@ export function PurchasePlanForm({ carePlans }: Props) {
             <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-5">
               <div className="mb-3 flex items-center gap-2">
                 <UserIcon className="h-5 w-5 text-[#1F5F2E]" />
-                <h3 className="font-semibold text-slate-900">Patient details</h3>
+                <h3 className="font-semibold text-slate-900">
+                  Patient details
+                </h3>
               </div>
               <div className="mt-3 flex items-center gap-3 rounded-lg bg-white p-3">
                 <MailIcon className="h-5 w-5 text-slate-400" />
@@ -121,7 +168,9 @@ export function PurchasePlanForm({ carePlans }: Props) {
                   <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
                     Email address
                   </p>
-                  <p className="mt-0.5 text-sm font-medium text-slate-900">{email}</p>
+                  <p className="mt-0.5 text-sm font-medium text-slate-900">
+                    {email}
+                  </p>
                 </div>
               </div>
             </div>
@@ -137,10 +186,14 @@ export function PurchasePlanForm({ carePlans }: Props) {
               <div className="mt-3 rounded-lg border-2 border-[#1F5F2E]/20 bg-white p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h4 className="text-lg font-semibold text-slate-900">{selectedPlan.name}</h4>
+                    <h4 className="text-lg font-semibold text-slate-900">
+                      {selectedPlan.name}
+                    </h4>
                     <p className="mt-1 text-2xl font-bold text-[#1F5F2E]">
                       ${(selectedPlan.price_cents / 100).toFixed(0)}
-                      <span className="ml-1 text-sm font-normal text-slate-600">/month</span>
+                      <span className="ml-1 text-sm font-normal text-slate-600">
+                        /month
+                      </span>
                     </p>
                   </div>
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1F5F2E] text-white">
@@ -150,7 +203,10 @@ export function PurchasePlanForm({ carePlans }: Props) {
                 {selectedPlan.features && selectedPlan.features.length > 0 && (
                   <ul className="mt-4 space-y-2 border-t border-slate-200 pt-4">
                     {selectedPlan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-sm text-slate-600">
+                      <li
+                        key={idx}
+                        className="flex items-start gap-2 text-sm text-slate-600"
+                      >
                         <CheckIcon className="h-4 w-4 shrink-0 text-[#1F5F2E] mt-0.5" />
                         <span>{feature}</span>
                       </li>
@@ -163,7 +219,10 @@ export function PurchasePlanForm({ carePlans }: Props) {
             {/* Important Note */}
             <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4">
               <p className="text-sm text-slate-700">
-                <span className="font-semibold">Note:</span> The patient will receive a consent request to accept or decline this plan. Accepting allows you to see their health information and appointment schedules.
+                <span className="font-semibold">Note:</span> The patient will
+                receive a consent request to accept or decline this plan.
+                Accepting allows you to see their health information and
+                appointment schedules.
               </p>
             </div>
           </div>
@@ -211,11 +270,16 @@ export function PurchasePlanForm({ carePlans }: Props) {
   return (
     <form onSubmit={handleContinue} className="space-y-6">
       <p className="text-sm text-slate-600">
-        Purchase a care plan for a patient. They&apos;ll receive a consent request to accept or decline. Accepting allows you to see their health information and appointment schedules.
+        Purchase a care plan for a patient. They&apos;ll receive a consent
+        request to accept or decline. Accepting allows you to see their health
+        information and appointment schedules.
       </p>
-      
+
       <div>
-        <label htmlFor="patient_email" className="block text-sm font-medium text-slate-700 mb-2">
+        <label
+          htmlFor="patient_email"
+          className="block text-sm font-medium text-slate-700 mb-2"
+        >
           Patient email
         </label>
         <input
@@ -230,7 +294,9 @@ export function PurchasePlanForm({ carePlans }: Props) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-4">Select a plan</label>
+        <label className="block text-sm font-medium text-slate-700 mb-4">
+          Select a plan
+        </label>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {carePlans.map((plan) => (
             <label
@@ -251,10 +317,14 @@ export function PurchasePlanForm({ carePlans }: Props) {
               />
               <div className="mb-3 flex items-start justify-between">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-slate-900">{plan.name}</h3>
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    {plan.name}
+                  </h3>
                   <p className="mt-1 text-2xl font-bold text-[#1F5F2E]">
                     ${(plan.price_cents / 100).toFixed(0)}
-                    <span className="ml-1 text-sm font-normal text-slate-600">/month</span>
+                    <span className="ml-1 text-sm font-normal text-slate-600">
+                      /month
+                    </span>
                   </p>
                 </div>
                 {planId === plan.id && (
@@ -269,13 +339,18 @@ export function PurchasePlanForm({ carePlans }: Props) {
               {plan.features && plan.features.length > 0 && (
                 <ul className="mt-3 space-y-2 border-t border-slate-200 pt-3">
                   {plan.features.slice(0, 3).map((feature, idx) => (
-                    <li key={idx} className="flex items-start gap-2 text-sm text-slate-600">
+                    <li
+                      key={idx}
+                      className="flex items-start gap-2 text-sm text-slate-600"
+                    >
                       <CheckIcon className="h-4 w-4 shrink-0 text-[#1F5F2E] mt-0.5" />
                       <span>{feature}</span>
                     </li>
                   ))}
                   {plan.features.length > 3 && (
-                    <li className="text-xs text-slate-500">+{plan.features.length - 3} more</li>
+                    <li className="text-xs text-slate-500">
+                      +{plan.features.length - 3} more
+                    </li>
                   )}
                 </ul>
               )}
