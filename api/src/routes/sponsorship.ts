@@ -6,6 +6,7 @@ import {
   createSubscription,
   ensureCustomerForPaymentMethod,
   getOrCreatePriceForCarePlan,
+  getStripe,
 } from "../lib/stripe.js";
 import type { AuthRequest } from "../middleware/auth.js";
 
@@ -145,15 +146,41 @@ export async function acceptConsent(
     return;
   }
 
-  const { data: sponsorProfile } = await supabase
+  // Use admin client: RLS prevents the patient from reading the sponsor's profile row.
+  const { data: sponsorProfile } = await createClientAdmin()
     .from("profiles")
     .select("stripe_customer_id")
     .eq("id", request.sponsor_id)
     .single();
 
+  let existingCustomerId = sponsorProfile?.stripe_customer_id ?? null;
+
+  // If the webhook hasn't saved the customer ID yet, retrieve it directly from
+  // the payment method object in Stripe. A payment method always knows which
+  // customer it is attached to, so this avoids creating a duplicate customer.
+  if (!existingCustomerId) {
+    try {
+      const stripe = getStripe();
+      const pm = await stripe.paymentMethods.retrieve(
+        request.stripe_payment_method_id,
+      );
+      const pmCustomer = pm.customer;
+      if (pmCustomer) {
+        existingCustomerId =
+          typeof pmCustomer === "string" ? pmCustomer : pmCustomer.id;
+        await createClientAdmin()
+          .from("profiles")
+          .update({ stripe_customer_id: existingCustomerId })
+          .eq("id", request.sponsor_id);
+      }
+    } catch (e) {
+      console.error("Failed to retrieve payment method customer:", e);
+    }
+  }
+
   const customerResult = await ensureCustomerForPaymentMethod(
     request.stripe_payment_method_id,
-    sponsorProfile?.stripe_customer_id ?? null,
+    existingCustomerId,
   );
   if ("error" in customerResult) {
     res.status(400).json({ error: customerResult.error });

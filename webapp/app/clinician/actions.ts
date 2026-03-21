@@ -63,7 +63,8 @@ export async function submitClinicianRequest(
     };
   }
 
-  const path = `${crypto.randomUUID()}/${file.name}`;
+  const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+  const path = `${crypto.randomUUID()}/license.${ext}`;
   const { error: uploadError } = await admin.storage
     .from("clinician-licenses")
     .upload(path, file, {

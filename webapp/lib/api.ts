@@ -3,7 +3,7 @@
  * with the Supabase access token (from session).
  */
 const getBaseUrl = (): string =>
-  process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:4001";
+  process.env.API_URL?.trim() || "http://localhost:4001";
 
 export function getApiBaseUrl(): string {
   return getBaseUrl();

@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 export type HomeActionResult = { error: string | null };
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:4001";
+  process.env.API_URL?.trim() || "http://localhost:4001";
 
 export type CreatePaymentResult =
   | {
@@ -24,6 +24,8 @@ export type BillingPortalResult =
   | { error: string; url?: undefined }
   | { error: null; url: string };
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 /** Calls API to create a Stripe setup-checkout session for sponsorship. */
 export async function createPaymentForPlan(
   patientEmail: string,
@@ -31,19 +33,28 @@ export async function createPaymentForPlan(
 ): Promise<CreatePaymentResult> {
   const supabase = await createClient();
   const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+  const {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session?.access_token) return { error: "Not signed in." };
 
   const email = patientEmail.trim().toLowerCase();
   if (!email) return { error: "Patient email is required." };
+  if (!EMAIL_REGEX.test(email)) return { error: "Invalid email address." };
   if (!carePlanId) return { error: "Care plan is required." };
+
+  // Idempotency key scoped to this clinician + plan + patient to prevent duplicate checkouts.
+  const idempotencyKey = `${user.id}:${carePlanId}:${email}`;
 
   const res = await fetch(`${API_BASE}/api/sponsorship/create-payment`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${session.access_token}`,
       "Content-Type": "application/json",
+      "Idempotency-Key": idempotencyKey,
     },
     body: JSON.stringify({ patientEmail: email, carePlanId }),
   });
@@ -91,6 +102,10 @@ export async function acceptConsentRequest(
 ): Promise<HomeActionResult> {
   const supabase = await createClient();
   const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+  const {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session?.access_token) return { error: "Not signed in." };
@@ -119,6 +134,10 @@ export async function declineConsentRequest(
 ): Promise<HomeActionResult> {
   const supabase = await createClient();
   const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+  const {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session?.access_token) return { error: "Not signed in." };
@@ -145,6 +164,10 @@ export async function endSponsorship(
   planId: string,
 ): Promise<HomeActionResult> {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -174,6 +197,10 @@ export async function getStripeCustomerPortalUrl(
   planId?: string,
 ): Promise<BillingPortalResult> {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
   const {
     data: { session },
   } = await supabase.auth.getSession();

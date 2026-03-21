@@ -86,6 +86,7 @@ export async function updateAppointmentStatus(
     .from("appointments")
     .select("id, patient_id, scheduled_at")
     .eq("id", appointmentId)
+    .eq("clinician_id", userId)
     .single();
 
   if (!apt) return { error: "Appointment not found." };
@@ -129,14 +130,15 @@ export async function rescheduleAppointment(
   appointmentId: string,
   scheduledAt: string
 ): Promise<ClinicianActionResult> {
-  const { error } = await ensureClinicianOrAdmin();
-  if (error) return { error };
+  const { error, userId } = await ensureClinicianOrAdmin();
+  if (error || !userId) return { error: error ?? "Not signed in." };
 
   const supabase = await createClient();
   const { error: updateError } = await supabase
     .from("appointments")
     .update({ scheduled_at: scheduledAt, updated_at: new Date().toISOString() })
-    .eq("id", appointmentId);
+    .eq("id", appointmentId)
+    .eq("clinician_id", userId);
 
   if (updateError) {
     console.error("Reschedule failed:", updateError);
