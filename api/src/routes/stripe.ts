@@ -416,12 +416,20 @@ export async function createSubscriptionPortalSession(
   }
 
   if (plan.sponsor_id !== userId) {
-    res.status(403).json({ error: "Only the sponsor can manage billing for this sponsorship." });
+    res
+      .status(403)
+      .json({
+        error: "Only the sponsor can manage billing for this sponsorship.",
+      });
     return;
   }
 
   if (!plan.stripe_subscription_id) {
-    res.status(400).json({ error: "No active Stripe subscription found for this sponsorship." });
+    res
+      .status(400)
+      .json({
+        error: "No active Stripe subscription found for this sponsorship.",
+      });
     return;
   }
 
@@ -433,7 +441,8 @@ export async function createSubscriptionPortalSession(
 
   if (profileError || !profile?.stripe_customer_id) {
     res.status(400).json({
-      error: "No Stripe billing profile found. Start a sponsorship first so we can create your billing account.",
+      error:
+        "No Stripe billing profile found. Start a sponsorship first so we can create your billing account.",
     });
     return;
   }
@@ -459,7 +468,10 @@ export async function createSubscriptionPortalSession(
 
     res.json({ url: session.url });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Failed to create Stripe portal session.";
+    const message =
+      e instanceof Error
+        ? e.message
+        : "Failed to create Stripe portal session.";
     console.error("createSubscriptionPortalSession failed:", e);
     res.status(500).json({ error: message });
   }
