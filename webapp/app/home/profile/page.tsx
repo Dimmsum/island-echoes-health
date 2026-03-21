@@ -5,6 +5,7 @@ import { fetchApiJson } from "@/lib/api";
 import { UserNavbar } from "../UserNavbar";
 import { ProfileEditForm } from "./ProfileEditForm";
 import { EndSponsorshipButton } from "../EndSponsorshipButton";
+import { BillingPortalButton } from "../BillingPortalButton";
 
 const STAFF_ROLES = ["admin", "clinician"] as const;
 
@@ -308,6 +309,9 @@ export default async function ProfilePage() {
                       <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-3">
                         <span className="text-base font-semibold text-slate-900">Total</span>
                         <span className="text-xl font-bold text-[#1F5F2E]">${totalMonthlyDollars.toFixed(2)}/mo</span>
+                      </div>
+                      <div className="mt-4 border-t border-slate-200 pt-4">
+                        <BillingPortalButton label="Manage all billings with Stripe" />
                       </div>
                     </>
                   )}
