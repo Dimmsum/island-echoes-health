@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Linking,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../constants/layout';
 import { IconCalendar, IconChevronLeft } from './userDesignAIcons';
@@ -39,8 +47,7 @@ export function PatientDetailScreen({ patientLinkId, onBack }: Props) {
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={{ paddingBottom: insets.bottom + layout.s(24) }}
-          showsVerticalScrollIndicator={false}
-        >
+          showsVerticalScrollIndicator={false}>
           <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
             <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.85}>
               <IconChevronLeft size={14} color={c.y300} />
@@ -59,8 +66,7 @@ export function PatientDetailScreen({ patientLinkId, onBack }: Props) {
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={{ paddingBottom: insets.bottom + layout.s(24) }}
-          showsVerticalScrollIndicator={false}
-        >
+          showsVerticalScrollIndicator={false}>
           <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
             <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.85}>
               <IconChevronLeft size={14} color={c.y300} />
@@ -81,8 +87,7 @@ export function PatientDetailScreen({ patientLinkId, onBack }: Props) {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: insets.bottom + layout.s(24) }}
-        showsVerticalScrollIndicator={false}
-      >
+        showsVerticalScrollIndicator={false}>
         <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
           <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.85}>
             <IconChevronLeft size={14} color={c.y300} />
@@ -114,10 +119,22 @@ export function PatientDetailScreen({ patientLinkId, onBack }: Props) {
 
           <Text style={styles.sectionH}>Latest vitals</Text>
           <View style={styles.vitalsGrid}>
-            <VitalCard label="Blood pressure" value="118" unit="/76" badge="Normal" badgeKind="normal" />
+            <VitalCard
+              label="Blood pressure"
+              value="118"
+              unit="/76"
+              badge="Normal"
+              badgeKind="normal"
+            />
             <VitalCard label="Weight" value="72" unit=" kg" badge="Stable" badgeKind="normal" />
             <VitalCard label="A1C" value="6.8" unit="%" badge="Monitor" badgeKind="warn" />
-            <VitalCard label="Med adherence" value="94" unit="%" badge="Excellent" badgeKind="normal" />
+            <VitalCard
+              label="Med adherence"
+              value="94"
+              unit="%"
+              badge="Excellent"
+              badgeKind="normal"
+            />
           </View>
 
           <Text style={styles.sectionH}>Recent appointments</Text>
@@ -126,7 +143,9 @@ export function PatientDetailScreen({ patientLinkId, onBack }: Props) {
               <IconCalendar size={20} color={c.g400} />
             </View>
             <Text style={styles.emptyTitle}>No data yet</Text>
-            <Text style={styles.emptySub}>Visit history will appear here once appointments are recorded.</Text>
+            <Text style={styles.emptySub}>
+              Visit history will appear here once appointments are recorded.
+            </Text>
           </View>
           {billingError && <Text style={styles.billingError}>{billingError}</Text>}
           <TouchableOpacity
@@ -143,8 +162,7 @@ export function PatientDetailScreen({ patientLinkId, onBack }: Props) {
                 return;
               }
               Linking.openURL(result.url);
-            }}
-          >
+            }}>
             <Text style={styles.manageBtnText}>
               {billingLoading ? 'Opening billing portal…' : 'Manage or cancel in Stripe'}
             </Text>
@@ -155,21 +173,14 @@ export function PatientDetailScreen({ patientLinkId, onBack }: Props) {
   );
 }
 
-function Pill({
-  children,
-  kind,
-}: {
-  children: React.ReactNode;
-  kind?: 'green' | 'yellow';
-}) {
+function Pill({ children, kind }: { children: React.ReactNode; kind?: 'green' | 'yellow' }) {
   return (
     <View
       style={[
         styles.metaPill,
         kind === 'green' && styles.metaPillGreen,
         kind === 'yellow' && styles.metaPillYellow,
-      ]}
-    >
+      ]}>
       <Text style={styles.metaPillText}>{children}</Text>
     </View>
   );
@@ -204,8 +215,16 @@ function VitalCard({
         {value}
         <Text style={styles.vitalUnit}>{unit}</Text>
       </Text>
-      <View style={[styles.vitalBadge, badgeKind === 'normal' ? styles.vitalBadgeNormal : styles.vitalBadgeWarn]}>
-        <Text style={[styles.vitalBadgeText, badgeKind === 'normal' ? styles.vitalBadgeTextNormal : styles.vitalBadgeTextWarn]}>
+      <View
+        style={[
+          styles.vitalBadge,
+          badgeKind === 'normal' ? styles.vitalBadgeNormal : styles.vitalBadgeWarn,
+        ]}>
+        <Text
+          style={[
+            styles.vitalBadgeText,
+            badgeKind === 'normal' ? styles.vitalBadgeTextNormal : styles.vitalBadgeTextWarn,
+          ]}>
           {badge}
         </Text>
       </View>

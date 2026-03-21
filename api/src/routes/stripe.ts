@@ -166,7 +166,11 @@ export async function handleStripeWebhook(
       return;
     }
 
-    console.error("Failed to record webhook event:", event.id, webhookEventError);
+    console.error(
+      "Failed to record webhook event:",
+      event.id,
+      webhookEventError,
+    );
     // Return 500 so Stripe retries instead of silently losing the event.
     res.status(500).json({ error: "Failed to process webhook." });
     return;
@@ -352,7 +356,11 @@ export async function handleStripeWebhook(
     event.type === "customer.subscription.updated"
   ) {
     const subscription = event.data.object as Stripe.Subscription;
-    const terminalStatuses = new Set(["canceled", "unpaid", "incomplete_expired"]);
+    const terminalStatuses = new Set([
+      "canceled",
+      "unpaid",
+      "incomplete_expired",
+    ]);
     const shouldEndAccess =
       event.type === "customer.subscription.deleted" ||
       terminalStatuses.has(subscription.status);
