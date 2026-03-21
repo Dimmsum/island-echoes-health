@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createPaymentForPlan } from "./actions";
-import { StripePaymentStep } from "./StripePaymentStep";
 
 type CarePlan = {
   id: string;
@@ -41,33 +40,16 @@ const MailIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
-
 export function PurchasePlanForm({ carePlans }: Props) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [planId, setPlanId] = useState(carePlans[0]?.id ?? "");
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [paymentStep, setPaymentStep] = useState<{
-    clientSecret: string;
-    publishableKey: string;
-  } | null>(null);
-
   const selectedPlan = carePlans.find((p) => p.id === planId);
 
-  useEffect(() => {
-    const redirectStatus = searchParams.get("redirect_status");
-    if (redirectStatus === "succeeded") {
-      setSuccess(true);
-      setPaymentStep(null);
-      setShowConfirmation(false);
-      router.replace("/home", { scroll: false });
-    }
-  }, [searchParams, router]);
+  const showSetupSuccess = searchParams.get("setup") === "success" || searchParams.get("redirect_status") === "succeeded";
 
   function handleContinue(e: React.FormEvent) {
     e.preventDefault();
@@ -93,38 +75,19 @@ export function PurchasePlanForm({ carePlans }: Props) {
       setError(result.error);
       return;
     }
-    if (result.clientSecret) {
-      const publishableKey = result.publishableKey || STRIPE_PUBLISHABLE_KEY;
-      if (publishableKey) {
-        setPaymentStep({ clientSecret: result.clientSecret, publishableKey });
-        return;
-      }
+    if (result.redirectUrl) {
+      window.location.href = result.redirectUrl;
+      return;
     }
-    setError("Unable to load payment form. Please try again.");
+    setError("Unable to start Stripe checkout. Please try again.");
   }
 
-  function handlePaymentCancel() {
-    setPaymentStep(null);
-  }
-
-  if (success) {
+  if (showSetupSuccess) {
     return (
       <div className="rounded-xl border border-[#1F5F2E]/20 bg-[#E6E15A]/20 p-5">
         <p className="text-sm font-medium text-[#1F5F2E]">
-          Payment successful. The patient will receive a consent request (in-app or when they sign up). You'll be notified when they respond.
+          Payment method setup complete. The patient will receive a consent request and the subscription starts after they accept.
         </p>
-      </div>
-    );
-  }
-
-  if (paymentStep) {
-    return (
-      <div className="space-y-6">
-        <StripePaymentStep
-          clientSecret={paymentStep.clientSecret}
-          publishableKey={paymentStep.publishableKey}
-          onCancel={handlePaymentCancel}
-        />
       </div>
     );
   }
@@ -138,7 +101,7 @@ export function PurchasePlanForm({ carePlans }: Props) {
               <CheckIcon />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-slate-900">Confirm purchase</h2>
+              <h2 className="text-xl font-semibold text-slate-900">Confirm sponsorship setup</h2>
               <p className="mt-0.5 text-sm text-slate-600">
                 Review the details before proceeding
               </p>
@@ -231,12 +194,12 @@ export function PurchasePlanForm({ carePlans }: Props) {
             {pending ? (
               <>
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Processing…
+                Redirecting…
               </>
             ) : (
               <>
                 <CheckIcon />
-                Confirm purchase
+                Continue to Stripe
               </>
             )}
           </button>
@@ -248,7 +211,7 @@ export function PurchasePlanForm({ carePlans }: Props) {
   return (
     <form onSubmit={handleContinue} className="space-y-6">
       <p className="text-sm text-slate-600">
-        Purchase a care plan for a patient. They'll receive a consent request to accept or decline. Accepting allows you to see their health information and appointment schedules.
+        Purchase a care plan for a patient. They&apos;ll receive a consent request to accept or decline. Accepting allows you to see their health information and appointment schedules.
       </p>
       
       <div>
@@ -337,7 +300,7 @@ export function PurchasePlanForm({ carePlans }: Props) {
         </button>
         {email.trim() && planId && (
           <p className="text-xs text-slate-500">
-            You'll review the details before confirming
+            You&apos;ll review the details before confirming
           </p>
         )}
       </div>

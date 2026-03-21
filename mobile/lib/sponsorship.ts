@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 export async function createPaymentForPlanMobile(
   patientEmail: string,
   carePlanId: string
-): Promise<{ clientSecret: string; publishableKey?: string } | { error: string }> {
+): Promise<{ checkoutUrl: string } | { error: string }> {
   const trimmedEmail = patientEmail.trim().toLowerCase();
   if (!trimmedEmail) return { error: 'Patient email is required.' };
   if (!carePlanId) return { error: 'Care plan is required.' };
@@ -19,16 +19,16 @@ export async function createPaymentForPlanMobile(
     body: JSON.stringify({ patientEmail: trimmedEmail, carePlanId }),
   });
   const json = (await res.json().catch(() => ({}))) as
-    | { clientSecret?: string; publishableKey?: string; error?: string }
+    | { checkoutUrl?: string; error?: string }
     | undefined;
 
   if (!res.ok || !json || json.error) {
     return { error: json?.error || 'Failed to start payment. Please try again.' };
   }
-  if (!json.clientSecret) {
-    return { error: 'Invalid response from server (missing clientSecret).' };
+  if (!json.checkoutUrl) {
+    return { error: 'Invalid response from server (missing checkoutUrl).' };
   }
-  return { clientSecret: json.clientSecret, publishableKey: json.publishableKey };
+  return { checkoutUrl: json.checkoutUrl };
 }
 
 type ApiResult = { error?: string | null } | undefined;

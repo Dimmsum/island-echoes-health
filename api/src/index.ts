@@ -128,6 +128,12 @@ app.post(
   (req, res, next) =>
     sponsorship.declineConsent(req as Parameters<typeof sponsorship.declineConsent>[0], res).catch(next),
 );
+app.post(
+  "/api/sponsorship/end",
+  authMiddleware,
+  (req, res, next) =>
+    sponsorship.endSponsorship(req as Parameters<typeof sponsorship.endSponsorship>[0], res).catch(next),
+);
 
 // Notifications
 app.get(

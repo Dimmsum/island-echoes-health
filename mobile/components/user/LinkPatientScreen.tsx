@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Linking, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../constants/layout';
 import { userDesignATheme as c } from './userDesignATheme';
 import { IconChevronLeft } from './userDesignAIcons';
 import { useUserHomeData } from '../../lib/userHome';
 import { createPaymentForPlanMobile } from '../../lib/sponsorship';
-import { useStripe } from '@stripe/stripe-react-native';
 
 type Props = {
   onBack: () => void;
@@ -15,7 +14,6 @@ type Props = {
 export function LinkPatientScreen({ onBack }: Props) {
   const insets = useSafeAreaInsets();
   const home = useUserHomeData();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [email, setEmail] = useState('');
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -43,23 +41,11 @@ export function LinkPatientScreen({ onBack }: Props) {
         return;
       }
 
-      const initResult = await initPaymentSheet({
-        paymentIntentClientSecret: res.clientSecret,
-      });
-      if (initResult.error) {
-        setError(initResult.error.message ?? 'Failed to start payment sheet.');
-        setSubmitting(false);
-        return;
-      }
-
-      const presentResult = await presentPaymentSheet();
-      if (presentResult.error) {
-        setError(presentResult.error.message ?? 'Payment was cancelled.');
-        setSubmitting(false);
-        return;
-      }
+      await Linking.openURL(res.checkoutUrl);
 
       setSuccess(true);
+    } catch {
+      setError('Unable to open Stripe checkout. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -137,7 +123,7 @@ export function LinkPatientScreen({ onBack }: Props) {
             {error && <Text style={styles.errorText}>{error}</Text>}
             {success && (
               <Text style={styles.successText}>
-                Request sent. Your patient will receive a consent notification.
+                Stripe setup opened. After you complete checkout, your patient can accept consent to start the subscription.
               </Text>
             )}
 

@@ -1,6 +1,12 @@
 import { Response } from "express";
 import { createSupabaseForUser, createClientAdmin } from "../lib/supabase.js";
 import { createNotification } from "../lib/notifications.js";
+import {
+  cancelSubscription,
+  createSubscription,
+  ensureCustomerForPaymentMethod,
+  getOrCreatePriceForCarePlan,
+} from "../lib/stripe.js";
 import type { AuthRequest } from "../middleware/auth.js";
 
 export async function createConsentRequest(req: AuthRequest, res: Response): Promise<void> {
@@ -74,7 +80,7 @@ export async function acceptConsent(req: AuthRequest, res: Response): Promise<vo
 
   const { data: request, error: fetchError } = await supabase
     .from("sponsorship_consent_requests")
-    .select("id, sponsor_id, patient_id, care_plan_id, status")
+    .select("id, sponsor_id, patient_id, care_plan_id, status, stripe_payment_method_id")
     .eq("id", consentRequestId)
     .single();
 
@@ -88,6 +94,78 @@ export async function acceptConsent(req: AuthRequest, res: Response): Promise<vo
   }
   if (request.status !== "pending") {
     res.status(400).json({ error: "This request was already responded to." });
+    return;
+  }
+  if (!request.stripe_payment_method_id) {
+    res.status(400).json({
+      error: "Sponsor has not completed payment setup. They must add a payment method first.",
+    });
+    return;
+  }
+
+  const { data: carePlan } = await supabase
+    .from("care_plans")
+    .select("price_cents, stripe_price_id")
+    .eq("id", request.care_plan_id)
+    .single();
+  if (!carePlan) {
+    res.status(400).json({ error: "Plan not found." });
+    return;
+  }
+
+  const { data: sponsorProfile } = await supabase
+    .from("profiles")
+    .select("stripe_customer_id")
+    .eq("id", request.sponsor_id)
+    .single();
+
+  const customerResult = await ensureCustomerForPaymentMethod(
+    request.stripe_payment_method_id,
+    sponsorProfile?.stripe_customer_id ?? null,
+  );
+  if ("error" in customerResult) {
+    res.status(400).json({ error: customerResult.error });
+    return;
+  }
+
+  if (customerResult.created) {
+    await createClientAdmin()
+      .from("profiles")
+      .update({ stripe_customer_id: customerResult.customerId })
+      .eq("id", request.sponsor_id);
+  }
+
+  const priceResult = await getOrCreatePriceForCarePlan(
+    request.care_plan_id,
+    carePlan.price_cents,
+    carePlan.stripe_price_id ?? null,
+  );
+  if ("error" in priceResult) {
+    res.status(400).json({ error: priceResult.error });
+    return;
+  }
+
+  if (priceResult.created) {
+    await createClientAdmin()
+      .from("care_plans")
+      .update({ stripe_price_id: priceResult.priceId })
+      .eq("id", request.care_plan_id);
+  }
+
+  const subResult = await createSubscription({
+    customerId: customerResult.customerId,
+    paymentMethodId: request.stripe_payment_method_id,
+    priceId: priceResult.priceId,
+    metadata: {
+      consent_request_id: consentRequestId,
+      sponsor_id: request.sponsor_id,
+      patient_id: request.patient_id,
+      care_plan_id: request.care_plan_id,
+    },
+  });
+
+  if ("error" in subResult) {
+    res.status(400).json({ error: subResult.error });
     return;
   }
 
@@ -106,6 +184,7 @@ export async function acceptConsent(req: AuthRequest, res: Response): Promise<vo
     patient_id: request.patient_id,
     care_plan_id: request.care_plan_id,
     consent_request_id: consentRequestId,
+    stripe_subscription_id: subResult.subscriptionId,
   });
 
   if (linkError) {
@@ -123,6 +202,53 @@ export async function acceptConsent(req: AuthRequest, res: Response): Promise<vo
     `${patientName} accepted your care plan sponsorship. You can now view their health information and appointment schedules.`,
     consentRequestId
   );
+
+  res.json({ error: null });
+}
+
+export async function endSponsorship(req: AuthRequest, res: Response): Promise<void> {
+  const supabase = createSupabaseForUser(req.accessToken);
+  const userId = req.user.id;
+  const { planId } = req.body as { planId?: string };
+
+  if (!planId) {
+    res.status(400).json({ error: "planId is required." });
+    return;
+  }
+
+  const { data: plan, error: fetchError } = await supabase
+    .from("sponsor_patient_plans")
+    .select("id, sponsor_id, patient_id, stripe_subscription_id")
+    .eq("id", planId)
+    .is("ended_at", null)
+    .single();
+
+  if (fetchError || !plan) {
+    res.status(404).json({ error: "Plan not found or already ended." });
+    return;
+  }
+
+  if (plan.sponsor_id !== userId && plan.patient_id !== userId) {
+    res.status(403).json({ error: "You can only end a sponsorship you are part of." });
+    return;
+  }
+
+  if (plan.stripe_subscription_id) {
+    const cancelResult = await cancelSubscription(plan.stripe_subscription_id);
+    if ("error" in cancelResult) {
+      console.error("cancelSubscription failed:", cancelResult.error);
+    }
+  }
+
+  const { error: updateError } = await createClientAdmin()
+    .from("sponsor_patient_plans")
+    .update({ ended_at: new Date().toISOString() })
+    .eq("id", planId);
+
+  if (updateError) {
+    res.status(500).json({ error: "Failed to end sponsorship." });
+    return;
+  }
 
   res.json({ error: null });
 }

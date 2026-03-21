@@ -5,11 +5,7 @@ import { UserHome } from "./UserHome";
 
 const STAFF_ROLES = ["admin", "clinician"] as const;
 
-type HomePageProps = {
-  searchParams: Promise<{ setup?: string; session_id?: string }>;
-};
-
-export default async function HomePage({ searchParams }: HomePageProps) {
+export default async function HomePage() {
   const supabase = await createClient();
   const {
     data: { session },

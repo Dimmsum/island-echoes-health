@@ -1,8 +1,8 @@
 import Link from "next/link";
+import { BillingPortalButton } from "./BillingPortalButton";
 import { ConsentRequestCards } from "./ConsentRequestCards";
 import { EndSponsorshipButton } from "./EndSponsorshipButton";
 import { PurchasePlanForm } from "./PurchasePlanForm";
-import { SetupSuccessHandler } from "./SetupSuccessHandler";
 import { UserNavbar } from "./UserNavbar";
 
 const CalendarIcon = ({ className }: { className?: string }) => (
@@ -97,7 +97,6 @@ type Props = {
   upcomingAppointments: Appointment[];
   notifications: Notification[];
   carePlans: CarePlan[];
-  setupSuccessSessionId?: string | null;
 };
 
 export function UserHome({
@@ -108,7 +107,6 @@ export function UserHome({
   upcomingAppointments,
   notifications,
   carePlans,
-  setupSuccessSessionId = null,
 }: Props) {
   const greeting = fullName ? `Welcome back, ${fullName}` : "Welcome back";
   const hasLinkedPatients = linkedPatients.length > 0;
@@ -183,6 +181,9 @@ export function UserHome({
                   </li>
                 ))}
               </ul>
+              <div className="mt-5 border-t border-slate-100 pt-4">
+                <BillingPortalButton />
+              </div>
             </div>
           )}
 
@@ -340,10 +341,6 @@ export function UserHome({
               </div>
             </div>
             <div className="mt-6">
-              {setupSuccessSessionId && (
-                <SetupSuccessHandler sessionId={setupSuccessSessionId} />
-              )}
-              {setupSuccessSessionId && <div className="mt-4" />}
               <PurchasePlanForm carePlans={carePlans} />
             </div>
           </div>
