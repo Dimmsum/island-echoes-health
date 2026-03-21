@@ -3,14 +3,22 @@
 import { useState } from "react";
 import { getStripeCustomerPortalUrl } from "./actions";
 
-export function BillingPortalButton() {
+type Props = {
+  label?: string;
+  planId?: string;
+};
+
+export function BillingPortalButton({
+  label = "Manage billing in Stripe",
+  planId,
+}: Props) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function openPortal() {
     setPending(true);
     setError(null);
-    const result = await getStripeCustomerPortalUrl();
+    const result = await getStripeCustomerPortalUrl(planId);
     setPending(false);
     if (result.error || !result.url) {
       setError(
@@ -29,9 +37,7 @@ export function BillingPortalButton() {
         disabled={pending}
         className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
       >
-        {pending
-          ? "Opening Stripe billing portal..."
-          : "Manage billing in Stripe"}
+        {pending ? "Opening Stripe billing portal..." : label}
       </button>
       {error && <p className="text-xs text-red-600">{error}</p>}
     </div>

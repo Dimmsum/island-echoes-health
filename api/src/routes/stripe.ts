@@ -378,3 +378,89 @@ export async function createCustomerPortalSession(
     res.status(500).json({ error: message });
   }
 }
+
+/**
+ * POST /api/stripe/portal/subscription
+ * Body: { planId }
+ * Creates a Stripe Customer Portal session deep-linked to cancel a specific sponsorship subscription.
+ * Only the sponsor on that sponsorship can open this targeted flow.
+ */
+export async function createSubscriptionPortalSession(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
+  if (!isStripeConfigured()) {
+    res.status(503).json({ error: "Payments are not configured." });
+    return;
+  }
+
+  const supabase = createSupabaseForUser(req.accessToken);
+  const userId = req.user.id;
+  const { planId } = req.body as { planId?: string };
+
+  if (!planId) {
+    res.status(400).json({ error: "planId is required." });
+    return;
+  }
+
+  const { data: plan, error: planError } = await supabase
+    .from("sponsor_patient_plans")
+    .select("id, sponsor_id, stripe_subscription_id")
+    .eq("id", planId)
+    .is("ended_at", null)
+    .single();
+
+  if (planError || !plan) {
+    res.status(404).json({ error: "Sponsorship not found." });
+    return;
+  }
+
+  if (plan.sponsor_id !== userId) {
+    res.status(403).json({ error: "Only the sponsor can manage billing for this sponsorship." });
+    return;
+  }
+
+  if (!plan.stripe_subscription_id) {
+    res.status(400).json({ error: "No active Stripe subscription found for this sponsorship." });
+    return;
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("stripe_customer_id")
+    .eq("id", userId)
+    .single();
+
+  if (profileError || !profile?.stripe_customer_id) {
+    res.status(400).json({
+      error: "No Stripe billing profile found. Start a sponsorship first so we can create your billing account.",
+    });
+    return;
+  }
+
+  const stripe = getStripe();
+  const returnUrl = `${getAppBaseUrl()}/home`;
+
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer: profile.stripe_customer_id,
+      return_url: returnUrl,
+      flow_data: {
+        type: "subscription_cancel",
+        subscription_cancel: {
+          subscription: plan.stripe_subscription_id,
+        },
+        after_completion: {
+          type: "redirect",
+          redirect: { return_url: returnUrl },
+        },
+      },
+    });
+
+    res.json({ url: session.url });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Failed to create Stripe portal session.";
+    console.error("createSubscriptionPortalSession failed:", e);
+    res.status(500).json({ error: message });
+  }
+}

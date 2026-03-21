@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { BillingPortalButton } from "./BillingPortalButton";
 import { ConsentRequestCards } from "./ConsentRequestCards";
-import { EndSponsorshipButton } from "./EndSponsorshipButton";
 import { PurchasePlanForm } from "./PurchasePlanForm";
 import { UserNavbar } from "./UserNavbar";
 
@@ -264,9 +263,6 @@ export function UserHome({
                   </li>
                 ))}
               </ul>
-              <div className="mt-5 border-t border-slate-100 pt-4">
-                <BillingPortalButton />
-              </div>
             </div>
           )}
 
@@ -326,9 +322,9 @@ export function UserHome({
                         </div>
                       </Link>
                       <div className="mt-4 border-t border-slate-100 pt-4">
-                        <EndSponsorshipButton
+                        <BillingPortalButton
+                          label="Manage billing for this sponsorship"
                           planId={link.id}
-                          label="Cancel sponsorship"
                         />
                       </div>
                     </div>
