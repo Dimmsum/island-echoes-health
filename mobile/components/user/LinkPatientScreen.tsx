@@ -1,12 +1,20 @@
 import React, { useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Linking,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../constants/layout';
 import { userDesignATheme as c } from './userDesignATheme';
 import { IconChevronLeft } from './userDesignAIcons';
 import { useUserHomeData } from '../../lib/userHome';
 import { createPaymentForPlanMobile } from '../../lib/sponsorship';
-import { useStripe } from '@stripe/stripe-react-native';
 
 type Props = {
   onBack: () => void;
@@ -15,17 +23,13 @@ type Props = {
 export function LinkPatientScreen({ onBack }: Props) {
   const insets = useSafeAreaInsets();
   const home = useUserHomeData();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [email, setEmail] = useState('');
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const carePlans =
-    home.status === 'loaded'
-      ? home.data.carePlans
-      : [];
+  const carePlans = home.status === 'loaded' ? home.data.carePlans : [];
 
   const handleSubmit = async () => {
     setError(null);
@@ -43,23 +47,11 @@ export function LinkPatientScreen({ onBack }: Props) {
         return;
       }
 
-      const initResult = await initPaymentSheet({
-        paymentIntentClientSecret: res.clientSecret,
-      });
-      if (initResult.error) {
-        setError(initResult.error.message ?? 'Failed to start payment sheet.');
-        setSubmitting(false);
-        return;
-      }
-
-      const presentResult = await presentPaymentSheet();
-      if (presentResult.error) {
-        setError(presentResult.error.message ?? 'Payment was cancelled.');
-        setSubmitting(false);
-        return;
-      }
+      await Linking.openURL(res.checkoutUrl);
 
       setSuccess(true);
+    } catch {
+      setError('Unable to open Stripe checkout. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -70,8 +62,7 @@ export function LinkPatientScreen({ onBack }: Props) {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: insets.bottom + layout.s(24) }}
-        showsVerticalScrollIndicator={false}
-      >
+        showsVerticalScrollIndicator={false}>
         <View style={[styles.header, { paddingTop: insets.top + layout.s(12) }]}>
           <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={onBack}>
             <IconChevronLeft size={14} color={c.y300} />
@@ -97,57 +88,63 @@ export function LinkPatientScreen({ onBack }: Props) {
             />
 
             <Text style={[styles.label, { marginTop: layout.s(14) }]}>Care plan</Text>
-            {home.status === 'loading' && (
-              <Text style={styles.helper}>Loading plans…</Text>
-            )}
+            {home.status === 'loading' && <Text style={styles.helper}>Loading plans…</Text>}
             {home.status === 'error' && (
               <Text style={[styles.helper, { color: '#c0392b' }]}>{home.error}</Text>
             )}
             {home.status === 'loaded' && carePlans.length === 0 && (
               <Text style={styles.helper}>No care plans are configured yet.</Text>
             )}
-            {home.status === 'loaded' && carePlans.map((plan) => {
-              const active = selectedPlanId === plan.id;
-              const price = plan.price_cents != null ? `$${(plan.price_cents / 100).toFixed(0)} / mo` : null;
-              const features = plan.features ?? [];
-              return (
-                <TouchableOpacity
-                  key={plan.id}
-                  style={[styles.planCard, active && styles.planCardActive]}
-                  activeOpacity={0.85}
-                  onPress={() => setSelectedPlanId(plan.id)}
-                >
-                  <View style={styles.planHeader}>
-                    <Text style={[styles.planName, active && styles.planNameActive]}>{plan.name}</Text>
-                    {price && <Text style={styles.planPrice}>{price}</Text>}
-                  </View>
-                  {features.length > 0 && (
-                    <View style={styles.planFeatureList}>
-                      {features.slice(0, 4).map((feat, idx) => (
-                        <Text key={idx} style={styles.planFeatureItem}>
-                          • {feat}
-                        </Text>
-                      ))}
+            {home.status === 'loaded' &&
+              carePlans.map((plan) => {
+                const active = selectedPlanId === plan.id;
+                const price =
+                  plan.price_cents != null ? `$${(plan.price_cents / 100).toFixed(0)} / mo` : null;
+                const features = plan.features ?? [];
+                return (
+                  <TouchableOpacity
+                    key={plan.id}
+                    style={[styles.planCard, active && styles.planCardActive]}
+                    activeOpacity={0.85}
+                    onPress={() => setSelectedPlanId(plan.id)}>
+                    <View style={styles.planHeader}>
+                      <Text style={[styles.planName, active && styles.planNameActive]}>
+                        {plan.name}
+                      </Text>
+                      {price && <Text style={styles.planPrice}>{price}</Text>}
                     </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
+                    {features.length > 0 && (
+                      <View style={styles.planFeatureList}>
+                        {features.slice(0, 4).map((feat, idx) => (
+                          <Text key={idx} style={styles.planFeatureItem}>
+                            • {feat}
+                          </Text>
+                        ))}
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
 
             {error && <Text style={styles.errorText}>{error}</Text>}
             {success && (
               <Text style={styles.successText}>
-                Request sent. Your patient will receive a consent notification.
+                Stripe setup opened. After you complete checkout, your patient can accept consent to
+                start the subscription.
               </Text>
             )}
 
             <TouchableOpacity
-              style={[styles.submitBtn, (!email.trim() || !selectedPlanId || submitting) && styles.submitBtnDisabled]}
+              style={[
+                styles.submitBtn,
+                (!email.trim() || !selectedPlanId || submitting) && styles.submitBtnDisabled,
+              ]}
               activeOpacity={0.9}
               disabled={!email.trim() || !selectedPlanId || submitting}
-              onPress={handleSubmit}
-            >
-              <Text style={styles.submitText}>{submitting ? 'Sending…' : 'Send sponsorship request'}</Text>
+              onPress={handleSubmit}>
+              <Text style={styles.submitText}>
+                {submitting ? 'Sending…' : 'Send sponsorship request'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -288,4 +285,3 @@ const styles = StyleSheet.create({
     color: c.white,
   },
 });
-

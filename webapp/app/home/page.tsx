@@ -5,11 +5,7 @@ import { UserHome } from "./UserHome";
 
 const STAFF_ROLES = ["admin", "clinician"] as const;
 
-type HomePageProps = {
-  searchParams: Promise<{ setup?: string; session_id?: string }>;
-};
-
-export default async function HomePage({ searchParams }: HomePageProps) {
+export default async function HomePage() {
   const supabase = await createClient();
   const {
     data: { session },
@@ -33,7 +29,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     linkedPatients: Parameters<typeof UserHome>[0]["linkedPatients"];
     mySponsors: Parameters<typeof UserHome>[0]["mySponsors"];
     pendingConsents: Parameters<typeof UserHome>[0]["pendingConsents"];
-    upcomingAppointments: Parameters<typeof UserHome>[0]["upcomingAppointments"];
+    upcomingAppointments: Parameters<
+      typeof UserHome
+    >[0]["upcomingAppointments"];
     notifications: Parameters<typeof UserHome>[0]["notifications"];
     carePlans: Parameters<typeof UserHome>[0]["carePlans"];
   }>(session.access_token, "/api/home");

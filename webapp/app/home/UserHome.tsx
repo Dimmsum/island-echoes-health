@@ -1,58 +1,132 @@
 import Link from "next/link";
+import { BillingPortalButton } from "./BillingPortalButton";
 import { ConsentRequestCards } from "./ConsentRequestCards";
 import { EndSponsorshipButton } from "./EndSponsorshipButton";
 import { PurchasePlanForm } from "./PurchasePlanForm";
-import { SetupSuccessHandler } from "./SetupSuccessHandler";
 import { UserNavbar } from "./UserNavbar";
 
 const CalendarIcon = ({ className }: { className?: string }) => (
-  <svg className={className || "h-6 w-6"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  <svg
+    className={className || "h-6 w-6"}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+    />
   </svg>
 );
 
 const UsersIcon = ({ className }: { className?: string }) => (
-  <svg className={className || "h-6 w-6"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+  <svg
+    className={className || "h-6 w-6"}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+    />
   </svg>
 );
 
 const HeartIcon = ({ className }: { className?: string }) => (
-  <svg className={className || "h-6 w-6"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+  <svg
+    className={className || "h-6 w-6"}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+    />
   </svg>
 );
 
 const GiftIcon = () => (
-  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+  <svg
+    className="h-6 w-6"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"
+    />
   </svg>
 );
 
 const ClockIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  <svg
+    className="h-5 w-5"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+    />
   </svg>
 );
 
 const ArrowRightIcon = ({ className }: { className?: string }) => (
-  <svg className={className || "h-5 w-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+  <svg
+    className={className || "h-5 w-5"}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M9 5l7 7-7 7"
+    />
   </svg>
 );
 
 type LinkedPatient = {
   id: string;
   started_at: string;
-  care_plan: { id: string; name: string; slug: string; price_cents: number } | null;
-  patient: { id: string; full_name: string | null; age: number | null; avatar_url: string | null } | null;
+  care_plan: {
+    id: string;
+    name: string;
+    slug: string;
+    price_cents: number;
+  } | null;
+  patient: {
+    id: string;
+    full_name: string | null;
+    age: number | null;
+    avatar_url: string | null;
+  } | null;
 };
 
 type MySponsor = {
   id: string;
   started_at: string;
   care_plan: { id: string; name: string } | null;
-  sponsor: { id: string; full_name: string | null; avatar_url: string | null } | null;
+  sponsor: {
+    id: string;
+    full_name: string | null;
+    avatar_url: string | null;
+  } | null;
 };
 
 type PendingConsent = {
@@ -97,7 +171,6 @@ type Props = {
   upcomingAppointments: Appointment[];
   notifications: Notification[];
   carePlans: CarePlan[];
-  setupSuccessSessionId?: string | null;
 };
 
 export function UserHome({
@@ -108,7 +181,6 @@ export function UserHome({
   upcomingAppointments,
   notifications,
   carePlans,
-  setupSuccessSessionId = null,
 }: Props) {
   const greeting = fullName ? `Welcome back, ${fullName}` : "Welcome back";
   const hasLinkedPatients = linkedPatients.length > 0;
@@ -135,7 +207,8 @@ export function UserHome({
             {greeting}
           </h1>
           <p className="mt-3 max-w-2xl text-lg text-slate-600">
-            Stay connected with your care team. View upcoming appointments and your plan of care.
+            Stay connected with your care team. View upcoming appointments and
+            your plan of care.
           </p>
 
           {pendingConsents.length > 0 && (
@@ -151,7 +224,9 @@ export function UserHome({
                   <GiftIcon />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Your sponsors</h2>
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Your sponsors
+                  </h2>
                   <p className="mt-0.5 text-sm text-slate-600">
                     People supporting your care through purchased plans
                   </p>
@@ -166,7 +241,11 @@ export function UserHome({
                     <div className="flex items-center gap-2">
                       <div className="h-8 w-8 shrink-0 rounded-full bg-[#1F5F2E]/10 flex items-center justify-center overflow-hidden">
                         {link.sponsor?.avatar_url ? (
-                          <img src={link.sponsor.avatar_url} alt="" className="h-full w-full object-cover" />
+                          <img
+                            src={link.sponsor.avatar_url}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
                         ) : (
                           <HeartIcon className="h-4 w-4 text-[#1F5F2E]" />
                         )}
@@ -176,13 +255,18 @@ export function UserHome({
                           {link.sponsor?.full_name ?? "Sponsor"}
                         </p>
                         {link.care_plan && (
-                          <p className="text-sm text-slate-600">{link.care_plan.name}</p>
+                          <p className="text-sm text-slate-600">
+                            {link.care_plan.name}
+                          </p>
                         )}
                       </div>
                     </div>
                   </li>
                 ))}
               </ul>
+              <div className="mt-5 border-t border-slate-100 pt-4">
+                <BillingPortalButton />
+              </div>
             </div>
           )}
 
@@ -193,9 +277,12 @@ export function UserHome({
                   <UsersIcon />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Linked patients</h2>
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Linked patients
+                  </h2>
                   <p className="mt-0.5 text-sm text-slate-600">
-                    View metrics, appointments, and visit summaries for patients you sponsor
+                    View metrics, appointments, and visit summaries for patients
+                    you sponsor
                   </p>
                 </div>
               </div>
@@ -203,11 +290,18 @@ export function UserHome({
                 {linkedPatients.map((link) => (
                   <li key={link.id}>
                     <div className="group rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur transition hover:border-[#1F5F2E]/30 hover:shadow-lg">
-                      <Link href={`/home/sponsored/${link.id}`} className="block">
+                      <Link
+                        href={`/home/sponsored/${link.id}`}
+                        className="block"
+                      >
                         <div className="flex items-start gap-4">
                           <div className="h-12 w-12 shrink-0 rounded-xl bg-gradient-to-br from-[#1F5F2E]/20 to-[#9CCB4A]/20 flex items-center justify-center overflow-hidden">
                             {link.patient?.avatar_url ? (
-                              <img src={link.patient.avatar_url} alt="" className="h-full w-full object-cover" />
+                              <img
+                                src={link.patient.avatar_url}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
                             ) : (
                               <UsersIcon className="h-6 w-6 text-[#1F5F2E]" />
                             )}
@@ -232,7 +326,10 @@ export function UserHome({
                         </div>
                       </Link>
                       <div className="mt-4 border-t border-slate-100 pt-4">
-                        <EndSponsorshipButton planId={link.id} label="Cancel sponsorship" />
+                        <EndSponsorshipButton
+                          planId={link.id}
+                          label="Cancel sponsorship"
+                        />
                       </div>
                     </div>
                   </li>
@@ -247,7 +344,9 @@ export function UserHome({
                 <CalendarIcon />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Upcoming appointments</h2>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Upcoming appointments
+                </h2>
                 <p className="mt-0.5 text-sm text-slate-600">
                   Your scheduled visits and consultations
                 </p>
@@ -256,14 +355,19 @@ export function UserHome({
             {upcomingAppointments.length === 0 ? (
               <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white/50 p-8 text-center">
                 <CalendarIcon className="mx-auto h-12 w-12 text-slate-400" />
-                <p className="mt-3 text-sm font-medium text-slate-900">No upcoming appointments</p>
-                <p className="mt-1 text-sm text-slate-500">Your scheduled visits will appear here</p>
+                <p className="mt-3 text-sm font-medium text-slate-900">
+                  No upcoming appointments
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Your scheduled visits will appear here
+                </p>
               </div>
             ) : (
               <ul className="mt-6 space-y-3">
                 {upcomingAppointments.map((apt) => {
                   const date = new Date(apt.scheduled_at);
-                  const isToday = date.toDateString() === new Date().toDateString();
+                  const isToday =
+                    date.toDateString() === new Date().toDateString();
                   return (
                     <li
                       key={apt.id}
@@ -271,7 +375,11 @@ export function UserHome({
                     >
                       <div className="h-12 w-12 shrink-0 rounded-xl bg-[#1F5F2E]/10 flex items-center justify-center overflow-hidden">
                         {apt.clinician_avatar_url ? (
-                          <img src={apt.clinician_avatar_url} alt="" className="h-full w-full object-cover" />
+                          <img
+                            src={apt.clinician_avatar_url}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
                         ) : (
                           <CalendarIcon className="h-6 w-6 text-[#1F5F2E]" />
                         )}
@@ -330,7 +438,9 @@ export function UserHome({
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">
-                  {hasLinkedPatients ? "Link another patient" : "Purchase a plan for a patient"}
+                  {hasLinkedPatients
+                    ? "Link another patient"
+                    : "Purchase a plan for a patient"}
                 </h2>
                 <p className="mt-0.5 text-sm text-slate-600">
                   {hasLinkedPatients
@@ -340,10 +450,6 @@ export function UserHome({
               </div>
             </div>
             <div className="mt-6">
-              {setupSuccessSessionId && (
-                <SetupSuccessHandler sessionId={setupSuccessSessionId} />
-              )}
-              {setupSuccessSessionId && <div className="mt-4" />}
               <PurchasePlanForm carePlans={carePlans} />
             </div>
           </div>
