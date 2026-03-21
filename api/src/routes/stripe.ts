@@ -405,9 +405,12 @@ export async function createCustomerPortalSession(
         stripeCustomerId =
           typeof subscription.customer === "string"
             ? subscription.customer
-            : subscription.customer?.id ?? null;
+            : (subscription.customer?.id ?? null);
       } catch (lookupError) {
-        console.error("Failed to derive customer from subscription:", lookupError);
+        console.error(
+          "Failed to derive customer from subscription:",
+          lookupError,
+        );
       }
     }
   }
@@ -507,7 +510,7 @@ export async function createSubscriptionPortalSession(
     const stripeCustomerId =
       typeof subscription.customer === "string"
         ? subscription.customer
-        : subscription.customer?.id ?? null;
+        : (subscription.customer?.id ?? null);
 
     if (!stripeCustomerId) {
       res.status(500).json({
