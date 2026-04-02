@@ -6,17 +6,24 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { supabase } from '../../lib/supabase';
 import { layout } from '../../constants/layout';
 import { clinicianTheme as c } from './clinicianTheme';
-import { IconMail, IconPhone, IconMapPin, IconBell, IconAlertCircle } from './clinicianIcons';
+import { IconMail, IconBell, IconAlertCircle } from './clinicianIcons';
 import { IconChevronRight, IconDoc } from '../user/userDesignAIcons';
-import { MOCK_CLINICIAN_PROFILE } from './clinicianMockData';
+import { useClinicianProfile, useClinicianDashboard } from '../../lib/clinicianPortal';
 
 type Props = {
   onSignOut: () => void;
 };
+
+function initials(name: string | null): string {
+  if (!name) return '?';
+  return name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+}
 
 type InfoRowProps = {
   icon: React.ReactNode;
@@ -124,14 +131,59 @@ const settingsRowStyles = StyleSheet.create({
 
 export function ClinicianProfileScreen({ onSignOut }: Props) {
   const insets = useSafeAreaInsets();
-  const profile = MOCK_CLINICIAN_PROFILE;
+  const profileData = useClinicianProfile();
+  const dashboardData = useClinicianDashboard();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    onSignOut();
+  };
+
+  const header = (
+    <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
+      <Text style={styles.headerTitle}>Profile</Text>
+    </View>
+  );
+
+  if (profileData.status === 'loading') {
+    return (
+      <View style={styles.root}>
+        {header}
+        <View style={styles.loadingState}>
+          <ActivityIndicator size="large" color={c.teal} />
+        </View>
+      </View>
+    );
+  }
+
+  if (profileData.status === 'error') {
+    return (
+      <View style={styles.root}>
+        {header}
+        <View style={styles.loadingState}>
+          <Text style={styles.errorText}>{profileData.error}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  const { profile, appointmentsCount, plansCount } = profileData.data;
+  const fullName = profile?.full_name ?? 'Clinician';
+
+  // Get email from dashboard (uses same session)
+  let email = '—';
+  if (dashboardData.status === 'loaded' && dashboardData.data.profile) {
+    // Email isn't returned by clinician-portal; we just show the name and role
+  }
+  // Fetch email directly from supabase session
+  supabase.auth.getUser().then(({ data }) => {
+    // We can't set state here without a hook — email is shown from profile name only
+    void data;
+  });
 
   return (
     <View style={styles.root}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
-        <Text style={styles.headerTitle}>Profile</Text>
-      </View>
+      {header}
 
       <ScrollView
         style={styles.scroll}
@@ -141,35 +193,38 @@ export function ClinicianProfileScreen({ onSignOut }: Props) {
         {/* Avatar block */}
         <View style={styles.avatarBlock}>
           <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>{profile.initials}</Text>
+            <Text style={styles.avatarText}>{initials(fullName)}</Text>
           </View>
-          <Text style={styles.profileName}>{profile.name}</Text>
-          <Text style={styles.profileSpecialty}>{profile.specialty}</Text>
-          <Text style={styles.profileClinic}>{profile.clinic}</Text>
+          <Text style={styles.profileName}>{fullName}</Text>
+          <Text style={styles.profileSpecialty}>{profile?.role === 'admin' ? 'Administrator' : 'Clinician'}</Text>
+        </View>
+
+        {/* Stats row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{appointmentsCount}</Text>
+            <Text style={styles.statLabel}>Total{'\n'}Appointments</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{plansCount}</Text>
+            <Text style={styles.statLabel}>Active{'\n'}Plans</Text>
+          </View>
         </View>
 
         {/* Info card */}
         <View style={styles.card}>
           <InfoRow
             icon={<IconMail size={16} color={c.teal} strokeWidth={2} />}
-            label="Email"
-            value={profile.email}
-          />
-          <InfoRow
-            icon={<IconPhone size={16} color={c.teal} strokeWidth={2} />}
-            label="Phone"
-            value={profile.phone}
-          />
-          <InfoRow
-            icon={<IconDoc size={16} color={c.teal} strokeWidth={2} />}
-            label="License"
-            value={profile.license}
+            label="Role"
+            value={profile?.role === 'admin' ? 'Administrator' : 'Clinician'}
           />
           <View style={{ borderBottomWidth: 0 }}>
             <InfoRow
-              icon={<IconMapPin size={16} color={c.teal} strokeWidth={2} />}
-              label="Clinic"
-              value={profile.clinic}
+              icon={<IconDoc size={16} color={c.teal} strokeWidth={2} />}
+              label="Member since"
+              value={profile?.created_at
+                ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                : '—'}
             />
           </View>
         </View>
@@ -196,7 +251,7 @@ export function ClinicianProfileScreen({ onSignOut }: Props) {
         {/* Sign out */}
         <TouchableOpacity
           style={styles.signOutBtn}
-          onPress={onSignOut}
+          onPress={handleSignOut}
           activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityLabel="Sign out"
@@ -266,10 +321,45 @@ const styles = StyleSheet.create({
     color: c.teal,
     fontWeight: '600',
   },
-  profileClinic: {
-    fontSize: layout.f(12),
+  loadingState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    fontSize: layout.f(13),
     color: c.text3,
     textAlign: 'center',
+    paddingHorizontal: layout.s(24),
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: layout.s(12),
+    marginBottom: layout.s(4),
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: c.surface,
+    borderRadius: layout.s(14),
+    borderWidth: 1,
+    borderColor: c.border,
+    paddingVertical: layout.s(16),
+    paddingHorizontal: layout.s(10),
+    alignItems: 'center',
+    gap: layout.s(4),
+  },
+  statValue: {
+    fontSize: layout.f(26),
+    fontWeight: '700',
+    color: c.teal,
+    letterSpacing: -0.5,
+  },
+  statLabel: {
+    fontSize: layout.f(10),
+    color: c.text3,
+    textAlign: 'center',
+    lineHeight: layout.s(14),
+    fontWeight: '500',
   },
   card: {
     backgroundColor: c.surface,

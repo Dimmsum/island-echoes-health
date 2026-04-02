@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,78 +6,125 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../constants/layout';
 import { clinicianTheme as c } from './clinicianTheme';
 import { IconCalendar } from '../user/userDesignAIcons';
-import { MOCK_APPOINTMENTS, AppointmentRow } from './clinicianMockData';
+import { useClinicianAppointments, AppointmentStatus, ClinicianAppointment } from '../../lib/clinicianPortal';
+
+type ApptFilterKey = 'all' | 'scheduled' | 'completed' | 'cancelled';
 
 type DayEntry = {
-  date: string;
-  label: string;
-  dayShort: string;
-  dayNum: string;
+  dateStr: string;   // 'YYYY-MM-DD'
+  label: string;     // 'Today', 'Thu Apr 2', …
+  dayShort: string;  // 'Wed'
+  dayNum: string;    // '1'
 };
 
-type ApptFilterKey = 'all' | 'confirmed' | 'pending' | 'completed';
-
-const WEEK_DAYS: DayEntry[] = [
-  { date: '2026-04-01', label: 'Today', dayShort: 'Wed', dayNum: '1' },
-  { date: '2026-04-02', label: 'Thu Apr 2', dayShort: 'Thu', dayNum: '2' },
-  { date: '2026-04-03', label: 'Fri Apr 3', dayShort: 'Fri', dayNum: '3' },
-  { date: '2026-04-04', label: 'Sat Apr 4', dayShort: 'Sat', dayNum: '4' },
-  { date: '2026-04-05', label: 'Sun Apr 5', dayShort: 'Sun', dayNum: '5' },
-  { date: '2026-04-06', label: 'Mon Apr 6', dayShort: 'Mon', dayNum: '6' },
-  { date: '2026-04-07', label: 'Tue Apr 7', dayShort: 'Tue', dayNum: '7' },
-];
+type Props = {
+  onOpenAppointment: (appointmentId: string) => void;
+};
 
 const APPT_FILTERS: { key: ApptFilterKey; label: string }[] = [
   { key: 'all', label: 'All' },
-  { key: 'confirmed', label: 'Confirmed' },
-  { key: 'pending', label: 'Pending' },
+  { key: 'scheduled', label: 'Scheduled' },
   { key: 'completed', label: 'Completed' },
+  { key: 'cancelled', label: 'Cancelled' },
 ];
 
-function getStatusColor(status: AppointmentRow['status']): string {
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function toLocalDateStr(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+function initials(name: string): string {
+  return name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+}
+
+function buildWeekDays(): DayEntry[] {
+  const today = new Date();
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+    const label = i === 0 ? 'Today' : `${DAY_NAMES[d.getDay()]} ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+    return { dateStr, label, dayShort: DAY_NAMES[d.getDay()], dayNum: String(d.getDate()) };
+  });
+}
+
+function getStatusColor(status: AppointmentStatus): string {
   switch (status) {
-    case 'confirmed': return c.statusGreen;
-    case 'pending': return c.statusYellow;
+    case 'scheduled': return c.statusGreen;
     case 'completed': return c.statusGray;
+    case 'no_show': return c.statusRed;
     case 'cancelled': return c.statusRed;
-    default: return c.statusGray;
   }
 }
 
-function getStatusBg(status: AppointmentRow['status']): string {
+function getStatusBg(status: AppointmentStatus): string {
   switch (status) {
-    case 'confirmed': return c.statusGreenBg;
-    case 'pending': return c.statusYellowBg;
+    case 'scheduled': return c.statusGreenBg;
     case 'completed': return c.statusGrayBg;
+    case 'no_show': return c.statusRedBg;
     case 'cancelled': return c.statusRedBg;
-    default: return c.statusGrayBg;
   }
 }
 
-export function ClinicianScheduleScreen() {
+function getStatusLabel(status: AppointmentStatus): string {
+  switch (status) {
+    case 'scheduled': return 'Scheduled';
+    case 'completed': return 'Completed';
+    case 'no_show': return 'No Show';
+    case 'cancelled': return 'Cancelled';
+  }
+}
+
+export function ClinicianScheduleScreen({ onOpenAppointment }: Props) {
   const insets = useSafeAreaInsets();
-  const [selectedDate, setSelectedDate] = useState<string>('2026-04-01');
+  const weekDays = useMemo(buildWeekDays, []);
+  const [selectedDate, setSelectedDate] = useState<string>(weekDays[0].dateStr);
   const [apptFilter, setApptFilter] = useState<ApptFilterKey>('all');
 
-  const dayAppts = MOCK_APPOINTMENTS.filter((a) => a.date === selectedDate);
+  const appts = useClinicianAppointments();
+  const allAppointments: ClinicianAppointment[] =
+    appts.status === 'loaded' ? appts.data.appointments : [];
+
+  const dayAppts = allAppointments
+    .filter((a) => toLocalDateStr(a.scheduled_at) === selectedDate)
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+
   const filteredAppts = dayAppts.filter((a) => {
     if (apptFilter === 'all') return true;
+    if (apptFilter === 'cancelled') return a.status === 'cancelled' || a.status === 'no_show';
     return a.status === apptFilter;
   });
 
-  const selectedDay = WEEK_DAYS.find((d) => d.date === selectedDate);
+  const selectedDay = weekDays.find((d) => d.dateStr === selectedDate);
+
+  const headerRange = (() => {
+    const first = weekDays[0];
+    const last = weekDays[weekDays.length - 1];
+    return `${first.dayShort} ${first.dayNum} – ${last.dayShort} ${last.dayNum}`;
+  })();
 
   return (
     <View style={styles.root}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
         <Text style={styles.headerTitle}>Schedule</Text>
-        <Text style={styles.headerSub}>Apr 1 – Apr 7, 2026</Text>
+        <Text style={styles.headerSub}>{headerRange}</Text>
       </View>
 
       {/* Day selector */}
@@ -87,15 +134,17 @@ export function ClinicianScheduleScreen() {
         style={styles.dayScroll}
         contentContainerStyle={styles.dayScrollContent}
       >
-        {WEEK_DAYS.map((day) => {
-          const active = day.date === selectedDate;
-          const hasAppts = MOCK_APPOINTMENTS.some((a) => a.date === day.date);
+        {weekDays.map((day) => {
+          const active = day.dateStr === selectedDate;
+          const hasAppts = allAppointments.some(
+            (a) => toLocalDateStr(a.scheduled_at) === day.dateStr,
+          );
           return (
             <TouchableOpacity
-              key={day.date}
+              key={day.dateStr}
               style={[styles.dayBtn, active && styles.dayBtnActive]}
               onPress={() => {
-                setSelectedDate(day.date);
+                setSelectedDate(day.dateStr);
                 setApptFilter('all');
               }}
               activeOpacity={0.85}
@@ -103,12 +152,8 @@ export function ClinicianScheduleScreen() {
               accessibilityState={active ? { selected: true } : {}}
               accessibilityLabel={day.label}
             >
-              <Text style={[styles.dayShort, active && styles.dayShortActive]}>
-                {day.dayShort}
-              </Text>
-              <Text style={[styles.dayNum, active && styles.dayNumActive]}>
-                {day.dayNum}
-              </Text>
+              <Text style={[styles.dayShort, active && styles.dayShortActive]}>{day.dayShort}</Text>
+              <Text style={[styles.dayNum, active && styles.dayNumActive]}>{day.dayNum}</Text>
               {hasAppts ? (
                 <View style={[styles.dayDot, active && styles.dayDotActive]} />
               ) : (
@@ -148,9 +193,7 @@ export function ClinicianScheduleScreen() {
 
       {/* Day summary bar */}
       <View style={styles.daySummary}>
-        <Text style={styles.daySummaryLabel}>
-          {selectedDay?.label ?? selectedDate}
-        </Text>
+        <Text style={styles.daySummaryLabel}>{selectedDay?.label ?? selectedDate}</Text>
         <View style={styles.daySummaryCount}>
           <Text style={styles.daySummaryCountText}>
             {dayAppts.length} {dayAppts.length === 1 ? 'appointment' : 'appointments'}
@@ -159,64 +202,76 @@ export function ClinicianScheduleScreen() {
       </View>
 
       {/* Appointment list */}
-      <ScrollView
-        style={styles.list}
-        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + layout.s(24) }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {filteredAppts.length === 0 ? (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIconWrap}>
-              <IconCalendar size={24} color={c.tealDim} strokeWidth={1.5} />
-            </View>
-            <Text style={styles.emptyTitle}>
-              {dayAppts.length === 0
-                ? 'No appointments scheduled'
-                : 'No appointments match this filter'}
-            </Text>
-            <Text style={styles.emptySub}>
-              {dayAppts.length === 0
-                ? 'This day is currently clear.'
-                : 'Try selecting a different filter above.'}
-            </Text>
-          </View>
-        ) : (
-          filteredAppts.map((appt, idx) => (
-            <View key={appt.id} style={styles.apptRow}>
-              {/* Timeline */}
-              <View style={styles.timelineCol}>
-                <Text style={styles.timelineTime}>{appt.time}</Text>
-                {idx < filteredAppts.length - 1 ? (
-                  <View style={styles.timelineLine} />
-                ) : null}
+      {appts.status === 'loading' ? (
+        <View style={styles.loadingState}>
+          <ActivityIndicator size="large" color={c.teal} />
+        </View>
+      ) : appts.status === 'error' ? (
+        <View style={styles.loadingState}>
+          <Text style={styles.errorText}>{appts.error}</Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.list}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + layout.s(24) }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {filteredAppts.length === 0 ? (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIconWrap}>
+                <IconCalendar size={24} color={c.tealDim} strokeWidth={1.5} />
               </View>
+              <Text style={styles.emptyTitle}>
+                {dayAppts.length === 0
+                  ? 'No appointments scheduled'
+                  : 'No appointments match this filter'}
+              </Text>
+              <Text style={styles.emptySub}>
+                {dayAppts.length === 0
+                  ? 'This day is currently clear.'
+                  : 'Try selecting a different filter above.'}
+              </Text>
+            </View>
+          ) : (
+            filteredAppts.map((appt, idx) => (
+              <TouchableOpacity
+                key={appt.id}
+                style={styles.apptRow}
+                onPress={() => onOpenAppointment(appt.id)}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={`Open appointment for ${appt.patient_name}`}
+              >
+                {/* Timeline */}
+                <View style={styles.timelineCol}>
+                  <Text style={styles.timelineTime}>{formatTime(appt.scheduled_at)}</Text>
+                  {idx < filteredAppts.length - 1 ? (
+                    <View style={styles.timelineLine} />
+                  ) : null}
+                </View>
 
-              {/* Card */}
-              <View style={styles.apptCard}>
-                <View style={styles.apptCardHeader}>
-                  <View style={styles.apptInitialsCircle}>
-                    <Text style={styles.apptInitialsText}>{appt.patientInitials}</Text>
-                  </View>
-                  <View style={styles.apptCardInfo}>
-                    <Text style={styles.apptPatientName}>{appt.patientName}</Text>
-                    <Text style={styles.apptType}>{appt.type}</Text>
-                  </View>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusBg(appt.status) }]}>
-                    <Text style={[styles.statusBadgeText, { color: getStatusColor(appt.status) }]}>
-                      {appt.status.charAt(0).toUpperCase() + appt.status.slice(1)}
-                    </Text>
+                {/* Card */}
+                <View style={styles.apptCard}>
+                  <View style={styles.apptCardHeader}>
+                    <View style={styles.apptInitialsCircle}>
+                      <Text style={styles.apptInitialsText}>{initials(appt.patient_name)}</Text>
+                    </View>
+                    <View style={styles.apptCardInfo}>
+                      <Text style={styles.apptPatientName}>{appt.patient_name}</Text>
+                      <Text style={styles.apptType}>{appt.clinician_name}</Text>
+                    </View>
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusBg(appt.status) }]}>
+                      <Text style={[styles.statusBadgeText, { color: getStatusColor(appt.status) }]}>
+                        {getStatusLabel(appt.status)}
+                      </Text>
+                    </View>
                   </View>
                 </View>
-                <View style={styles.apptCardMeta}>
-                  <Text style={styles.apptMetaText}>{appt.duration}</Text>
-                  <View style={styles.metaDot} />
-                  <Text style={styles.apptMetaText}>{appt.location}</Text>
-                </View>
-              </View>
-            </View>
-          ))
-        )}
-      </ScrollView>
+              </TouchableOpacity>
+            ))
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -436,23 +491,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.2,
   },
-  apptCardMeta: {
-    flexDirection: 'row',
+  loadingState: {
+    flex: 1,
     alignItems: 'center',
-    gap: layout.s(6),
-    paddingTop: layout.s(8),
-    borderTopWidth: 1,
-    borderTopColor: c.border,
+    justifyContent: 'center',
   },
-  apptMetaText: {
-    fontSize: layout.f(11),
+  errorText: {
+    fontSize: layout.f(13),
     color: c.text3,
-  },
-  metaDot: {
-    width: layout.s(3),
-    height: layout.s(3),
-    borderRadius: layout.s(1.5),
-    backgroundColor: c.text4,
+    textAlign: 'center',
+    paddingHorizontal: layout.s(24),
   },
   emptyState: {
     alignItems: 'center',

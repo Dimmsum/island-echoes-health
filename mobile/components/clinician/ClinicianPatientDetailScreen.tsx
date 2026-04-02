@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,188 +6,213 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { supabase } from '../../lib/supabase';
 import { layout } from '../../constants/layout';
 import { clinicianTheme as c } from './clinicianTheme';
 import { IconNotes, IconPlus, IconActivity, IconCheckCircle } from './clinicianIcons';
 import { IconChevronLeft } from '../user/userDesignAIcons';
 import {
-  MOCK_PATIENTS,
-  MOCK_APPOINTMENTS,
-  MOCK_PATIENT_NOTES,
-  MOCK_PATIENT_VITALS,
-  PatientRow,
-} from './clinicianMockData';
+  useClinicianPatientDetail,
+  addAppointmentNote,
+  AppointmentStatus,
+  ClinicianPatientMetric,
+} from '../../lib/clinicianPortal';
 
 type Props = {
   patientId: string;
   onBack: () => void;
 };
 
-function getStatusColor(status: PatientRow['status']): string {
+function initials(name: string): string {
+  return name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+}
+
+function formatApptDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function formatApptTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+function formatNoteDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function getApptStatusColor(status: AppointmentStatus): string {
   switch (status) {
-    case 'active': return c.statusGreen;
-    case 'review': return c.statusYellow;
-    case 'new': return c.teal;
-    case 'stable': return c.statusGray;
-    default: return c.statusGray;
-  }
-}
-
-function getStatusBg(status: PatientRow['status']): string {
-  switch (status) {
-    case 'active': return c.statusGreenBg;
-    case 'review': return c.statusYellowBg;
-    case 'new': return c.tealBg;
-    case 'stable': return c.statusGrayBg;
-    default: return c.statusGrayBg;
-  }
-}
-
-function getTrendSymbol(trend: 'up' | 'down' | 'stable'): string {
-  switch (trend) {
-    case 'up': return '↑';
-    case 'down': return '↓';
-    case 'stable': return '→';
-  }
-}
-
-function getTrendColor(trend: 'up' | 'down' | 'stable'): string {
-  switch (trend) {
-    case 'up': return c.statusRed;
-    case 'down': return c.teal;
-    case 'stable': return c.statusGray;
-  }
-}
-
-function getApptStatusColor(status: string): string {
-  switch (status) {
-    case 'confirmed': return c.statusGreen;
-    case 'pending': return c.statusYellow;
+    case 'scheduled': return c.statusGreen;
     case 'completed': return c.statusGray;
+    case 'no_show': return c.statusRed;
     case 'cancelled': return c.statusRed;
-    default: return c.statusGray;
   }
+}
+
+function buildVitals(metrics: ClinicianPatientMetric[]): { label: string; value: string; unit: string; recorded: string }[] {
+  if (metrics.length === 0) return [];
+  const latest = metrics[0];
+  const result: { label: string; value: string; unit: string; recorded: string }[] = [];
+  const recordedAt = new Date(latest.recorded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  if (latest.blood_pressure_systolic != null && latest.blood_pressure_diastolic != null) {
+    result.push({ label: 'Blood Pressure', value: `${latest.blood_pressure_systolic}/${latest.blood_pressure_diastolic}`, unit: 'mmHg', recorded: recordedAt });
+  }
+  if (latest.weight_kg != null) {
+    result.push({ label: 'Weight', value: String(latest.weight_kg), unit: 'kg', recorded: recordedAt });
+  }
+  if (latest.a1c != null) {
+    result.push({ label: 'A1C', value: String(latest.a1c), unit: '%', recorded: recordedAt });
+  }
+  if (latest.medication_adherence != null) {
+    result.push({ label: 'Medication', value: latest.medication_adherence.charAt(0).toUpperCase() + latest.medication_adherence.slice(1), unit: 'adherence', recorded: recordedAt });
+  }
+  return result;
 }
 
 export function ClinicianPatientDetailScreen({ patientId, onBack }: Props) {
   const insets = useSafeAreaInsets();
+  const patientDetail = useClinicianPatientDetail(patientId);
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [submittingNote, setSubmittingNote] = useState(false);
 
-  const patient = MOCK_PATIENTS.find((p) => p.id === patientId);
-  const vitals = MOCK_PATIENT_VITALS.filter((v) => v.patientId === patientId);
-  const appointments = MOCK_APPOINTMENTS.filter((a) => a.patientId === patientId).slice(0, 3);
-  const notes = MOCK_PATIENT_NOTES.filter((n) => n.patientId === patientId);
+  const backHeader = (
+    <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
+      <TouchableOpacity
+        style={styles.backBtn}
+        onPress={onBack}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="Go back to Patients"
+      >
+        <IconChevronLeft size={16} color={c.teal} strokeWidth={2.5} />
+        <Text style={styles.backBtnText}>Patients</Text>
+      </TouchableOpacity>
+      {patientDetail.status === 'loaded' ? (
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {patientDetail.data.patient.patient_name}
+        </Text>
+      ) : <Text style={styles.headerTitle} />}
+      <View style={styles.headerRight} />
+    </View>
+  );
 
-  if (!patient) {
+  if (patientDetail.status === 'loading') {
     return (
       <View style={styles.root}>
-        <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={onBack}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Go back to Patients"
-          >
-            <IconChevronLeft size={16} color={c.teal} strokeWidth={2.5} />
-            <Text style={styles.backBtnText}>Patients</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.notFoundState}>
-          <Text style={styles.notFoundText}>Patient not found.</Text>
+        {backHeader}
+        <View style={styles.centeredState}>
+          <ActivityIndicator size="large" color={c.teal} />
         </View>
       </View>
     );
   }
 
-  const vitalGrid = vitals.slice(0, 4);
+  if (patientDetail.status === 'error') {
+    return (
+      <View style={styles.root}>
+        {backHeader}
+        <View style={styles.centeredState}>
+          <Text style={styles.centeredText}>{patientDetail.error}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  const { patient, appointments, latestMetrics, latestNotes, latestAppointmentId } = patientDetail.data;
+  const vitals = buildVitals(latestMetrics);
+
+  const handleSubmitNote = async () => {
+    if (!noteText.trim() || !latestAppointmentId) return;
+    setSubmittingNote(true);
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) { setSubmittingNote(false); return; }
+    const result = await addAppointmentNote(latestAppointmentId, noteText.trim(), token);
+    setSubmittingNote(false);
+    if (result.error) {
+      Alert.alert('Error', result.error);
+    } else {
+      setNoteText('');
+      setShowNoteInput(false);
+      patientDetail.reload();
+    }
+  };
 
   return (
     <View style={styles.root}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={onBack}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel="Go back to Patients"
-        >
-          <IconChevronLeft size={16} color={c.teal} strokeWidth={2.5} />
-          <Text style={styles.backBtnText}>Patients</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{patient.name}</Text>
-        <View style={styles.headerRight} />
-      </View>
+      {backHeader}
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + layout.s(96) }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + (showNoteInput ? layout.s(200) : layout.s(96)) },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Hero card */}
         <View style={styles.heroCard}>
           <View style={styles.heroAvatarCircle}>
-            <Text style={styles.heroAvatarText}>{patient.initials}</Text>
+            <Text style={styles.heroAvatarText}>{initials(patient.patient_name)}</Text>
           </View>
-          <Text style={styles.heroName}>{patient.name}</Text>
-          <Text style={styles.heroCondition}>{patient.condition}</Text>
+          <Text style={styles.heroName}>{patient.patient_name}</Text>
+          <Text style={styles.heroCondition}>{patient.plan_name}</Text>
           <View style={styles.heroMetaRow}>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusBg(patient.status) }]}>
-              <Text style={[styles.statusBadgeText, { color: getStatusColor(patient.status) }]}>
-                {patient.status.charAt(0).toUpperCase() + patient.status.slice(1)}
-              </Text>
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusBadgeText}>Active</Text>
             </View>
-            <Text style={styles.heroMeta}>Age {patient.age}</Text>
-            <View style={styles.heroDot} />
-            <Text style={styles.heroMeta}>DOB {patient.dob}</Text>
+            {patient.next_appointment_clinician ? (
+              <Text style={styles.heroMeta}>Dr. {patient.next_appointment_clinician}</Text>
+            ) : null}
           </View>
         </View>
 
         {/* Vitals section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <IconActivity size={16} color={c.teal} strokeWidth={2} />
-            <Text style={styles.sectionTitle}>Vitals</Text>
-          </View>
-          <View style={styles.vitalsGrid}>
-            {vitalGrid.map((vital, idx) => (
-              <View key={idx} style={styles.vitalCard}>
-                <Text style={styles.vitalLabel}>{vital.label}</Text>
-                <View style={styles.vitalValueRow}>
+        {vitals.length > 0 ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <IconActivity size={16} color={c.teal} strokeWidth={2} />
+              <Text style={styles.sectionTitle}>Latest Vitals</Text>
+            </View>
+            <View style={styles.vitalsGrid}>
+              {vitals.map((vital, idx) => (
+                <View key={idx} style={styles.vitalCard}>
+                  <Text style={styles.vitalLabel}>{vital.label}</Text>
                   <Text style={styles.vitalValue}>{vital.value}</Text>
-                  <Text style={[styles.vitalTrend, { color: getTrendColor(vital.trend) }]}>
-                    {getTrendSymbol(vital.trend)}
-                  </Text>
+                  <Text style={styles.vitalUnit}>{vital.unit}</Text>
+                  <Text style={styles.vitalTime}>{vital.recorded}</Text>
                 </View>
-                <Text style={styles.vitalUnit}>{vital.unit}</Text>
-                <Text style={styles.vitalTime}>{vital.recordedAt}</Text>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
-        </View>
+        ) : null}
 
-        {/* Upcoming appointments */}
+        {/* Appointments section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <IconCheckCircle size={16} color={c.teal} strokeWidth={2} />
-            <Text style={styles.sectionTitle}>Upcoming Appointments</Text>
+            <Text style={styles.sectionTitle}>Appointments</Text>
           </View>
           {appointments.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyCardText}>No upcoming appointments</Text>
+              <Text style={styles.emptyCardText}>No appointments</Text>
             </View>
           ) : (
-            appointments.map((appt) => (
+            appointments.slice(0, 4).map((appt) => (
               <View key={appt.id} style={styles.apptMiniCard}>
                 <View style={styles.apptMiniLeft}>
-                  <Text style={styles.apptMiniDate}>{appt.dateLabel}</Text>
-                  <Text style={styles.apptMiniTime}>{appt.time}</Text>
+                  <Text style={styles.apptMiniDate}>{formatApptDate(appt.scheduled_at)}</Text>
+                  <Text style={styles.apptMiniTime}>{formatApptTime(appt.scheduled_at)}</Text>
                 </View>
                 <View style={styles.apptMiniBody}>
-                  <Text style={styles.apptMiniType}>{appt.type}</Text>
-                  <Text style={styles.apptMiniLocation}>{appt.location} · {appt.duration}</Text>
+                  <Text style={styles.apptMiniType}>Appointment</Text>
+                  <Text style={styles.apptMiniLocation}>{appt.clinician_name}</Text>
                 </View>
                 <View style={[styles.apptMiniStatus, { backgroundColor: getApptStatusColor(appt.status) }]} />
               </View>
@@ -201,17 +226,14 @@ export function ClinicianPatientDetailScreen({ patientId, onBack }: Props) {
             <IconNotes size={16} color={c.teal} strokeWidth={2} />
             <Text style={styles.sectionTitle}>Recent Notes</Text>
           </View>
-          {notes.length === 0 ? (
+          {latestNotes.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyCardText}>No notes yet</Text>
             </View>
           ) : (
-            notes.map((note) => (
+            latestNotes.map((note) => (
               <View key={note.id} style={styles.noteCard}>
-                <View style={styles.noteMeta}>
-                  <Text style={styles.noteDate}>{note.date}</Text>
-                  <Text style={styles.noteAuthor}>{note.author}</Text>
-                </View>
+                <Text style={styles.noteDate}>{formatNoteDate(note.created_at)}</Text>
                 <Text style={styles.noteContent} numberOfLines={4}>{note.content}</Text>
               </View>
             ))
@@ -219,18 +241,61 @@ export function ClinicianPatientDetailScreen({ patientId, onBack }: Props) {
         </View>
       </ScrollView>
 
+      {/* Note input panel */}
+      {showNoteInput ? (
+        <View style={[styles.noteInputPanel, { paddingBottom: insets.bottom + layout.s(12) }]}>
+          <TextInput
+            style={styles.noteInputField}
+            placeholder="Write a note..."
+            placeholderTextColor={c.text3}
+            value={noteText}
+            onChangeText={setNoteText}
+            multiline
+            maxLength={1000}
+            autoFocus
+            accessibilityLabel="Note content"
+          />
+          <View style={styles.noteInputActions}>
+            <TouchableOpacity
+              style={styles.noteCancelBtn}
+              onPress={() => { setShowNoteInput(false); setNoteText(''); }}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
+              <Text style={styles.noteCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.noteSubmitBtn, (!noteText.trim() || submittingNote) && styles.noteSubmitBtnDisabled]}
+              onPress={handleSubmitNote}
+              disabled={!noteText.trim() || submittingNote}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
+              {submittingNote ? (
+                <ActivityIndicator size="small" color={c.bg} />
+              ) : (
+                <Text style={styles.noteSubmitText}>Save Note</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
+
       {/* Floating Add Note button */}
-      <View style={[styles.fabWrap, { bottom: insets.bottom + layout.s(16) }]}>
-        <TouchableOpacity
-          style={styles.fab}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel="Add note"
-        >
-          <IconPlus size={18} color={c.bg} strokeWidth={2.5} />
-          <Text style={styles.fabText}>Add Note</Text>
-        </TouchableOpacity>
-      </View>
+      {!showNoteInput ? (
+        <View style={[styles.fabWrap, { bottom: insets.bottom + layout.s(16) }]}>
+          <TouchableOpacity
+            style={[styles.fab, !latestAppointmentId && styles.fabDisabled]}
+            onPress={() => latestAppointmentId && setShowNoteInput(true)}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Add note"
+          >
+            <IconPlus size={18} color={c.bg} strokeWidth={2.5} />
+            <Text style={styles.fabText}>Add Note</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -315,7 +380,8 @@ const styles = StyleSheet.create({
   },
   heroCondition: {
     fontSize: layout.f(13),
-    color: c.text2,
+    color: c.teal,
+    fontWeight: '500',
   },
   heroMetaRow: {
     flexDirection: 'row',
@@ -327,21 +393,17 @@ const styles = StyleSheet.create({
     paddingVertical: layout.s(4),
     paddingHorizontal: layout.s(10),
     borderRadius: layout.s(20),
+    backgroundColor: c.statusGreenBg,
   },
   statusBadgeText: {
     fontSize: layout.f(10),
     fontWeight: '700',
     letterSpacing: 0.3,
+    color: c.statusGreen,
   },
   heroMeta: {
     fontSize: layout.f(12),
     color: c.text3,
-  },
-  heroDot: {
-    width: layout.s(3),
-    height: layout.s(3),
-    borderRadius: layout.s(1.5),
-    backgroundColor: c.text4,
   },
   section: {
     gap: layout.s(10),
@@ -453,19 +515,22 @@ const styles = StyleSheet.create({
     padding: layout.s(14),
     gap: layout.s(8),
   },
-  noteMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  centeredState: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centeredText: {
+    fontSize: layout.f(13),
+    color: c.text3,
+    textAlign: 'center',
+    paddingHorizontal: layout.s(24),
   },
   noteDate: {
     fontSize: layout.f(11),
     fontWeight: '700',
     color: c.teal,
-  },
-  noteAuthor: {
-    fontSize: layout.f(10),
-    color: c.text3,
+    marginBottom: layout.s(6),
   },
   noteContent: {
     fontSize: layout.f(12.5),
@@ -510,13 +575,64 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: c.bg,
   },
-  notFoundState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  fabDisabled: {
+    opacity: 0.4,
   },
-  notFoundText: {
-    fontSize: layout.f(14),
+  noteInputPanel: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: c.bg2,
+    borderTopWidth: 1,
+    borderTopColor: c.borderTeal,
+    paddingHorizontal: layout.s(16),
+    paddingTop: layout.s(12),
+    gap: layout.s(10),
+  },
+  noteInputField: {
+    backgroundColor: c.surface,
+    borderRadius: layout.s(12),
+    borderWidth: 1,
+    borderColor: c.border,
+    paddingHorizontal: layout.s(14),
+    paddingVertical: layout.s(10),
+    fontSize: layout.f(13),
+    color: c.text1,
+    minHeight: layout.s(80),
+    textAlignVertical: 'top',
+  },
+  noteInputActions: {
+    flexDirection: 'row',
+    gap: layout.s(10),
+  },
+  noteCancelBtn: {
+    flex: 1,
+    paddingVertical: layout.s(12),
+    borderRadius: layout.s(10),
+    alignItems: 'center',
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.border,
+  },
+  noteCancelText: {
+    fontSize: layout.f(13),
+    fontWeight: '600',
     color: c.text3,
+  },
+  noteSubmitBtn: {
+    flex: 2,
+    paddingVertical: layout.s(12),
+    borderRadius: layout.s(10),
+    alignItems: 'center',
+    backgroundColor: c.teal,
+  },
+  noteSubmitBtnDisabled: {
+    opacity: 0.5,
+  },
+  noteSubmitText: {
+    fontSize: layout.f(13),
+    fontWeight: '700',
+    color: c.bg,
   },
 });

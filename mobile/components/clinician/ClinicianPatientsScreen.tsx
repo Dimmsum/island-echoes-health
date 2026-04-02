@@ -7,60 +7,45 @@ import {
   TextInput,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../constants/layout';
 import { clinicianTheme as c } from './clinicianTheme';
 import { IconSearch } from './clinicianIcons';
 import { IconChevronRight } from '../user/userDesignAIcons';
-import { MOCK_PATIENTS, PatientRow } from './clinicianMockData';
-
-type FilterKey = 'all' | 'active' | 'review' | 'new' | 'stable';
+import { useClinicianDashboard, ClinicianDashboardPatient } from '../../lib/clinicianPortal';
 
 type Props = {
   onOpenPatient: (patientId: string) => void;
 };
 
-function getStatusColor(status: PatientRow['status']): string {
-  switch (status) {
-    case 'active': return c.statusGreen;
-    case 'review': return c.statusYellow;
-    case 'new': return c.teal;
-    case 'stable': return c.statusGray;
-    default: return c.statusGray;
-  }
+function initials(name: string): string {
+  return name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 }
 
-function getStatusBg(status: PatientRow['status']): string {
-  switch (status) {
-    case 'active': return c.statusGreenBg;
-    case 'review': return c.statusYellowBg;
-    case 'new': return c.tealBg;
-    case 'stable': return c.statusGrayBg;
-    default: return c.statusGrayBg;
-  }
+function formatNextAppt(iso: string | null): string {
+  if (!iso) return 'No upcoming';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+    ' · ' +
+    d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
-
-const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'active', label: 'Active' },
-  { key: 'review', label: 'Review' },
-  { key: 'new', label: 'New' },
-  { key: 'stable', label: 'Stable' },
-];
 
 export function ClinicianPatientsScreen({ onOpenPatient }: Props) {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<FilterKey>('all');
+  const dashboard = useClinicianDashboard();
 
-  const filtered = MOCK_PATIENTS.filter((p) => {
-    const matchesFilter = filter === 'all' || p.status === filter;
-    const matchesQuery =
-      query.trim() === '' ||
-      p.name.toLowerCase().includes(query.toLowerCase()) ||
-      p.condition.toLowerCase().includes(query.toLowerCase());
-    return matchesFilter && matchesQuery;
+  const patients: ClinicianDashboardPatient[] =
+    dashboard.status === 'loaded' ? dashboard.data.patientsWithPlans : [];
+
+  const filtered = patients.filter((p) => {
+    if (query.trim() === '') return true;
+    return (
+      p.patient_name.toLowerCase().includes(query.toLowerCase()) ||
+      p.plan_name.toLowerCase().includes(query.toLowerCase())
+    );
   });
 
   return (
@@ -68,7 +53,9 @@ export function ClinicianPatientsScreen({ onOpenPatient }: Props) {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
         <Text style={styles.headerTitle}>Patients</Text>
-        <Text style={styles.headerSub}>{MOCK_PATIENTS.length} under your care</Text>
+        {dashboard.status === 'loaded' ? (
+          <Text style={styles.headerSub}>{patients.length} under your care</Text>
+        ) : null}
       </View>
 
       {/* Search bar */}
@@ -89,83 +76,62 @@ export function ClinicianPatientsScreen({ onOpenPatient }: Props) {
         </View>
       </View>
 
-      {/* Filter chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filterContent}
-      >
-        {FILTERS.map((f) => {
-          const active = filter === f.key;
-          return (
-            <TouchableOpacity
-              key={f.key}
-              style={[styles.filterChip, active && styles.filterChipActive]}
-              onPress={() => setFilter(f.key)}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityState={active ? { selected: true } : {}}
-              accessibilityLabel={`Filter by ${f.label}`}
-            >
-              <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                {f.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
       {/* Patient list */}
-      <ScrollView
-        style={styles.list}
-        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + layout.s(24) }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {filtered.length === 0 ? (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIconWrap}>
-              <IconSearch size={24} color={c.tealDim} strokeWidth={1.5} />
-            </View>
-            <Text style={styles.emptyTitle}>No patients found</Text>
-            <Text style={styles.emptySub}>
-              Try adjusting your search or filter.
-            </Text>
-          </View>
-        ) : (
-          filtered.map((patient) => (
-            <TouchableOpacity
-              key={patient.id}
-              style={styles.patientCard}
-              onPress={() => onOpenPatient(patient.id)}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel={`Open patient ${patient.name}`}
-            >
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarText}>{patient.initials}</Text>
+      {dashboard.status === 'loading' ? (
+        <View style={styles.loadingState}>
+          <ActivityIndicator size="large" color={c.teal} />
+        </View>
+      ) : dashboard.status === 'error' ? (
+        <View style={styles.loadingState}>
+          <Text style={styles.errorText}>{dashboard.error}</Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.list}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + layout.s(24) }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {filtered.length === 0 ? (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIconWrap}>
+                <IconSearch size={24} color={c.tealDim} strokeWidth={1.5} />
               </View>
-              <View style={styles.cardBody}>
-                <View style={styles.cardTopRow}>
-                  <Text style={styles.cardName}>{patient.name}</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusBg(patient.status) }]}>
-                    <Text style={[styles.statusBadgeText, { color: getStatusColor(patient.status) }]}>
-                      {patient.status.charAt(0).toUpperCase() + patient.status.slice(1)}
-                    </Text>
+              <Text style={styles.emptyTitle}>No patients found</Text>
+              <Text style={styles.emptySub}>
+                {query.trim() ? 'Try adjusting your search.' : 'No patients are enrolled yet.'}
+              </Text>
+            </View>
+          ) : (
+            filtered.map((patient) => (
+              <TouchableOpacity
+                key={patient.patient_id}
+                style={styles.patientCard}
+                onPress={() => onOpenPatient(patient.patient_id)}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={`Open patient ${patient.patient_name}`}
+              >
+                <View style={styles.avatarCircle}>
+                  <Text style={styles.avatarText}>{initials(patient.patient_name)}</Text>
+                </View>
+                <View style={styles.cardBody}>
+                  <View style={styles.cardTopRow}>
+                    <Text style={styles.cardName}>{patient.patient_name}</Text>
+                    <View style={styles.activeBadge}>
+                      <Text style={styles.activeBadgeText}>Active</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.cardCondition}>{patient.plan_name}</Text>
+                  <View style={styles.cardMetaRow}>
+                    <Text style={styles.cardMeta}>Next: {formatNextAppt(patient.next_appointment)}</Text>
                   </View>
                 </View>
-                <Text style={styles.cardCondition}>{patient.condition}</Text>
-                <View style={styles.cardMetaRow}>
-                  <Text style={styles.cardMeta}>Age {patient.age}</Text>
-                  <View style={styles.metaDot} />
-                  <Text style={styles.cardMeta}>Last visit {patient.lastVisit}</Text>
-                </View>
-              </View>
-              <IconChevronRight size={16} color={c.text4} strokeWidth={2} />
-            </TouchableOpacity>
-          ))
-        )}
-      </ScrollView>
+                <IconChevronRight size={16} color={c.text4} strokeWidth={2} />
+              </TouchableOpacity>
+            ))
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -214,34 +180,28 @@ const styles = StyleSheet.create({
     color: c.text1,
     padding: 0,
   },
-  filterScroll: {
-    flexGrow: 0,
-    paddingBottom: layout.s(4),
+  loadingState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  filterContent: {
-    paddingHorizontal: layout.s(16),
-    gap: layout.s(8),
-    paddingBottom: layout.s(10),
-  },
-  filterChip: {
-    paddingVertical: layout.s(6),
-    paddingHorizontal: layout.s(16),
-    borderRadius: layout.s(20),
-    backgroundColor: c.surface,
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  filterChipActive: {
-    backgroundColor: c.tealBg,
-    borderColor: c.tealBorder,
-  },
-  filterChipText: {
-    fontSize: layout.f(12),
-    fontWeight: '600',
+  errorText: {
+    fontSize: layout.f(13),
     color: c.text3,
+    textAlign: 'center',
+    paddingHorizontal: layout.s(24),
   },
-  filterChipTextActive: {
-    color: c.teal,
+  activeBadge: {
+    paddingVertical: layout.s(3),
+    paddingHorizontal: layout.s(9),
+    borderRadius: layout.s(20),
+    backgroundColor: c.statusGreenBg,
+  },
+  activeBadgeText: {
+    fontSize: layout.f(10),
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    color: c.statusGreen,
   },
   list: {
     flex: 1,
@@ -292,16 +252,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: c.text1,
     flex: 1,
-  },
-  statusBadge: {
-    paddingVertical: layout.s(3),
-    paddingHorizontal: layout.s(9),
-    borderRadius: layout.s(20),
-  },
-  statusBadgeText: {
-    fontSize: layout.f(10),
-    fontWeight: '700',
-    letterSpacing: 0.2,
   },
   cardCondition: {
     fontSize: layout.f(12),

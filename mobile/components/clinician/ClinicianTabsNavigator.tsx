@@ -57,7 +57,11 @@ export function ClinicianTabsNavigator({ onSignOut }: Props) {
             />
           );
         }
-        return <ClinicianScheduleScreen />;
+        return (
+          <ClinicianScheduleScreen
+            onOpenAppointment={(id) => setScheduleAppointmentId(id)}
+          />
+        );
       case 'profile':
         return <ClinicianProfileScreen onSignOut={onSignOut} />;
       default:

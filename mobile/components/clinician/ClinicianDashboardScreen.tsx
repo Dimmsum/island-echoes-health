@@ -6,75 +6,140 @@ import {
   ScrollView,
   Platform,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../constants/layout';
 import { clinicianTheme as c } from './clinicianTheme';
 import { IconBell, IconCheckCircle } from './clinicianIcons';
-import { IconChevronRight } from '../user/userDesignAIcons';
-import { IconCalendar, IconUsers } from '../user/userDesignAIcons';
+import { IconChevronRight, IconCalendar, IconUsers } from '../user/userDesignAIcons';
 import {
-  MOCK_CLINICIAN_PROFILE,
-  MOCK_APPOINTMENTS,
-  MOCK_PATIENTS,
-} from './clinicianMockData';
+  useClinicianDashboard,
+  AppointmentStatus,
+  ClinicianDashboardPatient,
+  DashboardTodayAppointment,
+} from '../../lib/clinicianPortal';
 
 type Props = {
   onNavigatePatients: () => void;
   onNavigateSchedule: () => void;
 };
 
-function getStatusColor(status: string): string {
+function toLocalDateStr(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+function initials(name: string): string {
+  return name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+}
+
+function getFirstName(fullName: string | null): string {
+  if (!fullName) return 'Doctor';
+  return fullName.split(' ')[0];
+}
+
+function getStatusColor(status: AppointmentStatus): string {
   switch (status) {
-    case 'confirmed': return c.statusGreen;
-    case 'pending': return c.statusYellow;
+    case 'scheduled': return c.statusGreen;
     case 'completed': return c.statusGray;
+    case 'no_show': return c.statusRed;
     case 'cancelled': return c.statusRed;
-    default: return c.statusGray;
   }
 }
 
-function getStatusBg(status: string): string {
+function getStatusBg(status: AppointmentStatus): string {
   switch (status) {
-    case 'confirmed': return c.statusGreenBg;
-    case 'pending': return c.statusYellowBg;
+    case 'scheduled': return c.statusGreenBg;
     case 'completed': return c.statusGrayBg;
+    case 'no_show': return c.statusRedBg;
     case 'cancelled': return c.statusRedBg;
-    default: return c.statusGrayBg;
+  }
+}
+
+function getStatusLabel(status: AppointmentStatus): string {
+  switch (status) {
+    case 'scheduled': return 'Scheduled';
+    case 'completed': return 'Completed';
+    case 'no_show': return 'No Show';
+    case 'cancelled': return 'Cancelled';
   }
 }
 
 export function ClinicianDashboardScreen({ onNavigatePatients, onNavigateSchedule }: Props) {
   const insets = useSafeAreaInsets();
-  const profile = MOCK_CLINICIAN_PROFILE;
+  const dashboard = useClinicianDashboard();
 
-  const today = '2026-04-01';
-  const todayAppts = MOCK_APPOINTMENTS.filter((a) => a.date === today);
-  const seenToday = todayAppts.filter((a) => a.status === 'completed').length;
-  const pendingReview = MOCK_PATIENTS.filter((p) => p.status === 'review').length;
-  const nextAppt = todayAppts.find((a) => a.status === 'confirmed' || a.status === 'pending') ?? null;
-  const upcomingToday = todayAppts.slice(0, 3);
-  const recentPatients = MOCK_PATIENTS.slice(0, 3);
+  const header = (
+    <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
+      <View style={styles.headerLeft}>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>CLINICIAN</Text>
+        </View>
+        <Text style={styles.logo}>Island Echoes Health</Text>
+      </View>
+      <TouchableOpacity
+        style={styles.bellBtn}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="Notifications"
+      >
+        <IconBell size={20} color={c.teal} strokeWidth={2} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  if (dashboard.status === 'loading') {
+    return (
+      <View style={styles.root}>
+        {header}
+        <View style={styles.loadingState}>
+          <ActivityIndicator size="large" color={c.teal} />
+        </View>
+      </View>
+    );
+  }
+
+  if (dashboard.status === 'error') {
+    return (
+      <View style={styles.root}>
+        {header}
+        <View style={styles.loadingState}>
+          <Text style={styles.errorText}>{dashboard.error}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  const { data } = dashboard;
+  const todayStr = toLocalDateStr(new Date().toISOString());
+
+  // Today's appointments (all statuses, from allAppointments)
+  const todayAll = data.allAppointments.filter(
+    (a) => toLocalDateStr(a.scheduled_at) === todayStr,
+  );
+  const seenToday = todayAll.filter((a) => a.status === 'completed').length;
+
+  // Upcoming scheduled for today (from the dedicated todayAppointments list)
+  const upcomingToday: (DashboardTodayAppointment & {
+    patient_name: string;
+    patient_initials: string;
+  })[] = data.todayAppointments.slice(0, 3).map((a) => {
+    const p = data.patientsWithPlans.find((pw) => pw.patient_id === a.patient_id);
+    const name = p?.patient_name ?? 'Patient';
+    return { ...a, patient_name: name, patient_initials: initials(name) };
+  });
+
+  const nextAppt = upcomingToday[0] ?? null;
+  const recentPatients: ClinicianDashboardPatient[] = data.patientsWithPlans.slice(0, 3);
 
   return (
     <View style={styles.root}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
-        <View style={styles.headerLeft}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>CLINICIAN</Text>
-          </View>
-          <Text style={styles.logo}>Island Echoes Health</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.bellBtn}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel="Notifications"
-        >
-          <IconBell size={20} color={c.teal} strokeWidth={2} />
-        </TouchableOpacity>
-      </View>
+      {header}
 
       <ScrollView
         style={styles.scroll}
@@ -86,17 +151,15 @@ export function ClinicianDashboardScreen({ onNavigatePatients, onNavigateSchedul
           <Text style={styles.welcomeGreeting}>Good morning,</Text>
           <Text style={styles.welcomeName}>
             Dr.{' '}
-            <Text style={styles.welcomeNameEm}>{profile.firstName}</Text>
+            <Text style={styles.welcomeNameEm}>{getFirstName(data.profile?.full_name ?? null)}</Text>
           </Text>
-          <Text style={styles.welcomeSub}>
-            Here's your overview for today.
-          </Text>
+          <Text style={styles.welcomeSub}>Here's your overview for today.</Text>
         </View>
 
         {/* Stats row */}
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { borderColor: c.tealBorder }]}>
-            <Text style={[styles.statValue, { color: c.teal }]}>{todayAppts.length}</Text>
+            <Text style={[styles.statValue, { color: c.teal }]}>{data.todayAppointments.length}</Text>
             <Text style={styles.statLabel}>Today's{'\n'}Appts</Text>
           </View>
           <View style={[styles.statCard, { borderColor: c.tealBorder }]}>
@@ -104,8 +167,8 @@ export function ClinicianDashboardScreen({ onNavigatePatients, onNavigateSchedul
             <Text style={styles.statLabel}>Seen{'\n'}Today</Text>
           </View>
           <View style={[styles.statCard, { borderColor: c.goldBorder }]}>
-            <Text style={[styles.statValue, { color: c.gold }]}>{pendingReview}</Text>
-            <Text style={styles.statLabel}>Pending{'\n'}Review</Text>
+            <Text style={[styles.statValue, { color: c.gold }]}>{data.patientsWithPlans.length}</Text>
+            <Text style={styles.statLabel}>Active{'\n'}Patients</Text>
           </View>
         </View>
 
@@ -116,26 +179,22 @@ export function ClinicianDashboardScreen({ onNavigatePatients, onNavigateSchedul
             <View style={styles.featuredCard}>
               <View style={styles.featuredCardHeader}>
                 <View style={styles.initialsCircle}>
-                  <Text style={styles.initialsText}>{nextAppt.patientInitials}</Text>
+                  <Text style={styles.initialsText}>{nextAppt.patient_initials}</Text>
                 </View>
                 <View style={styles.featuredCardInfo}>
-                  <Text style={styles.featuredPatientName}>{nextAppt.patientName}</Text>
-                  <Text style={styles.featuredApptType}>{nextAppt.type}</Text>
+                  <Text style={styles.featuredPatientName}>{nextAppt.patient_name}</Text>
+                  <Text style={styles.featuredApptType}>Scheduled appointment</Text>
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: getStatusBg(nextAppt.status) }]}>
                   <Text style={[styles.statusBadgeText, { color: getStatusColor(nextAppt.status) }]}>
-                    {nextAppt.status.charAt(0).toUpperCase() + nextAppt.status.slice(1)}
+                    {getStatusLabel(nextAppt.status)}
                   </Text>
                 </View>
               </View>
               <View style={styles.featuredCardMeta}>
                 <View style={styles.metaRow}>
                   <Text style={styles.metaIcon}>◷</Text>
-                  <Text style={styles.metaText}>{nextAppt.time} · {nextAppt.duration}</Text>
-                </View>
-                <View style={styles.metaRow}>
-                  <Text style={styles.metaIcon}>⊙</Text>
-                  <Text style={styles.metaText}>{nextAppt.location}</Text>
+                  <Text style={styles.metaText}>{formatTime(nextAppt.scheduled_at)}</Text>
                 </View>
               </View>
             </View>
@@ -148,19 +207,18 @@ export function ClinicianDashboardScreen({ onNavigatePatients, onNavigateSchedul
           {upcomingToday.length === 0 ? (
             <View style={styles.emptyCard}>
               <IconCheckCircle size={24} color={c.tealDim} strokeWidth={1.5} />
-              <Text style={styles.emptyCardText}>No more appointments today</Text>
+              <Text style={styles.emptyCardText}>No appointments scheduled today</Text>
             </View>
           ) : (
             upcomingToday.map((appt) => (
               <View key={appt.id} style={styles.apptRow}>
                 <View style={styles.apptTimeCol}>
-                  <Text style={styles.apptTime}>{appt.time}</Text>
-                  <Text style={styles.apptDuration}>{appt.duration}</Text>
+                  <Text style={styles.apptTime}>{formatTime(appt.scheduled_at)}</Text>
                 </View>
                 <View style={styles.apptDivider} />
                 <View style={styles.apptBody}>
-                  <Text style={styles.apptPatient}>{appt.patientName}</Text>
-                  <Text style={styles.apptMeta}>{appt.type} · {appt.location}</Text>
+                  <Text style={styles.apptPatient}>{appt.patient_name}</Text>
+                  <Text style={styles.apptMeta}>Scheduled appointment</Text>
                 </View>
                 <View style={[styles.statusDot, { backgroundColor: getStatusColor(appt.status) }]} />
               </View>
@@ -169,21 +227,23 @@ export function ClinicianDashboardScreen({ onNavigatePatients, onNavigateSchedul
         </View>
 
         {/* Recent Patients */}
-        <View style={styles.sectionBlock}>
-          <Text style={styles.sectionLabel}>RECENT PATIENTS</Text>
-          {recentPatients.map((patient) => (
-            <View key={patient.id} style={styles.patientRow}>
-              <View style={styles.patientInitialsCircle}>
-                <Text style={styles.patientInitialsText}>{patient.initials}</Text>
+        {recentPatients.length > 0 ? (
+          <View style={styles.sectionBlock}>
+            <Text style={styles.sectionLabel}>RECENT PATIENTS</Text>
+            {recentPatients.map((patient) => (
+              <View key={patient.patient_id} style={styles.patientRow}>
+                <View style={styles.patientInitialsCircle}>
+                  <Text style={styles.patientInitialsText}>{initials(patient.patient_name)}</Text>
+                </View>
+                <View style={styles.patientBody}>
+                  <Text style={styles.patientName}>{patient.patient_name}</Text>
+                  <Text style={styles.patientMeta}>{patient.plan_name}</Text>
+                </View>
+                <IconChevronRight size={16} color={c.text4} strokeWidth={2} />
               </View>
-              <View style={styles.patientBody}>
-                <Text style={styles.patientName}>{patient.name}</Text>
-                <Text style={styles.patientMeta}>{patient.condition} · Last visit {patient.lastVisit}</Text>
-              </View>
-              <IconChevronRight size={16} color={c.text4} strokeWidth={2} />
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        ) : null}
 
         {/* Quick action row */}
         <View style={styles.actionRow}>
@@ -425,6 +485,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: c.teal,
     marginBottom: layout.s(2),
+  },
+  loadingState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    fontSize: layout.f(13),
+    color: c.text3,
+    textAlign: 'center',
+    paddingHorizontal: layout.s(24),
   },
   apptDuration: {
     fontSize: layout.f(10),
