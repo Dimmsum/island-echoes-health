@@ -18,6 +18,7 @@ import { useClinicianProfile, useClinicianDashboard } from '../../lib/clinicianP
 
 type Props = {
   onSignOut: () => void;
+  onOpenTerms: () => void;
 };
 
 function initials(name: string | null): string {
@@ -84,13 +85,15 @@ const infoRowStyles = StyleSheet.create({
 type SettingsRowProps = {
   icon: React.ReactNode;
   label: string;
+  onPress?: () => void;
 };
 
-function SettingsRow({ icon, label }: SettingsRowProps) {
+function SettingsRow({ icon, label, onPress }: SettingsRowProps) {
   return (
     <TouchableOpacity
       style={settingsRowStyles.row}
       activeOpacity={0.85}
+      onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
@@ -129,7 +132,7 @@ const settingsRowStyles = StyleSheet.create({
   },
 });
 
-export function ClinicianProfileScreen({ onSignOut }: Props) {
+export function ClinicianProfileScreen({ onSignOut, onOpenTerms }: Props) {
   const insets = useSafeAreaInsets();
   const profileData = useClinicianProfile();
   const dashboardData = useClinicianDashboard();
@@ -139,16 +142,9 @@ export function ClinicianProfileScreen({ onSignOut }: Props) {
     onSignOut();
   };
 
-  const header = (
-    <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
-      <Text style={styles.headerTitle}>Profile</Text>
-    </View>
-  );
-
   if (profileData.status === 'loading') {
     return (
       <View style={styles.root}>
-        {header}
         <View style={styles.loadingState}>
           <ActivityIndicator size="large" color={c.teal} />
         </View>
@@ -159,7 +155,6 @@ export function ClinicianProfileScreen({ onSignOut }: Props) {
   if (profileData.status === 'error') {
     return (
       <View style={styles.root}>
-        {header}
         <View style={styles.loadingState}>
           <Text style={styles.errorText}>{profileData.error}</Text>
         </View>
@@ -183,11 +178,9 @@ export function ClinicianProfileScreen({ onSignOut }: Props) {
 
   return (
     <View style={styles.root}>
-      {header}
-
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + layout.s(32) }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + layout.s(24), paddingBottom: insets.bottom + layout.s(32) }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Avatar block */}
@@ -240,10 +233,15 @@ export function ClinicianProfileScreen({ onSignOut }: Props) {
             icon={<IconAlertCircle size={16} color={c.text3} strokeWidth={2} />}
             label="Privacy & Security"
           />
+          <SettingsRow
+            icon={<IconDoc size={16} color={c.text3} strokeWidth={2} />}
+            label="Help & Support"
+          />
           <View style={{ borderBottomWidth: 0 }}>
             <SettingsRow
               icon={<IconDoc size={16} color={c.text3} strokeWidth={2} />}
-              label="Help & Support"
+              label="Terms & Conditions"
+              onPress={onOpenTerms}
             />
           </View>
         </View>
@@ -267,18 +265,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: c.bg,
-  },
-  header: {
-    paddingHorizontal: layout.s(24),
-    paddingBottom: layout.s(16),
-    borderBottomWidth: 1,
-    borderBottomColor: c.border,
-  },
-  headerTitle: {
-    fontFamily: Platform.OS === 'ios' ? 'Playfair Display' : 'serif',
-    fontSize: layout.f(22),
-    fontWeight: '700',
-    color: c.text1,
   },
   scroll: {
     flex: 1,

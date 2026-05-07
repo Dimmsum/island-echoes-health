@@ -50,16 +50,8 @@ export function ClinicianPatientsScreen({ onOpenPatient }: Props) {
 
   return (
     <View style={styles.root}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
-        <Text style={styles.headerTitle}>Patients</Text>
-        {dashboard.status === 'loaded' ? (
-          <Text style={styles.headerSub}>{patients.length} under your care</Text>
-        ) : null}
-      </View>
-
       {/* Search bar */}
-      <View style={styles.searchWrap}>
+      <View style={[styles.searchWrap, { paddingTop: insets.top + layout.s(12) }]}>
         <View style={styles.searchBar}>
           <IconSearch size={16} color={c.text3} strokeWidth={2} />
           <TextInput
@@ -140,23 +132,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: c.bg,
-  },
-  header: {
-    paddingHorizontal: layout.s(24),
-    paddingBottom: layout.s(16),
-    borderBottomWidth: 1,
-    borderBottomColor: c.border,
-  },
-  headerTitle: {
-    fontFamily: Platform.OS === 'ios' ? 'Playfair Display' : 'serif',
-    fontSize: layout.f(22),
-    fontWeight: '700',
-    color: c.text1,
-    marginBottom: layout.s(2),
-  },
-  headerSub: {
-    fontSize: layout.f(12),
-    color: c.text3,
   },
   searchWrap: {
     paddingHorizontal: layout.s(16),

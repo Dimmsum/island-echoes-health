@@ -11,7 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../constants/layout';
 import { clinicianTheme as c } from './clinicianTheme';
-import { IconBell, IconCheckCircle } from './clinicianIcons';
+import { IconCheckCircle } from './clinicianIcons';
 import { IconChevronRight, IconCalendar, IconUsers } from '../user/userDesignAIcons';
 import {
   useClinicianDashboard,
@@ -74,29 +74,9 @@ export function ClinicianDashboardScreen({ onNavigatePatients, onNavigateSchedul
   const insets = useSafeAreaInsets();
   const dashboard = useClinicianDashboard();
 
-  const header = (
-    <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
-      <View style={styles.headerLeft}>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>CLINICIAN</Text>
-        </View>
-        <Text style={styles.logo}>Island Echoes Health</Text>
-      </View>
-      <TouchableOpacity
-        style={styles.bellBtn}
-        activeOpacity={0.85}
-        accessibilityRole="button"
-        accessibilityLabel="Notifications"
-      >
-        <IconBell size={20} color={c.teal} strokeWidth={2} />
-      </TouchableOpacity>
-    </View>
-  );
-
   if (dashboard.status === 'loading') {
     return (
       <View style={styles.root}>
-        {header}
         <View style={styles.loadingState}>
           <ActivityIndicator size="large" color={c.teal} />
         </View>
@@ -107,7 +87,6 @@ export function ClinicianDashboardScreen({ onNavigatePatients, onNavigateSchedul
   if (dashboard.status === 'error') {
     return (
       <View style={styles.root}>
-        {header}
         <View style={styles.loadingState}>
           <Text style={styles.errorText}>{dashboard.error}</Text>
         </View>
@@ -139,11 +118,9 @@ export function ClinicianDashboardScreen({ onNavigatePatients, onNavigateSchedul
 
   return (
     <View style={styles.root}>
-      {header}
-
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + layout.s(24) }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + layout.s(24), paddingBottom: insets.bottom + layout.s(24) }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Welcome block */}
@@ -277,50 +254,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: c.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: layout.s(24),
-    paddingBottom: layout.s(14),
-    borderBottomWidth: 1,
-    borderBottomColor: c.border,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.s(10),
-  },
-  badge: {
-    backgroundColor: c.tealBg,
-    paddingVertical: layout.s(4),
-    paddingHorizontal: layout.s(10),
-    borderRadius: layout.s(8),
-    borderWidth: 1,
-    borderColor: c.tealBorder,
-  },
-  badgeText: {
-    fontSize: layout.f(10),
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    color: c.teal,
-  },
-  logo: {
-    fontFamily: Platform.OS === 'ios' ? 'Playfair Display' : 'serif',
-    fontSize: layout.f(15),
-    fontWeight: '700',
-    color: c.white,
-  },
-  bellBtn: {
-    width: layout.s(38),
-    height: layout.s(38),
-    borderRadius: layout.s(19),
-    backgroundColor: c.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: c.border,
   },
   scroll: {
     flex: 1,

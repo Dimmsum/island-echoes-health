@@ -121,18 +121,12 @@ export function ClinicianScheduleScreen({ onOpenAppointment }: Props) {
 
   return (
     <View style={styles.root}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
-        <Text style={styles.headerTitle}>Schedule</Text>
-        <Text style={styles.headerSub}>{headerRange}</Text>
-      </View>
-
       {/* Day selector */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.dayScroll}
-        contentContainerStyle={styles.dayScrollContent}
+        contentContainerStyle={[styles.dayScrollContent, { paddingTop: insets.top + layout.s(12) }]}
       >
         {weekDays.map((day) => {
           const active = day.dateStr === selectedDate;
@@ -280,23 +274,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: c.bg,
-  },
-  header: {
-    paddingHorizontal: layout.s(24),
-    paddingBottom: layout.s(16),
-    borderBottomWidth: 1,
-    borderBottomColor: c.border,
-  },
-  headerTitle: {
-    fontFamily: Platform.OS === 'ios' ? 'Playfair Display' : 'serif',
-    fontSize: layout.f(22),
-    fontWeight: '700',
-    color: c.text1,
-    marginBottom: layout.s(2),
-  },
-  headerSub: {
-    fontSize: layout.f(12),
-    color: c.text3,
   },
   dayScroll: {
     flexGrow: 0,

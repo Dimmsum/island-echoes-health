@@ -10,6 +10,7 @@ import { ClinicianScheduleScreen } from './ClinicianScheduleScreen';
 import { ClinicianAppointmentDetailScreen } from './ClinicianAppointmentDetailScreen';
 import { ClinicianProfileScreen } from './ClinicianProfileScreen';
 import { IconHome, IconUsers, IconCalendar, IconUser } from '../user/userDesignAIcons';
+import { TermsScreen } from '../TermsScreen';
 
 type TabKey = 'dashboard' | 'patients' | 'schedule' | 'profile';
 
@@ -22,6 +23,7 @@ export function ClinicianTabsNavigator({ onSignOut }: Props) {
   const [tab, setTab] = useState<TabKey>('dashboard');
   const [activePatientId, setActivePatientId] = useState<string | null>(null);
   const [scheduleAppointmentId, setScheduleAppointmentId] = useState<string | null>(null);
+  const [profileSub, setProfileSub] = useState<'profile' | 'terms'>('profile');
 
   const TAB_BAR_BASE_HEIGHT = layout.s(56);
 
@@ -63,7 +65,15 @@ export function ClinicianTabsNavigator({ onSignOut }: Props) {
           />
         );
       case 'profile':
-        return <ClinicianProfileScreen onSignOut={onSignOut} />;
+        if (profileSub === 'terms') {
+          return <TermsScreen onBack={() => setProfileSub('profile')} variant="clinician" />;
+        }
+        return (
+          <ClinicianProfileScreen
+            onSignOut={onSignOut}
+            onOpenTerms={() => setProfileSub('terms')}
+          />
+        );
       default:
         return null;
     }
@@ -86,13 +96,9 @@ export function ClinicianTabsNavigator({ onSignOut }: Props) {
 
   const handleTabPress = (key: TabKey) => {
     setTab(key);
-    // Reset sub-navigation when switching tabs
-    if (key !== 'patients') {
-      setActivePatientId(null);
-    }
-    if (key !== 'schedule') {
-      setScheduleAppointmentId(null);
-    }
+    if (key !== 'patients') setActivePatientId(null);
+    if (key !== 'schedule') setScheduleAppointmentId(null);
+    if (key !== 'profile') setProfileSub('profile');
   };
 
   const renderTab = (key: TabKey, label: string) => {

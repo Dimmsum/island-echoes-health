@@ -112,20 +112,16 @@ export function ClinicianAppointmentDetailScreen({ appointmentId, onBack }: Prop
   const [submittingNote, setSubmittingNote] = useState(false);
 
   const backHeader = (
-    <View style={[styles.header, { paddingTop: insets.top + layout.s(16) }]}>
-      <TouchableOpacity
-        style={styles.backBtn}
-        onPress={onBack}
-        activeOpacity={0.85}
-        accessibilityRole="button"
-        accessibilityLabel="Go back to Schedule"
-      >
-        <IconChevronLeft size={16} color={c.teal} strokeWidth={2.5} />
-        <Text style={styles.backBtnText}>Schedule</Text>
-      </TouchableOpacity>
-      <Text style={styles.headerTitle}>Appointment</Text>
-      <View style={styles.headerRight} />
-    </View>
+    <TouchableOpacity
+      style={[styles.backBtn, { paddingTop: insets.top + layout.s(12) }]}
+      onPress={onBack}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel="Go back to Schedule"
+    >
+      <IconChevronLeft size={16} color={c.teal} strokeWidth={2.5} />
+      <Text style={styles.backBtnText}>Schedule</Text>
+    </TouchableOpacity>
   );
 
   if (detail.status === 'loading') {
@@ -374,38 +370,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: c.bg,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: layout.s(16),
-    paddingBottom: layout.s(14),
-    borderBottomWidth: 1,
-    borderBottomColor: c.border,
-    gap: layout.s(8),
-  },
   backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: layout.s(4),
-    paddingVertical: layout.s(4),
-    paddingRight: layout.s(8),
-    minWidth: layout.s(70),
+    paddingHorizontal: layout.s(16),
+    paddingBottom: layout.s(8),
   },
   backBtnText: {
     fontSize: layout.f(13),
     fontWeight: '600',
     color: c.teal,
-  },
-  headerTitle: {
-    flex: 1,
-    fontFamily: Platform.OS === 'ios' ? 'Playfair Display' : 'serif',
-    fontSize: layout.f(17),
-    fontWeight: '700',
-    color: c.text1,
-    textAlign: 'center',
-  },
-  headerRight: {
-    minWidth: layout.s(70),
   },
   scroll: {
     flex: 1,
