@@ -39,7 +39,7 @@ export function AppointmentsList({ appointments, patients }: Props) {
     e.preventDefault();
     setError(null);
     setCreating(true);
-    const result = await createAppointment(patientId, scheduledAt);
+    const result = await createAppointment(patientId, new Date(scheduledAt).toISOString());
     setCreating(false);
     if (result.error) {
       setError(result.error);

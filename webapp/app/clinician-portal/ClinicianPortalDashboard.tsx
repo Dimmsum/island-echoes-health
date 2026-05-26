@@ -261,7 +261,7 @@ export function ClinicianPortalDashboard({
                   placeholder="Search patients..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 pl-10 text-sm focus:border-[#1F5F2E] focus:outline-none focus:ring-2 focus:ring-[#1F5F2E]/20 sm:w-64"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 pl-10 text-sm text-black focus:border-[#1F5F2E] focus:outline-none focus:ring-2 focus:ring-[#1F5F2E]/20 sm:w-64"
                 />
                 <svg
                   className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"

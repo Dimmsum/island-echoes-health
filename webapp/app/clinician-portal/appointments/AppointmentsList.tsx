@@ -76,6 +76,103 @@ const ArrowRightIcon = () => (
   </svg>
 );
 
+const ChevronLeftIcon = () => (
+  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+  </svg>
+);
+
+const ChevronRightIcon = () => (
+  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+  </svg>
+);
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+function isSameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+type CalendarProps = {
+  month: Date;
+  selected: Date | null;
+  onMonthChange: (d: Date) => void;
+  onSelect: (d: Date) => void;
+};
+
+function Calendar({ month, selected, onMonthChange, onSelect }: CalendarProps) {
+  const year = month.getFullYear();
+  const monthIdx = month.getMonth();
+  const firstDayOfMonth = new Date(year, monthIdx, 1);
+  const startWeekday = firstDayOfMonth.getDay();
+  const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+  const today = new Date();
+
+  const cells: (Date | null)[] = [];
+  for (let i = 0; i < startWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, monthIdx, d));
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return (
+    <div className="w-full rounded-lg border border-slate-300 bg-white p-3 shadow-sm">
+      <div className="mb-3 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => onMonthChange(new Date(year, monthIdx - 1, 1))}
+          className="rounded-md p-1.5 text-slate-600 hover:bg-slate-100"
+          aria-label="Previous month"
+        >
+          <ChevronLeftIcon />
+        </button>
+        <div className="text-sm font-medium text-slate-900">
+          {MONTH_NAMES[monthIdx]} {year}
+        </div>
+        <button
+          type="button"
+          onClick={() => onMonthChange(new Date(year, monthIdx + 1, 1))}
+          className="rounded-md p-1.5 text-slate-600 hover:bg-slate-100"
+          aria-label="Next month"
+        >
+          <ChevronRightIcon />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center text-xs text-slate-500">
+        {WEEKDAY_LABELS.map((w) => (
+          <div key={w} className="py-1 font-medium">{w}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((cell, i) => {
+          if (!cell) return <div key={i} />;
+          const isSelected = selected && isSameDay(cell, selected);
+          const isToday = isSameDay(cell, today);
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onSelect(cell)}
+              className={`h-7 rounded-md text-xs transition ${
+                isSelected
+                  ? "bg-[#1F5F2E] font-semibold text-white"
+                  : isToday
+                  ? "bg-slate-100 font-semibold text-[#1F5F2E] hover:bg-slate-200"
+                  : "text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              {cell.getDate()}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 const getInitials = (name: string | null): string => {
   if (!name) return "?";
   const parts = name.trim().split(" ");
@@ -222,7 +319,13 @@ function AppointmentCard({ apt, onStatus, pendingId }: AppointmentCardProps) {
 export function AppointmentsList({ appointments, patients }: Props) {
   const [creating, setCreating] = useState(false);
   const [patientId, setPatientId] = useState(patients[0]?.id ?? "");
-  const [scheduledAt, setScheduledAt] = useState("");
+  const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
+  const [scheduledTime, setScheduledTime] = useState("09:00");
+  const [appointmentType, setAppointmentType] = useState("consultation");
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
@@ -258,14 +361,22 @@ export function AppointmentsList({ appointments, patients }: Props) {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!scheduledDate) {
+      setError("Please select a date.");
+      return;
+    }
+    const [hh, mm] = scheduledTime.split(":").map(Number);
+    const combined = new Date(scheduledDate);
+    combined.setHours(hh, mm, 0, 0);
     setCreating(true);
-    const result = await createAppointment(patientId, scheduledAt);
+    const result = await createAppointment(patientId, combined.toISOString());
     setCreating(false);
     if (result.error) {
       setError(result.error);
       return;
     }
-    setScheduledAt("");
+    setScheduledDate(null);
+    setScheduledTime("09:00");
     setShowCreateForm(false);
   }
 
@@ -421,8 +532,8 @@ export function AppointmentsList({ appointments, patients }: Props) {
       {showCreateForm && (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="mb-6 text-lg font-semibold text-slate-900">Create new appointment</h3>
-          <form onSubmit={handleCreate} className="space-y-6">
-            <div className="grid gap-6 sm:grid-cols-2">
+          <form onSubmit={handleCreate} className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+            <div className="space-y-4">
               <div>
                 <label htmlFor="patient" className="mb-1.5 block text-sm font-medium text-slate-700">
                   Patient
@@ -442,50 +553,115 @@ export function AppointmentsList({ appointments, patients }: Props) {
                 </select>
               </div>
               <div>
-                <label htmlFor="scheduled_at" className="mb-1.5 block text-sm font-medium text-slate-700">
-                  Date & time
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">Date</label>
+                <Calendar
+                  month={calendarMonth}
+                  selected={scheduledDate}
+                  onMonthChange={setCalendarMonth}
+                  onSelect={(d) => {
+                    setScheduledDate(d);
+                    setCalendarMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div>
+                <label htmlFor="scheduled_time" className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Time
                 </label>
                 <input
-                  id="scheduled_at"
-                  type="datetime-local"
-                  value={scheduledAt}
-                  onChange={(e) => setScheduledAt(e.target.value)}
+                  id="scheduled_time"
+                  type="time"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
                   required
                   className="block w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
                 />
               </div>
-            </div>
-            {error && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>
-            )}
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="submit"
-                disabled={creating}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#1F5F2E] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#174a23] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {creating ? (
-                  <>
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <PlusIcon />
-                    Create appointment
-                  </>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCreateForm(false);
-                  setError(null);
-                }}
-                className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
-              >
-                Cancel
-              </button>
+              <div>
+                <label htmlFor="appointment_type" className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Appointment Type
+                </label>
+                <select
+                  id="appointment_type"
+                  value={appointmentType}
+                  onChange={(e) => setAppointmentType(e.target.value)}
+                  required
+                  className="block w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
+                >
+                  <option value="consultation">Consultation</option>
+                  <option value="follow_up">Follow-up</option>
+                  <option value="check_up">Check-up</option>
+                  <option value="screening">Screening</option>
+                  <option value="vaccination">Vaccination</option>
+                  <option value="telehealth">Telehealth</option>
+                </select>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Selected</div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2.5 text-sm text-slate-900">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1F5F2E]/10 text-[#1F5F2E]">
+                      <CalendarIcon />
+                    </span>
+                    <span className={scheduledDate ? "font-medium" : "italic text-slate-400"}>
+                      {scheduledDate
+                        ? scheduledDate.toLocaleDateString(undefined, {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })
+                        : "No date selected"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-sm text-slate-900">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1F5F2E]/10 text-[#1F5F2E]">
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </span>
+                    <span className="font-medium">{scheduledTime}</span>
+                  </div>
+                </div>
+              </div>
+
+              {error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>
+              )}
+
+              <div className="mt-auto flex flex-wrap gap-3">
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#1F5F2E] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#174a23] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {creating ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <PlusIcon />
+                      Create appointment
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateForm(false);
+                    setError(null);
+                  }}
+                  className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </form>
         </div>
