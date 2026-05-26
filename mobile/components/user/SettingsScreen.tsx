@@ -8,9 +8,10 @@ import { IconChevronLeft } from './userDesignAIcons';
 type Props = {
   onBack: () => void;
   onSignOut: () => void;
+  onOpenTerms: () => void;
 };
 
-export function SettingsScreen({ onBack, onSignOut }: Props) {
+export function SettingsScreen({ onBack, onSignOut, onOpenTerms }: Props) {
   const insets = useSafeAreaInsets();
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
@@ -31,6 +32,18 @@ export function SettingsScreen({ onBack, onSignOut }: Props) {
 
         <View style={styles.content}>
           <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Legal</Text>
+            <TouchableOpacity
+              style={styles.rowButton}
+              activeOpacity={0.85}
+              onPress={onOpenTerms}
+            >
+              <Text style={styles.rowLabel}>Terms & Conditions</Text>
+              <Text style={styles.rowLabelSub}>View our terms of service</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={[styles.section, { marginTop: layout.s(12) }]}>
             <Text style={styles.sectionLabel}>Account</Text>
             <TouchableOpacity
               style={styles.rowButton}

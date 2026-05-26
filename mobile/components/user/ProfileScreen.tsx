@@ -138,7 +138,7 @@ export function ProfileScreen({ onOpenSettings }: Props) {
             {avatarUrl ? (
               <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
             ) : (
-              <IconUser size={32} color={c.y900} />
+              <Text style={styles.avatarText}>{initials || '?'}</Text>
             )}
           </TouchableOpacity>
           <Text style={styles.name}>{fullName}</Text>
@@ -325,6 +325,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: layout.s(12),
+    backgroundColor: c.y500,
+    borderWidth: 3,
+    borderColor: c.y300,
+    overflow: 'hidden',
   },
   avatarImage: {
     width: '100%',

@@ -12,6 +12,7 @@ import { SettingsScreen } from './SettingsScreen';
 import { LinkPatientScreen } from './LinkPatientScreen';
 import { userDesignATheme as c } from './userDesignATheme';
 import { IconCalendar, IconHome, IconUser, IconUsers } from './userDesignAIcons';
+import { TermsScreen } from '../TermsScreen';
 
 type TabKey = 'home' | 'patients' | 'appointments' | 'profile';
 
@@ -24,7 +25,7 @@ export function UserTabsNavigator({ onSignOut }: Props) {
   const [tab, setTab] = useState<TabKey>('home');
   const [activePatientLinkId, setActivePatientLinkId] = useState<string | null>(null);
   const [activeAppointmentId, setActiveAppointmentId] = useState<string | null>(null);
-  const [profileSub, setProfileSub] = useState<'profile' | 'settings'>('profile');
+  const [profileSub, setProfileSub] = useState<'profile' | 'settings' | 'terms'>('profile');
   const [patientsSub, setPatientsSub] = useState<'list' | 'link'>('list');
   const TAB_BAR_BASE_HEIGHT = layout.s(56);
 
@@ -61,8 +62,17 @@ export function UserTabsNavigator({ onSignOut }: Props) {
           />
         );
       case 'profile':
+        if (profileSub === 'terms') {
+          return <TermsScreen onBack={() => setProfileSub('settings')} variant="user" />;
+        }
         if (profileSub === 'settings') {
-          return <SettingsScreen onBack={() => setProfileSub('profile')} onSignOut={onSignOut} />;
+          return (
+            <SettingsScreen
+              onBack={() => setProfileSub('profile')}
+              onSignOut={onSignOut}
+              onOpenTerms={() => setProfileSub('terms')}
+            />
+          );
         }
         return <ProfileScreen onOpenSettings={() => setProfileSub('settings')} />;
       default:

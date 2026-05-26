@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { ClinicianHomeScreen } from './ClinicianHomeScreen';
+import { ClinicianTabsNavigator } from './clinician/ClinicianTabsNavigator';
 import { UserTabsNavigator } from './user/UserTabsNavigator';
 import { getCurrentUserRole } from '../lib/auth';
 import { supabase } from '../lib/supabase';
@@ -41,7 +41,7 @@ export function HomeRouter({ onSignOut }: Props) {
   }
 
   if (role === 'clinician' || role === 'admin') {
-    return <ClinicianHomeScreen onSignOut={onSignOut} />;
+    return <ClinicianTabsNavigator onSignOut={onSignOut} />;
   }
 
   return <UserTabsNavigator onSignOut={onSignOut} />;

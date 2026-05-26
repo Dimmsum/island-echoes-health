@@ -30,7 +30,8 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.dimmsum.Island-Echoes-Health"
     },
     "android": {
       "adaptiveIcon": {
