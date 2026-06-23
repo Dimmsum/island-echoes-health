@@ -17,7 +17,20 @@ delete from public.sponsorship_consent_requests;
 delete from public.care_plans;
 
 -- ============================================================
--- STEP 2: Insert the single simplified care plan row.
+-- STEP 2: Drop tier-specific columns from care_plans.
+-- Must happen before the insert so the NOT NULL constraints on these
+-- columns don't block the new simplified row.
+-- ============================================================
+
+alter table public.care_plans
+  drop column if exists visits_per_month,
+  drop column if exists vitals_each_visit,
+  drop column if exists chronic_labs_per_quarter,
+  drop column if exists features,
+  drop column if exists stripe_price_id;
+
+-- ============================================================
+-- STEP 3: Insert the single simplified care plan row.
 -- Kept as a reference anchor since FKs on the two tables above still point here.
 -- price_cents is 0 — actual money flows through patient_wallets, not this table.
 -- ============================================================
@@ -30,18 +43,6 @@ values (
   'monthly',
   'Support a patient''s healthcare access. Contribute any amount to their care wallet.'
 );
-
--- ============================================================
--- STEP 3: Drop tier-specific columns from care_plans.
--- These encoded per-tier service levels and Stripe price caching that no longer apply.
--- ============================================================
-
-alter table public.care_plans
-  drop column if exists visits_per_month,
-  drop column if exists vitals_each_visit,
-  drop column if exists chronic_labs_per_quarter,
-  drop column if exists features,
-  drop column if exists stripe_price_id;
 
 -- ============================================================
 -- STEP 4: Replace the unique index on sponsor_patient_plans.
@@ -60,7 +61,11 @@ comment on index public.idx_sponsor_patient_plans_unique_active
 
 -- ============================================================
 -- STEP 5: Patient wallet tables (new payment model).
+-- Drop first so re-runs always produce the correct schema.
 -- ============================================================
+
+drop table if exists public.wallet_transactions;
+drop table if exists public.patient_wallets;
 
 -- One wallet per patient; balance must never go negative.
 create table public.patient_wallets (
@@ -101,6 +106,16 @@ create index idx_wallet_transactions_stripe_pi on public.wallet_transactions(str
 alter table public.patient_wallets enable row level security;
 alter table public.wallet_transactions enable row level security;
 
+-- Drop policies before recreating so re-runs are safe.
+drop policy if exists "Patient reads own wallet" on public.patient_wallets;
+drop policy if exists "Sponsor reads linked patient wallet" on public.patient_wallets;
+drop policy if exists "Clinician reads patient wallet" on public.patient_wallets;
+drop policy if exists "Service role manages wallets" on public.patient_wallets;
+drop policy if exists "Patient reads own wallet transactions" on public.wallet_transactions;
+drop policy if exists "Sponsor reads linked patient wallet transactions" on public.wallet_transactions;
+drop policy if exists "Clinician reads patient wallet transactions" on public.wallet_transactions;
+drop policy if exists "Service role manages wallet transactions" on public.wallet_transactions;
+
 -- Patient reads own wallet.
 create policy "Patient reads own wallet"
   on public.patient_wallets for select
@@ -120,7 +135,7 @@ create policy "Sponsor reads linked patient wallet"
     )
   );
 
--- Clinician reads any patient's wallet they have an appointment with.
+-- Clinician reads any patient's wallet.
 create policy "Clinician reads patient wallet"
   on public.patient_wallets for select
   to authenticated
