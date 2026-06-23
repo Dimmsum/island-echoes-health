@@ -10,7 +10,6 @@ import {
 } from "./middleware/requireRole.js";
 import * as auth from "./routes/auth.js";
 import * as me from "./routes/me.js";
-import * as carePlans from "./routes/care-plans.js";
 import * as home from "./routes/home.js";
 import * as profile from "./routes/profile.js";
 import * as notifications from "./routes/notifications.js";
@@ -20,6 +19,7 @@ import * as clinician from "./routes/clinician.js";
 import * as clinicianPortal from "./routes/clinician-portal.js";
 import * as appointments from "./routes/appointments.js";
 import * as stripe from "./routes/stripe.js";
+import * as wallet from "./routes/wallet.js";
 
 const app = express();
 const upload = multer({ dest: path.join(process.cwd(), "tmp-uploads") });
@@ -71,12 +71,6 @@ app.post("/api/auth/verify-otp", (req, res, next) =>
 app.use("/api/me", authMiddleware, (req, res, next) =>
   me.getMe(req as Parameters<typeof me.getMe>[0], res).catch(next),
 );
-app.use("/api/care-plans", authMiddleware, (req, res, next) =>
-  carePlans
-    .listCarePlans(req as Parameters<typeof carePlans.listCarePlans>[0], res)
-    .catch(next),
-);
-
 // Home
 app.get("/api/home", authMiddleware, (req, res, next) =>
   home.getHome(req as Parameters<typeof home.getHome>[0], res).catch(next),
@@ -112,16 +106,13 @@ app.get("/api/home/appointments/:id", authMiddleware, (req, res, next) =>
 );
 
 // Sponsorship
-app.post(
-  "/api/sponsorship/create-payment",
-  authMiddleware,
-  (req: express.Request, res, next) =>
-    stripe
-      .createSponsorshipPayment(
-        req as Parameters<typeof stripe.createSponsorshipPayment>[0],
-        res,
-      )
-      .catch(next),
+app.post("/api/sponsorship/invite", authMiddleware, (req, res, next) =>
+  sponsorship
+    .createSponsorshipInvite(
+      req as Parameters<typeof sponsorship.createSponsorshipInvite>[0],
+      res,
+    )
+    .catch(next),
 );
 app.post("/api/stripe/portal", authMiddleware, (req, res, next) =>
   stripe
@@ -138,17 +129,6 @@ app.post("/api/stripe/portal/subscription", authMiddleware, (req, res, next) =>
       res,
     )
     .catch(next),
-);
-app.post(
-  "/api/sponsorship/consent-requests",
-  authMiddleware,
-  (req, res, next) =>
-    sponsorship
-      .createConsentRequest(
-        req as Parameters<typeof sponsorship.createConsentRequest>[0],
-        res,
-      )
-      .catch(next),
 );
 app.post("/api/sponsorship/accept", authMiddleware, (req, res, next) =>
   sponsorship
@@ -400,6 +380,34 @@ app.post(
         res,
       )
       .catch(next),
+);
+
+// Wallet
+app.get("/api/wallet", authMiddleware, (req, res, next) =>
+  wallet
+    .getWallet(req as Parameters<typeof wallet.getWallet>[0], res)
+    .catch(next),
+);
+app.post("/api/wallet/topup/intent", authMiddleware, (req, res, next) =>
+  wallet
+    .createTopupIntent(
+      req as Parameters<typeof wallet.createTopupIntent>[0],
+      res,
+    )
+    .catch(next),
+);
+app.post("/api/wallet/topup/confirm", authMiddleware, (req, res, next) =>
+  wallet
+    .confirmTopup(req as Parameters<typeof wallet.confirmTopup>[0], res)
+    .catch(next),
+);
+app.get("/api/wallet/transactions", authMiddleware, (req, res, next) =>
+  wallet
+    .getWalletTransactions(
+      req as Parameters<typeof wallet.getWalletTransactions>[0],
+      res,
+    )
+    .catch(next),
 );
 
 // 404 handler for unknown API routes

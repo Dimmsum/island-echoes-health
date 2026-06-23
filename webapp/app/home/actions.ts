@@ -8,17 +8,17 @@ export type HomeActionResult = { error: string | null };
 const API_BASE =
   process.env.API_URL?.trim() || "http://localhost:4001";
 
-export type CreatePaymentResult =
-  | {
-      error: string | null;
-      redirectUrl?: undefined;
-      consentRequestId?: undefined;
-    }
-  | { error: null; redirectUrl: string; consentRequestId: string };
+export type InvitePatientResult =
+  | { error: string; consentRequestId?: undefined }
+  | { error: null; consentRequestId: string };
 
-export type PurchasePlanResult =
+export type TopupIntentResult =
   | { error: string }
-  | { error: null; redirectUrl: string };
+  | { error: null; clientSecret: string; paymentIntentId: string };
+
+export type ConfirmTopupResult =
+  | { error: string }
+  | { error: null; credited: boolean; balanceCents: number | null };
 
 export type BillingPortalResult =
   | { error: string; url?: undefined }
@@ -26,11 +26,10 @@ export type BillingPortalResult =
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Calls API to create a Stripe setup-checkout session for sponsorship. */
-export async function createPaymentForPlan(
+/** Sends a sponsorship invite to a patient. No payment required — patient must accept consent. */
+export async function invitePatient(
   patientEmail: string,
-  carePlanId: string,
-): Promise<CreatePaymentResult> {
+): Promise<InvitePatientResult> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -44,19 +43,43 @@ export async function createPaymentForPlan(
   const email = patientEmail.trim().toLowerCase();
   if (!email) return { error: "Patient email is required." };
   if (!EMAIL_REGEX.test(email)) return { error: "Invalid email address." };
-  if (!carePlanId) return { error: "Care plan is required." };
 
-  // Idempotency key scoped to this clinician + plan + patient to prevent duplicate checkouts.
-  const idempotencyKey = `${user.id}:${carePlanId}:${email}`;
-
-  const res = await fetch(`${API_BASE}/api/sponsorship/create-payment`, {
+  const res = await fetch(`${API_BASE}/api/sponsorship/invite`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${session.access_token}`,
       "Content-Type": "application/json",
-      "Idempotency-Key": idempotencyKey,
     },
-    body: JSON.stringify({ patientEmail: email, carePlanId }),
+    body: JSON.stringify({ patientEmail: email }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return { error: data?.error ?? "Failed to send invite." };
+  }
+
+  if (!data.consentRequestId) return { error: "Invalid response from server." };
+  return { error: null, consentRequestId: data.consentRequestId };
+}
+
+/** Creates a Stripe PaymentIntent for a wallet top-up. */
+export async function createTopupIntent(
+  patientId: string,
+  amountCents: number,
+): Promise<TopupIntentResult> {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) return { error: "Not signed in." };
+
+  const res = await fetch(`${API_BASE}/api/wallet/topup/intent`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ patientId, amountCents }),
   });
 
   const data = await res.json().catch(() => ({}));
@@ -64,37 +87,43 @@ export async function createPaymentForPlan(
     const message =
       res.status === 503
         ? "Payments are not configured. Please try again later."
-        : (data?.error ?? "Failed to start payment setup.");
+        : (data?.error ?? "Failed to create payment.");
     return { error: message };
   }
 
-  if (!data.checkoutUrl) return { error: "Invalid response from server." };
+  if (!data.clientSecret) return { error: "Invalid response from server." };
+  return { error: null, clientSecret: data.clientSecret, paymentIntentId: data.paymentIntentId };
+}
+
+/** Credits the wallet after client-side payment confirmation. Idempotent on the backend. */
+export async function confirmTopup(
+  paymentIntentId: string,
+): Promise<ConfirmTopupResult> {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) return { error: "Not signed in." };
+
+  const res = await fetch(`${API_BASE}/api/wallet/topup/confirm`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ paymentIntentId }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return { error: data?.error ?? "Failed to confirm payment." };
+  }
 
   return {
     error: null,
-    redirectUrl: data.checkoutUrl,
-    consentRequestId: data.consentRequestId,
+    credited: data.credited ?? false,
+    balanceCents: data.balanceCents ?? null,
   };
-}
-
-export async function purchasePlanForPatient(
-  patientEmail: string,
-  carePlanId: string,
-): Promise<PurchasePlanResult> {
-  const result = await createPaymentForPlan(patientEmail, carePlanId);
-  if (result.error || !result.redirectUrl) {
-    return { error: result.error ?? "Failed to start payment setup." };
-  }
-  return { error: null, redirectUrl: result.redirectUrl };
-}
-
-export async function attachPaymentMethodAfterSetup(
-  sessionId: string,
-): Promise<HomeActionResult> {
-  if (!sessionId) return { error: "Missing setup session." };
-  // Setup completion is handled by API webhook (checkout.session.completed).
-  revalidatePath("/home");
-  return { error: null };
 }
 
 export async function acceptConsentRequest(

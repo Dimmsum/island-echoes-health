@@ -27,9 +27,6 @@ export default function Home() {
             <Link href="/about" className="hover:text-[#1F5F2E]">
               About
             </Link>
-            <Link href="/pricing" className="hover:text-[#1F5F2E]">
-              Pricing
-            </Link>
           </nav>
         </header>
 

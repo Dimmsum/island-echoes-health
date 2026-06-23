@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { BillingPortalButton } from "./BillingPortalButton";
 import { ConsentRequestCards } from "./ConsentRequestCards";
-import { PurchasePlanForm } from "./PurchasePlanForm";
+import { SupportPatientForm } from "./PurchasePlanForm";
 import { UserNavbar } from "./UserNavbar";
+import { WalletCard, type WalletTransaction } from "./WalletCard";
 
 const CalendarIcon = ({ className }: { className?: string }) => (
   <svg
@@ -154,13 +154,11 @@ type Notification = {
   reference_id: string | null;
 };
 
-type CarePlan = {
+type Wallet = {
   id: string;
-  slug: string;
-  name: string;
-  price_cents: number;
-  features: string[] | null;
-};
+  balanceCents: number;
+  updatedAt: string;
+} | null;
 
 type Props = {
   fullName: string | null;
@@ -169,7 +167,10 @@ type Props = {
   pendingConsents: PendingConsent[];
   upcomingAppointments: Appointment[];
   notifications: Notification[];
-  carePlans: CarePlan[];
+  wallet: Wallet;
+  walletTransactions: WalletTransaction[];
+  patientId: string | null;
+  viewerId: string | null;
 };
 
 export function UserHome({
@@ -179,7 +180,10 @@ export function UserHome({
   pendingConsents,
   upcomingAppointments,
   notifications,
-  carePlans,
+  wallet,
+  walletTransactions,
+  patientId,
+  viewerId,
 }: Props) {
   const greeting = fullName ? `Welcome back, ${fullName}` : "Welcome back";
   const hasLinkedPatients = linkedPatients.length > 0;
@@ -227,7 +231,7 @@ export function UserHome({
                     Your sponsors
                   </h2>
                   <p className="mt-0.5 text-sm text-slate-600">
-                    People supporting your care through purchased plans
+                    People who have chosen to support your care
                   </p>
                 </div>
               </div>
@@ -266,6 +270,19 @@ export function UserHome({
             </div>
           )}
 
+          {/* Wallet section — shown for patients with a wallet */}
+          {wallet && patientId && (
+            <div className="mt-10">
+              <WalletCard
+                walletId={wallet.id}
+                balanceCents={wallet.balanceCents}
+                transactions={walletTransactions}
+                patientId={patientId}
+                viewerId={viewerId}
+              />
+            </div>
+          )}
+
           {hasLinkedPatients && (
             <div className="mt-10">
               <div className="flex items-center gap-3">
@@ -278,7 +295,7 @@ export function UserHome({
                   </h2>
                   <p className="mt-0.5 text-sm text-slate-600">
                     View metrics, appointments, and visit summaries for patients
-                    you sponsor
+                    you support
                   </p>
                 </div>
               </div>
@@ -312,7 +329,7 @@ export function UserHome({
                               )}
                             </h3>
                             <p className="mt-1 text-sm text-slate-600">
-                              {link.care_plan?.name ?? "Plan"}
+                              {link.care_plan?.name ?? "Supported patient"}
                             </p>
                             <div className="mt-3 flex items-center gap-1 text-sm font-medium text-[#1F5F2E]">
                               <span>View details</span>
@@ -321,12 +338,6 @@ export function UserHome({
                           </div>
                         </div>
                       </Link>
-                      <div className="mt-4 border-t border-slate-100 pt-4">
-                        <BillingPortalButton
-                          label="Manage billing for this sponsorship"
-                          planId={link.id}
-                        />
-                      </div>
                     </div>
                   </li>
                 ))}
@@ -435,18 +446,18 @@ export function UserHome({
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">
                   {hasLinkedPatients
-                    ? "Link another patient"
-                    : "Purchase a plan for a patient"}
+                    ? "Support another patient"
+                    : "Support a family member"}
                 </h2>
                 <p className="mt-0.5 text-sm text-slate-600">
                   {hasLinkedPatients
-                    ? "Purchase a care plan for an additional patient"
-                    : "Get started by selecting a care plan"}
+                    ? "Send a care support invite to an additional patient"
+                    : "Send a care support invite to get started"}
                 </p>
               </div>
             </div>
             <div className="mt-6">
-              <PurchasePlanForm carePlans={carePlans} />
+              <SupportPatientForm />
             </div>
           </div>
         </section>
