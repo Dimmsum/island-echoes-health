@@ -7,8 +7,8 @@
 | Field | Value |
 |---|---|
 | **Last session date** | 2026-06-23 |
-| **Current focus area** | Priority 1 — Remove care plan tiers & simplify payment |
-| **Status** | In progress — 1.1 (DB) + 1.2 (backend) + 1.3 (web) complete, Stripe top-up crediting fixed (00032), 1.4 (mobile) next |
+| **Current focus area** | Priority 2 — Healthcare Recommendations |
+| **Status** | Re-scoped — recommendations now a live **Google Places** proxy (no owned catalog), ratings **off-platform** on Google. 2.1 is DB-less (no migration). Next: 2.2 backend proxy. (Priority 1.4 mobile still deferred.) |
 
 > Update this table at the start of each session.
 
@@ -22,6 +22,7 @@
 | 2 | 2026-06-23 | Priority 1.2 — Backend: decouple consent, wallet API | New routes: POST /sponsorship/invite, GET+POST /wallet, GET /wallet/transactions. Removed create-payment + care-plans routes. Migration 00031: increment_wallet_balance fn. TypeScript build clean. |
 | 3 | 2026-06-23 | Priority 1.3 — Web: wallet UI, remove pricing, update copy | Replaced /pricing with redirect. Removed Pricing nav link. Rewrote PurchasePlanForm → SupportPatientForm (email-only invite). Added WalletCard (balance + transactions + topup intent). Updated UserHome copy. Added wallet section to sponsored/[id] page. Build clean. |
 | 4 | 2026-06-23 | Stripe top-up: full Elements flow + crediting fix | Wired full Stripe Elements payment (PaymentElement + confirmPayment) in WalletCard; added webapp/lib/stripe.ts singleton. Removed stale BillingPortalButton from UserHome + profile. Diagnosed: wallet only credited in webhook, which never reaches localhost (no Stripe CLI / no STRIPE_WEBHOOK_SECRET). Fix: migration 00032 (unique index on stripe_payment_intent_id + idempotent credit_wallet_topup fn); new POST /api/wallet/topup/confirm endpoint (verifies PI w/ Stripe, credits idempotently); webhook refactored to same RPC; frontend calls confirmTopup + router.refresh() after payment. Both builds clean. **Migration 00032 must be applied in Supabase.** |
+| 5 | 2026-06-23 | Priority 2 re-scoped — recommendations direction | Decided: recommendations is a **live Google Places proxy**, not an owned/curated catalog (avoids implying endorsement); providers fetched by location + need. Ratings happen **off-platform on Google** (link out via `googleMapsUri`) — no in-app feedback. **2.1 is DB-less** (no `providers`/`provider_feedback` tables, no migration). Updated PROGRESS + PRODUCT_GAP_ANALYSIS. Next: 2.2 backend proxy. |
 
 > Add a row each session. Example: `| 1 | 2026-06-22 | Priority 1 — Remove care plan tiers | Completed DB migration, updated LinkPatientScreen |`
 
@@ -67,32 +68,29 @@ Items are ordered by the recommended priority from the gap analysis. Check off e
 
 ---
 
-### Priority 2 — Healthcare Recommendations Directory
-> Build the provider directory from scratch. This is the highest-priority new feature.
+### Priority 2 — Healthcare Recommendations
+> A trusted healthcare **navigation** experience: users find clinics, specialists, mental-health providers, pharmacies, labs, and wellness resources **based on their location and what they need help with**.
+>
+> **Direction (re-scoped 2026-06-23):** Providers are fetched **live from the Google Places API**, not stored in an owned/curated catalog — we don't want to imply we endorse a hand-picked list. Ratings/reviews happen **off-platform on Google**; we surface each provider's Google rating and a "view / rate on Google" link (`googleMapsUri`). No in-app feedback, no owned provider data.
 
-- [ ] **2.1 — Database**
-  - [ ] Create `providers` table (id, name, category enum, country, city, description, website, phone, verified, created_at)
-  - [ ] Create `provider_category` enum (clinic, mental_health, specialist, pharmacy, diagnostic, wellness)
-  - [ ] Create `provider_feedback` table (id, provider_id, user_id, rating 1–5, comment, created_at)
-  - [ ] Add RLS policies (public read, authenticated users submit feedback, admin manages providers)
+- [x] **2.1 — Database** — **DB-less, no migration.** Providers come live from Google Places; ratings are off-platform. No `providers` or `provider_feedback` tables are created. (Superseded the original owned-catalog + in-app-feedback sketch.)
 
-- [ ] **2.2 — Backend**
-  - [ ] `GET /api/recommendations` — list/search with filters (category, country, search term)
-  - [ ] `GET /api/recommendations/:id` — provider detail + aggregated rating + feedback list
-  - [ ] `POST /api/recommendations/:id/feedback` — authenticated user submits rating/comment
-  - [ ] `POST /api/admin/providers` — admin creates provider listing
-  - [ ] `PATCH /api/admin/providers/:id` — admin edits/verifies provider
+- [ ] **2.2 — Backend** (Google Places proxy)
+  - [ ] `GET /api/recommendations/search` — query Google Places by `lat`, `lng`, `category`/`q`, `radius`; return normalized providers (name, address, location, rating, `googleMapsUri`, phone, website)
+  - [ ] `GET /api/recommendations/:placeId` — Place Details passthrough (normalized provider detail)
+  - [ ] New `api/src/lib/googlePlaces.ts` client (native fetch, mirrors `lib/stripe.ts`) with a healthcare-category → Google-query/type map (clinic, mental_health, specialist, pharmacy, diagnostic, wellness)
+  - [ ] Add `GOOGLE_PLACES_API_KEY` env var (API only); guard unconfigured with 503
+  - [ ] Mount both routes in `index.ts` behind `authMiddleware`
 
 - [ ] **2.3 — Mobile**
   - [ ] Add Recommendations tab to `UserTabsNavigator`
-  - [ ] Build `RecommendationsScreen` — list with search bar and category filter chips
-  - [ ] Build `ProviderDetailScreen` — info, rating, feedback list, "Request referral" CTA
-  - [ ] Add country/location filter UI
+  - [ ] Build `RecommendationsScreen` — search bar + category filter chips, consumes `/api/recommendations/search`
+  - [ ] Build `ProviderDetailScreen` — info + Google rating + **"View / rate on Google"** link (opens `googleMapsUri`) + "Request referral" CTA
+  - [ ] Add location filter UI (uses device location / lat-lng input)
 
 - [ ] **2.4 — Web**
-  - [ ] Create `/recommendations` page — provider directory with search + filters
-  - [ ] Create `/recommendations/[id]` page — provider detail view
-  - [ ] Add admin UI for managing provider listings
+  - [ ] Create `/recommendations` page — search + filters, consumes `/api/recommendations/search`
+  - [ ] Create `/recommendations/[id]` page — provider detail with Google rating + "View / rate on Google" link out
 
 ---
 
@@ -251,5 +249,6 @@ Items are ordered by the recommended priority from the gap analysis. Check off e
 | Item | Blocker |
 |---|---|
 | 1.1 — Single sponsorship amount | **Resolved**: wallet model — no fixed amount; any user tops up patient's wallet |
-| 2.1 — Provider seeding | Who seeds initial provider listings? Admin manually or import? |
+| 2.1 — Provider seeding | **Resolved**: no seeding — providers are fetched live from Google Places, not stored/curated by us. Ratings are off-platform on Google. |
+| 2.2 — External provider API | **Resolved**: Google Places API. Requires a Google Cloud key (`GOOGLE_PLACES_API_KEY`) with the Places API enabled + billing. |
 
