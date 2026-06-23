@@ -6,9 +6,9 @@
 
 | Field | Value |
 |---|---|
-| **Last session date** | — |
-| **Current focus area** | — |
-| **Status** | Not started |
+| **Last session date** | 2026-06-23 |
+| **Current focus area** | Priority 1 — Remove care plan tiers & simplify payment |
+| **Status** | In progress — 1.1 (DB) complete, 1.2 (backend) next |
 
 > Update this table at the start of each session.
 
@@ -18,7 +18,7 @@
 
 | # | Date | Focus | Notes |
 |---|---|---|---|
-| — | — | — | — |
+| 1 | 2026-06-23 | Priority 1.1 — Simplify care plans DB + add patient wallet | Migration 00030 written: dropped tier columns, single sponsorship seed, new patient_wallets + wallet_transactions tables with RLS |
 
 > Add a row each session. Example: `| 1 | 2026-06-22 | Priority 1 — Remove care plan tiers | Completed DB migration, updated LinkPatientScreen |`
 
@@ -33,9 +33,12 @@ Items are ordered by the recommended priority from the gap analysis. Check off e
 ### Priority 1 — Remove Care Plan Tiers & Simplify Payment
 > Collapse 3-tier care plan model into a single sponsorship option. Retain ability for sponsors AND patients to pay.
 
-- [ ] **1.1 — Database**
-  - [ ] Write migration to deprecate/remove tier-specific columns (`visits_per_month`, `chronic_labs_per_quarter`, `features` array, `stripe_price_id`) from `care_plans`
-  - [ ] Decide on single flat sponsorship amount and update seed data
+- [x] **1.1 — Database**
+  - [x] Write migration to deprecate/remove tier-specific columns (`visits_per_month`, `chronic_labs_per_quarter`, `features` array, `stripe_price_id`) from `care_plans`
+  - [x] Decided on wallet model (no fixed amount); seeded single `sponsorship` row with price_cents=0
+  - [x] Added `patient_wallets` and `wallet_transactions` tables with RLS policies
+  - [x] Fixed `idx_sponsor_patient_plans_unique_active` to drop `care_plan_id` from the index
+  - Migration: `supabase/migrations/00030_simplify_care_plans_and_add_wallet.sql`
 
 - [ ] **1.2 — Backend**
   - [ ] Simplify `POST /api/sponsorship/create-payment` to not require `care_plan_id`
@@ -236,6 +239,6 @@ Items are ordered by the recommended priority from the gap analysis. Check off e
 
 | Item | Blocker |
 |---|---|
-| 1.1 — Single sponsorship amount | What is the flat amount? Or is it flexible/custom? |
+| 1.1 — Single sponsorship amount | **Resolved**: wallet model — no fixed amount; any user tops up patient's wallet |
 | 2.1 — Provider seeding | Who seeds initial provider listings? Admin manually or import? |
 
