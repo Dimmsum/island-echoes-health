@@ -1,99 +1,93 @@
 import { Response } from "express";
 import { createSupabaseForUser, createClientAdmin } from "../lib/supabase.js";
 import { createNotification } from "../lib/notifications.js";
-import {
-  cancelSubscription,
-  createSubscription,
-  ensureCustomerForPaymentMethod,
-  getOrCreatePriceForCarePlan,
-  getStripe,
-} from "../lib/stripe.js";
+import { cancelSubscription } from "../lib/stripe.js";
 import type { AuthRequest } from "../middleware/auth.js";
 
-export async function createConsentRequest(
+/**
+ * POST /api/sponsorship/invite
+ * Body: { patientEmail }
+ * Sponsor invites a patient by email. Creates a pending consent request (no Stripe required).
+ * Notifies the patient if they already have an account.
+ */
+export async function createSponsorshipInvite(
   req: AuthRequest,
   res: Response,
 ): Promise<void> {
-  if (process.env.ALLOW_LEGACY_SIMULATED_SPONSORSHIP !== "true") {
-    res.status(410).json({
-      error:
-        "Legacy simulated sponsorship is disabled. Use /api/sponsorship/create-payment instead.",
-    });
-    return;
-  }
-
   const supabase = createSupabaseForUser(req.accessToken);
   const userId = req.user.id;
-  const { patientEmail, carePlanId } = req.body as {
-    patientEmail?: string;
-    carePlanId?: string;
-  };
+  const { patientEmail } = req.body as { patientEmail?: string };
 
   const email = (patientEmail as string)?.trim()?.toLowerCase();
   if (!email) {
     res.status(400).json({ error: "Patient email is required." });
     return;
   }
-  if (!carePlanId) {
-    res.status(400).json({ error: "Care plan is required." });
-    return;
-  }
 
-  const { data: plan } = await supabase
+  // Auto-fetch the single sponsorship plan as the FK anchor on consent requests.
+  const admin = createClientAdmin();
+  const { data: plan } = await admin
     .from("care_plans")
-    .select("id, name")
-    .eq("id", carePlanId)
+    .select("id")
+    .eq("slug", "sponsorship")
     .single();
+
   if (!plan) {
-    res.status(400).json({ error: "Invalid plan." });
+    res.status(500).json({ error: "Sponsorship plan not configured." });
     return;
   }
 
-  const { data: profile } = await supabase
+  const { data: sponsorProfile } = await supabase
     .from("profiles")
     .select("full_name")
     .eq("id", userId)
     .single();
-  const sponsorName = profile?.full_name ?? "A sponsor";
+  const sponsorName = sponsorProfile?.full_name ?? "A sponsor";
 
   const { data: consentRequest, error: insertError } = await supabase
     .from("sponsorship_consent_requests")
     .insert({
       sponsor_id: userId,
       patient_email: email,
-      care_plan_id: carePlanId,
+      care_plan_id: plan.id,
       status: "pending",
-      payment_simulated_at: new Date().toISOString(),
     })
     .select("id")
     .single();
 
   if (insertError) {
-    res.status(500).json({ error: "Failed to submit. Please try again." });
+    res.status(500).json({ error: "Failed to create invite. Please try again." });
     return;
   }
 
-  const admin = createClientAdmin();
+  // Notify patient if they already have an account.
   const { data: patientUserId } = await admin.rpc("get_user_id_by_email", {
     e: email,
   });
+
   if (patientUserId) {
     await admin
       .from("sponsorship_consent_requests")
       .update({ patient_id: patientUserId })
       .eq("id", consentRequest.id);
+
     await createNotification(
       patientUserId,
       "consent_request",
-      `${sponsorName} wants to sponsor your care`,
-      `${sponsorName} has purchased the ${plan.name} plan for you. Accept to allow them to see your health information and appointment schedules.`,
+      `${sponsorName} wants to support your care`,
+      `${sponsorName} has sent you a sponsorship request. Accept to allow them to see your health information and contribute to your care wallet.`,
       consentRequest.id,
     );
   }
 
-  res.json({ error: null, consentRequestId: consentRequest.id });
+  res.status(201).json({ error: null, consentRequestId: consentRequest.id });
 }
 
+/**
+ * POST /api/sponsorship/accept
+ * Body: { consentRequestId }
+ * Patient accepts a pending sponsorship invite. Creates the sponsor-patient link (no Stripe).
+ */
 export async function acceptConsent(
   req: AuthRequest,
   res: Response,
@@ -101,6 +95,7 @@ export async function acceptConsent(
   const supabase = createSupabaseForUser(req.accessToken);
   const userId = req.user.id;
   const { consentRequestId } = req.body as { consentRequestId?: string };
+
   if (!consentRequestId) {
     res.status(400).json({ error: "consentRequestId is required." });
     return;
@@ -108,9 +103,7 @@ export async function acceptConsent(
 
   const { data: request, error: fetchError } = await supabase
     .from("sponsorship_consent_requests")
-    .select(
-      "id, sponsor_id, patient_id, care_plan_id, status, stripe_payment_method_id",
-    )
+    .select("id, sponsor_id, patient_id, care_plan_id, status")
     .eq("id", consentRequestId)
     .single();
 
@@ -126,105 +119,6 @@ export async function acceptConsent(
   }
   if (request.status !== "pending") {
     res.status(400).json({ error: "This request was already responded to." });
-    return;
-  }
-  if (!request.stripe_payment_method_id) {
-    res.status(400).json({
-      error:
-        "Sponsor has not completed payment setup. They must add a payment method first.",
-    });
-    return;
-  }
-
-  const { data: carePlan } = await supabase
-    .from("care_plans")
-    .select("price_cents, stripe_price_id")
-    .eq("id", request.care_plan_id)
-    .single();
-  if (!carePlan) {
-    res.status(400).json({ error: "Plan not found." });
-    return;
-  }
-
-  // Use admin client: RLS prevents the patient from reading the sponsor's profile row.
-  const { data: sponsorProfile } = await createClientAdmin()
-    .from("profiles")
-    .select("stripe_customer_id")
-    .eq("id", request.sponsor_id)
-    .single();
-
-  let existingCustomerId = sponsorProfile?.stripe_customer_id ?? null;
-
-  // If the webhook hasn't saved the customer ID yet, retrieve it directly from
-  // the payment method object in Stripe. A payment method always knows which
-  // customer it is attached to, so this avoids creating a duplicate customer.
-  if (!existingCustomerId) {
-    try {
-      const stripe = getStripe();
-      const pm = await stripe.paymentMethods.retrieve(
-        request.stripe_payment_method_id,
-      );
-      const pmCustomer = pm.customer;
-      if (pmCustomer) {
-        existingCustomerId =
-          typeof pmCustomer === "string" ? pmCustomer : pmCustomer.id;
-        await createClientAdmin()
-          .from("profiles")
-          .update({ stripe_customer_id: existingCustomerId })
-          .eq("id", request.sponsor_id);
-      }
-    } catch (e) {
-      console.error("Failed to retrieve payment method customer:", e);
-    }
-  }
-
-  const customerResult = await ensureCustomerForPaymentMethod(
-    request.stripe_payment_method_id,
-    existingCustomerId,
-  );
-  if ("error" in customerResult) {
-    res.status(400).json({ error: customerResult.error });
-    return;
-  }
-
-  if (customerResult.created) {
-    await createClientAdmin()
-      .from("profiles")
-      .update({ stripe_customer_id: customerResult.customerId })
-      .eq("id", request.sponsor_id);
-  }
-
-  const priceResult = await getOrCreatePriceForCarePlan(
-    request.care_plan_id,
-    carePlan.price_cents,
-    carePlan.stripe_price_id ?? null,
-  );
-  if ("error" in priceResult) {
-    res.status(400).json({ error: priceResult.error });
-    return;
-  }
-
-  if (priceResult.created) {
-    await createClientAdmin()
-      .from("care_plans")
-      .update({ stripe_price_id: priceResult.priceId })
-      .eq("id", request.care_plan_id);
-  }
-
-  const subResult = await createSubscription({
-    customerId: customerResult.customerId,
-    paymentMethodId: request.stripe_payment_method_id,
-    priceId: priceResult.priceId,
-    metadata: {
-      consent_request_id: consentRequestId,
-      sponsor_id: request.sponsor_id,
-      patient_id: request.patient_id,
-      care_plan_id: request.care_plan_id,
-    },
-  });
-
-  if ("error" in subResult) {
-    res.status(400).json({ error: subResult.error });
     return;
   }
 
@@ -245,7 +139,6 @@ export async function acceptConsent(
       patient_id: request.patient_id,
       care_plan_id: request.care_plan_id,
       consent_request_id: consentRequestId,
-      stripe_subscription_id: subResult.subscriptionId,
     });
 
   if (linkError) {
@@ -264,13 +157,19 @@ export async function acceptConsent(
     request.sponsor_id,
     "sponsorship_accepted",
     "Sponsorship accepted",
-    `${patientName} accepted your care plan sponsorship. You can now view their health information and appointment schedules.`,
+    `${patientName} accepted your sponsorship request. You can now view their health information and contribute to their care wallet.`,
     consentRequestId,
   );
 
   res.json({ error: null });
 }
 
+/**
+ * POST /api/sponsorship/end
+ * Body: { planId }
+ * Sponsor or patient ends an active sponsorship.
+ * Cancels the Stripe subscription if one exists (legacy sponsorships only).
+ */
 export async function endSponsorship(
   req: AuthRequest,
   res: Response,
@@ -328,6 +227,11 @@ export async function endSponsorship(
   res.json({ error: null });
 }
 
+/**
+ * POST /api/sponsorship/decline
+ * Body: { consentRequestId, declineReason? }
+ * Patient declines a pending sponsorship invite.
+ */
 export async function declineConsent(
   req: AuthRequest,
   res: Response,
@@ -338,6 +242,7 @@ export async function declineConsent(
     consentRequestId?: string;
     declineReason?: string;
   };
+
   if (!consentRequestId) {
     res.status(400).json({ error: "consentRequestId is required." });
     return;
@@ -377,5 +282,6 @@ export async function declineConsent(
     res.status(500).json({ error: "Failed to decline." });
     return;
   }
+
   res.json({ error: null });
 }

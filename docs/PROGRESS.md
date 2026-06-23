@@ -8,7 +8,7 @@
 |---|---|
 | **Last session date** | 2026-06-23 |
 | **Current focus area** | Priority 1 — Remove care plan tiers & simplify payment |
-| **Status** | In progress — 1.1 (DB) complete, 1.2 (backend) next |
+| **Status** | In progress — 1.1 (DB) + 1.2 (backend) + 1.3 (web) complete, Stripe top-up crediting fixed (00032), 1.4 (mobile) next |
 
 > Update this table at the start of each session.
 
@@ -19,6 +19,9 @@
 | # | Date | Focus | Notes |
 |---|---|---|---|
 | 1 | 2026-06-23 | Priority 1.1 — Simplify care plans DB + add patient wallet | Migration 00030 written: dropped tier columns, single sponsorship seed, new patient_wallets + wallet_transactions tables with RLS |
+| 2 | 2026-06-23 | Priority 1.2 — Backend: decouple consent, wallet API | New routes: POST /sponsorship/invite, GET+POST /wallet, GET /wallet/transactions. Removed create-payment + care-plans routes. Migration 00031: increment_wallet_balance fn. TypeScript build clean. |
+| 3 | 2026-06-23 | Priority 1.3 — Web: wallet UI, remove pricing, update copy | Replaced /pricing with redirect. Removed Pricing nav link. Rewrote PurchasePlanForm → SupportPatientForm (email-only invite). Added WalletCard (balance + transactions + topup intent). Updated UserHome copy. Added wallet section to sponsored/[id] page. Build clean. |
+| 4 | 2026-06-23 | Stripe top-up: full Elements flow + crediting fix | Wired full Stripe Elements payment (PaymentElement + confirmPayment) in WalletCard; added webapp/lib/stripe.ts singleton. Removed stale BillingPortalButton from UserHome + profile. Diagnosed: wallet only credited in webhook, which never reaches localhost (no Stripe CLI / no STRIPE_WEBHOOK_SECRET). Fix: migration 00032 (unique index on stripe_payment_intent_id + idempotent credit_wallet_topup fn); new POST /api/wallet/topup/confirm endpoint (verifies PI w/ Stripe, credits idempotently); webhook refactored to same RPC; frontend calls confirmTopup + router.refresh() after payment. Both builds clean. **Migration 00032 must be applied in Supabase.** |
 
 > Add a row each session. Example: `| 1 | 2026-06-22 | Priority 1 — Remove care plan tiers | Completed DB migration, updated LinkPatientScreen |`
 
@@ -40,15 +43,23 @@ Items are ordered by the recommended priority from the gap analysis. Check off e
   - [x] Fixed `idx_sponsor_patient_plans_unique_active` to drop `care_plan_id` from the index
   - Migration: `supabase/migrations/00030_simplify_care_plans_and_add_wallet.sql`
 
-- [ ] **1.2 — Backend**
-  - [ ] Simplify `POST /api/sponsorship/create-payment` to not require `care_plan_id`
-  - [ ] Remove `getOrCreatePriceForCarePlan()` tier logic; replace with single Stripe price
-  - [ ] Update `GET /api/care-plans` or remove route if no longer needed
+- [x] **1.2 — Backend**
+  - [x] Replaced `POST /api/sponsorship/create-payment` with `POST /api/sponsorship/invite` (consent decoupled from Stripe)
+  - [x] Removed `getOrCreatePriceForCarePlan()`, `createSetupCheckoutSession()`, subscription logic from `acceptConsent`
+  - [x] Removed `GET /api/care-plans` route and deleted `care-plans.ts`
+  - [x] Added wallet routes: `GET /api/wallet`, `POST /api/wallet/topup/intent`, `GET /api/wallet/transactions`
+  - [x] Added `createWalletTopupIntent()` to `lib/stripe.ts`
+  - [x] Added wallet top-up webhook branch in `handleStripeWebhook` (`payment_intent.succeeded` with `metadata.type=wallet_topup`)
+  - [x] Migration 00031: `increment_wallet_balance` Postgres function for atomic balance updates
 
-- [ ] **1.3 — Web**
-  - [ ] Remove `PurchasePlanForm` plan-tier selector
-  - [ ] Remove or repurpose `/pricing` page
-  - [ ] Update sponsorship UI copy (from "buy a care plan" → "support a family member")
+- [x] **1.3 — Web**
+  - [x] Remove `PurchasePlanForm` plan-tier selector (rewritten as `SupportPatientForm` — email only, calls `/api/sponsorship/invite`)
+  - [x] Remove `/pricing` page (redirects to `/home`)
+  - [x] Update sponsorship UI copy ("Support a family member / another patient")
+  - [x] Added `WalletCard` component — balance, top-up intent, recent transactions
+  - [x] Updated `home/page.tsx` to fetch wallet data from `GET /api/wallet` + `GET /api/wallet/transactions`
+  - [x] Added wallet section to `/home/sponsored/[id]` (sponsor can see patient wallet + add funds)
+  - [x] Removed `$X/month` price badge from sponsored patient hero card
 
 - [ ] **1.4 — Mobile**
   - [ ] Remove care plan dropdown from `LinkPatientScreen`

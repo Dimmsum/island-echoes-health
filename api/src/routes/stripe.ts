@@ -3,112 +3,12 @@ import Stripe from "stripe";
 import { createSupabaseForUser, createClientAdmin } from "../lib/supabase.js";
 import { createNotification } from "../lib/notifications.js";
 import {
-  createSetupCheckoutSession,
   getStripe,
   getWebhookSecret,
   getAppBaseUrl,
   isStripeConfigured,
 } from "../lib/stripe.js";
 import type { AuthRequest } from "../middleware/auth.js";
-
-/**
- * POST /api/sponsorship/create-payment
- * Body: { patientEmail, carePlanId }
- * Creates a pending consent request and Stripe Checkout Session (setup mode) to collect a reusable payment method.
- */
-export async function createSponsorshipPayment(
-  req: AuthRequest,
-  res: Response,
-): Promise<void> {
-  if (!isStripeConfigured()) {
-    res.status(503).json({ error: "Payments are not configured." });
-    return;
-  }
-
-  const supabase = createSupabaseForUser(req.accessToken);
-  const userId = req.user.id;
-  const { patientEmail, carePlanId } = req.body as {
-    patientEmail?: string;
-    carePlanId?: string;
-  };
-
-  const email = (patientEmail as string)?.trim()?.toLowerCase();
-  if (!email) {
-    res.status(400).json({ error: "Patient email is required." });
-    return;
-  }
-  if (!carePlanId) {
-    res.status(400).json({ error: "Care plan is required." });
-    return;
-  }
-
-  const { data: plan } = await supabase
-    .from("care_plans")
-    .select("id, name")
-    .eq("id", carePlanId)
-    .single();
-  if (!plan) {
-    res.status(400).json({ error: "Invalid plan." });
-    return;
-  }
-
-  const { data: consentRequest, error: insertError } = await supabase
-    .from("sponsorship_consent_requests")
-    .insert({
-      sponsor_id: userId,
-      patient_email: email,
-      care_plan_id: carePlanId,
-      status: "pending",
-    })
-    .select("id, sponsor_id")
-    .single();
-
-  if (insertError) {
-    res
-      .status(500)
-      .json({ error: "Failed to create request. Please try again." });
-    return;
-  }
-
-  const admin = createClientAdmin();
-  const { data: patientUserId } = await admin.rpc("get_user_id_by_email", {
-    e: email,
-  });
-  if (patientUserId) {
-    await admin
-      .from("sponsorship_consent_requests")
-      .update({ patient_id: patientUserId })
-      .eq("id", consentRequest.id);
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("stripe_customer_id")
-    .eq("id", userId)
-    .single();
-
-  const checkoutResult = await createSetupCheckoutSession({
-    consentRequestId: consentRequest.id,
-    carePlanId,
-    sponsorId: consentRequest.sponsor_id,
-    sponsorEmail: req.user.email ?? email,
-    stripeCustomerId: profile?.stripe_customer_id ?? null,
-  });
-
-  if ("error" in checkoutResult) {
-    await supabase
-      .from("sponsorship_consent_requests")
-      .delete()
-      .eq("id", consentRequest.id);
-    res.status(500).json({ error: checkoutResult.error });
-    return;
-  }
-
-  res.json({
-    checkoutUrl: checkoutResult.url,
-    consentRequestId: consentRequest.id,
-  });
-}
 
 /**
  * POST /api/stripe/webhook
@@ -297,6 +197,30 @@ export async function handleStripeWebhook(
 
   if (event.type === "payment_intent.succeeded") {
     const pi = event.data.object as Stripe.PaymentIntent;
+
+    // Wallet top-up: credit the patient's wallet.
+    if (pi.metadata?.type === "wallet_topup") {
+      const { wallet_id, patient_id, contributor_id } = pi.metadata;
+      const amountCents = pi.amount_received;
+
+      if (wallet_id && patient_id && amountCents > 0) {
+        // Idempotent on stripe_payment_intent_id — no-op if the synchronous
+        // confirm endpoint already credited this PaymentIntent.
+        const { error: creditError } = await admin.rpc("credit_wallet_topup", {
+          p_wallet_id: wallet_id,
+          p_amount: amountCents,
+          p_contributor_id: contributor_id ?? null,
+          p_payment_intent_id: pi.id,
+        });
+        if (creditError) {
+          console.error("credit_wallet_topup failed:", pi.id, creditError);
+        }
+      }
+
+      res.status(200).json({ received: true });
+      return;
+    }
+
     const consentRequestId = pi.metadata?.consent_request_id;
     if (!consentRequestId) {
       console.warn(

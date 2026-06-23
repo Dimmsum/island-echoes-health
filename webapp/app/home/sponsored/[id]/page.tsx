@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchApiJson } from "@/lib/api";
 import { EndSponsorshipButton } from "../../EndSponsorshipButton";
+import { WalletCard, type WalletTransaction } from "../../WalletCard";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -43,6 +44,29 @@ export default async function SponsoredPatientPage({ params }: Props) {
     data = await fetchApiJson(session.access_token, `/api/home/sponsored/${linkId}`);
   } catch {
     redirect("/home");
+  }
+
+  // Fetch patient's wallet so sponsor can see balance and add funds
+  let patientWallet: { id: string; balanceCents: number; updatedAt: string } | null = null;
+  let patientWalletTransactions: WalletTransaction[] = [];
+  if (data.patient?.id) {
+    const [walletRes, txRes] = await Promise.allSettled([
+      fetchApiJson<{ wallet: { id: string; patientId: string; balanceCents: number; updatedAt: string } }>(
+        session.access_token,
+        `/api/wallet?patientId=${data.patient.id}`,
+      ),
+      fetchApiJson<{ transactions: WalletTransaction[] }>(
+        session.access_token,
+        `/api/wallet/transactions?patientId=${data.patient.id}`,
+      ),
+    ]);
+    if (walletRes.status === "fulfilled") {
+      const w = walletRes.value.wallet;
+      patientWallet = { id: w.id, balanceCents: w.balanceCents, updatedAt: w.updatedAt };
+    }
+    if (txRes.status === "fulfilled") {
+      patientWalletTransactions = txRes.value.transactions ?? [];
+    }
   }
 
   const { link, patient, carePlan: plan, metrics, appointments } = data;
@@ -145,15 +169,6 @@ export default async function SponsoredPatientPage({ params }: Props) {
                 </div>
               </div>
 
-              {/* Quick stats */}
-              {plan?.price_cents != null && (
-                <div className="shrink-0 rounded-xl border border-[#1F5F2E]/20 bg-[#1F5F2E]/5 px-5 py-3 text-center">
-                  <p className="text-2xl font-bold text-[#1F5F2E]">
-                    ${(plan.price_cents / 100).toFixed(0)}
-                  </p>
-                  <p className="text-xs font-medium text-[#1F5F2E]/70">/ month</p>
-                </div>
-              )}
             </div>
           </div>
           <div className="mt-4 flex justify-end border-t border-slate-200 pt-4">
@@ -374,6 +389,19 @@ export default async function SponsoredPatientPage({ params }: Props) {
             )}
           </section>
         </div>
+
+        {/* Patient wallet */}
+        {patientWallet && data.patient?.id && (
+          <section className="mt-8">
+            <WalletCard
+              walletId={patientWallet.id}
+              balanceCents={patientWallet.balanceCents}
+              transactions={patientWalletTransactions}
+              patientId={data.patient.id}
+              viewerId={session.user.id}
+            />
+          </section>
+        )}
       </main>
     </div>
   );
