@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { updateAppointmentStatus } from "../../../home/clinician-actions";
 import { AppointmentDetailClient as SharedDetailClient } from "../../../home/appointments/[id]/AppointmentDetailClient";
 import { FollowUpsSection } from "./FollowUpsSection";
+import { StatusUpdatesSection } from "./StatusUpdatesSection";
 import type { FollowUp } from "../../follow-up-types";
+import type { StatusUpdate } from "../../status-update-types";
 
 type Note = { id: string; content: string; created_at: string };
 type Service = { id: string; service_type: string; details: string | null; created_at: string };
@@ -33,6 +35,7 @@ type Props = {
   notes: Note[];
   services: Service[];
   followUps: FollowUp[];
+  statusUpdates: StatusUpdate[];
 };
 
 function getStatusLabel(status: string) {
@@ -106,6 +109,7 @@ export function ClinicianAppointmentDetailClient({
   notes,
   services,
   followUps,
+  statusUpdates,
 }: Props) {
   const router = useRouter();
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
@@ -232,6 +236,11 @@ export function ClinicianAppointmentDetailClient({
         appointmentId={appointmentId}
         patientId={patientId}
         followUps={followUps}
+      />
+
+      <StatusUpdatesSection
+        patientId={patientId}
+        statusUpdates={statusUpdates}
       />
     </div>
   );

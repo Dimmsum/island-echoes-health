@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchApiJson } from "@/lib/api";
 import { EndSponsorshipButton } from "../../EndSponsorshipButton";
 import { WalletCard, type WalletTransaction } from "../../WalletCard";
+import type { StatusUpdate } from "@/app/clinician-portal/status-update-types";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -49,8 +50,10 @@ export default async function SponsoredPatientPage({ params }: Props) {
   // Fetch patient's wallet so sponsor can see balance and add funds
   let patientWallet: { id: string; balanceCents: number; updatedAt: string } | null = null;
   let patientWalletTransactions: WalletTransaction[] = [];
+  // Status updates the clinician shared with family sponsors (RLS returns all/sponsor_only only).
+  let statusUpdates: StatusUpdate[] = [];
   if (data.patient?.id) {
-    const [walletRes, txRes] = await Promise.allSettled([
+    const [walletRes, txRes, statusRes] = await Promise.allSettled([
       fetchApiJson<{ wallet: { id: string; patientId: string; balanceCents: number; updatedAt: string } }>(
         session.access_token,
         `/api/wallet?patientId=${data.patient.id}`,
@@ -59,6 +62,10 @@ export default async function SponsoredPatientPage({ params }: Props) {
         session.access_token,
         `/api/wallet/transactions?patientId=${data.patient.id}`,
       ),
+      fetchApiJson<{ statusUpdates: StatusUpdate[] }>(
+        session.access_token,
+        `/api/patients/${data.patient.id}/status-updates`,
+      ),
     ]);
     if (walletRes.status === "fulfilled") {
       const w = walletRes.value.wallet;
@@ -66,6 +73,9 @@ export default async function SponsoredPatientPage({ params }: Props) {
     }
     if (txRes.status === "fulfilled") {
       patientWalletTransactions = txRes.value.transactions ?? [];
+    }
+    if (statusRes.status === "fulfilled") {
+      statusUpdates = statusRes.value.statusUpdates ?? [];
     }
   }
 
@@ -402,6 +412,49 @@ export default async function SponsoredPatientPage({ params }: Props) {
             />
           </section>
         )}
+
+        {/* Status updates shared by the care team */}
+        <section className="mt-8">
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-[#1F5F2E]/10 p-2.5 text-[#1F5F2E]">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 20l1.3-3.9A7.96 7.96 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Status updates</h2>
+                <p className="text-sm text-slate-500">Updates shared by the care team</p>
+              </div>
+            </div>
+
+            {statusUpdates.length === 0 ? (
+              <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 p-8 text-center">
+                <p className="text-sm text-slate-500">No status updates yet.</p>
+              </div>
+            ) : (
+              <ul className="mt-4 space-y-3">
+                {statusUpdates.map((u) => (
+                  <li
+                    key={u.id}
+                    className="rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3"
+                  >
+                    <span className="text-xs text-slate-500">
+                      {new Date(u.createdAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </span>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+                      {u.statusText}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
       </main>
     </div>
   );

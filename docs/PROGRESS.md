@@ -7,8 +7,8 @@
 | Field | Value |
 |---|---|
 | **Last session date** | 2026-06-23 |
-| **Current focus area** | Priority 3.4 — Follow-up Tracking web |
-| **Status** | Web UI shipped (API-first): follow-up create/list section on clinician appointment detail + open/overdue panel on clinician dashboard, both via `/api/follow-ups`. Build clean, no new lint errors. Requires **00033 applied in Supabase**. Next: 3.5 notifications. (Priority 3.3 mobile **backlogged**; Priority 2.2 backend proxy and Priority 1.4 mobile still deferred.) |
+| **Current focus area** | Priority 6.4 — Patient Status Updates web |
+| **Status** | Web UI shipped (API-first). Clinician: `StatusUpdatesSection` on appointment-detail page (post form w/ visibility selector all/sponsor_only/patient_only + list w/ visibility badge), via `status-update-actions.ts` → `POST /api/patients/:id/status-updates`. Sponsor: read-only status feed on `/home/sponsored/[id]` via `GET /api/patients/:id/status-updates` (RLS returns all/sponsor_only). Build clean; no new lint errors. Requires **00034 applied in Supabase**. Next: 6.5 notifications (or 6.3 mobile — backlogged). (Priority 3.5 notifications, 3.3 mobile, 2.2 backend proxy, 1.4 mobile still pending/deferred.) |
 
 > Update this table at the start of each session.
 
@@ -26,6 +26,9 @@
 | 6 | 2026-06-23 | Priority 3.1 — Follow-up tracking DB | Migration 00033: `follow_up_status` enum (pending, completed, cancelled) + `follow_ups` table (patient_id, clinician_id, nullable appointment_id, due_date DATE, status, notes, completed_at) with RLS (patient/sponsor/clinician read; service-role writes). "Overdue" derived, not stored. Mirrors wallet table patterns from 00030. **00033 must be applied in Supabase.** |
 | 7 | 2026-06-23 | Priority 3.2 — Follow-up tracking backend | New `api/src/routes/follow-ups.ts`: POST (clinician creates, validates patient + optional appointment link), GET (RLS-scoped list via user client, `?patientId`/`?status` filters, derived `overdue`), PATCH (owning-clinician/admin only, manages `completed_at`). Mounted 3 routes in `index.ts` behind authMiddleware (+requireClinicianOrAdmin on write). Build clean. |
 | 8 | 2026-06-23 | Priority 3.4 — Follow-up tracking web | API-first web UI. New `follow-up-actions.ts` (server actions → `/api/follow-ups` via session token), `follow-up-types.ts`, `FollowUpsSection.tsx` (appointment-detail create/list + mark complete), `FollowUpsPanel.tsx` (dashboard open/overdue, clinician's own, overdue-first). Wired into clinician appointment-detail page/client + dashboard page/component. Build clean; no new lint errors. **3.3 mobile backlogged** at user request. |
+| 9 | 2026-06-23 | Priority 6.1 — Patient status updates DB | Migration 00034: `status_update_visibility` enum (all, sponsor_only, patient_only) + `patient_status_updates` table (patient_id, created_by, status_text, visibility, created_at). Immutable/append-only (no updated_at), mirrors wallet_transactions ledger + follow_ups (00033) patterns. Visibility-aware RLS: patient reads own all/patient_only; linked sponsor (ended_at is null) reads all/sponsor_only; clinician reads all; service-role writes. **00034 must be applied in Supabase.** |
+| 10 | 2026-06-23 | Priority 6.2 — Patient status updates backend | New `api/src/routes/patient-status-updates.ts`: POST (clinician/admin posts, validates target is a patient, visibility defaults 'all', service-role write) + GET (RLS-scoped user client so visibility views are enforced via the API — patient sees all/patient_only, linked sponsor sees all/sponsor_only, clinician sees all). Immutable: no PATCH/DELETE. Mounted at `/api/patients/:id/status-updates` in `index.ts` behind authMiddleware (+requireClinicianOrAdmin on POST). Mirrors follow-ups (3.2). Build clean. |
+| 11 | 2026-06-23 | Priority 6.4 — Patient status updates web | API-first web UI mirroring follow-ups (3.4). New `status-update-types.ts`, `status-update-actions.ts` (server action → `/api/patients/:id/status-updates`), `appointments/[id]/StatusUpdatesSection.tsx` (clinician post form w/ visibility selector + list w/ visibility badge). Wired into appointment-detail page/client. Sponsor read-only status feed added to `home/sponsored/[id]/page.tsx` (fetches via sponsor token; RLS returns all/sponsor_only). Build clean; no new lint errors. Patient self-view + 6.3 mobile out of scope. |
 
 > Add a row each session. Example: `| 1 | 2026-06-22 | Priority 1 — Remove care plan tiers | Completed DB migration, updated LinkPatientScreen |`
 
@@ -176,22 +179,27 @@ Items are ordered by the recommended priority from the gap analysis. Check off e
 ### Priority 6 — Patient Status Updates
 > Clinician-posted updates visible to patients and family sponsors.
 
-- [ ] **6.1 — Database**
-  - [ ] Create `visibility` enum (all, sponsor_only, patient_only)
-  - [ ] Create `patient_status_updates` table (id, patient_id, created_by, status_text, visibility, created_at)
-  - [ ] Add RLS policies (clinician inserts; patient + linked sponsors read based on visibility)
+- [x] **6.1 — Database**
+  - [x] Create `status_update_visibility` enum (all, sponsor_only, patient_only)
+  - [x] Create `patient_status_updates` table (id, patient_id, created_by, status_text, visibility, created_at) — immutable/append-only, no `updated_at`
+  - [x] Add visibility-aware RLS policies (patient reads own all/patient_only; linked sponsor reads all/sponsor_only; clinician reads all; service-role writes — backend enforces clinician/admin role)
+  - Migration: `supabase/migrations/00034_patient_status_updates.sql` (**must be applied in Supabase**)
 
-- [ ] **6.2 — Backend**
-  - [ ] `POST /api/patients/:id/status-updates` — clinician posts update
-  - [ ] `GET /api/patients/:id/status-updates` — patient/sponsor reads updates
+- [x] **6.2 — Backend**
+  - [x] `POST /api/patients/:id/status-updates` — clinician/admin posts update (validates target is a patient; visibility defaults to `all`; service-role write)
+  - [x] `GET /api/patients/:id/status-updates` — reads via RLS-scoped user client so the visibility views are enforced through the API (patient sees `all`/`patient_only`; linked sponsor sees `all`/`sponsor_only`; clinician sees all)
+  - [x] Immutable feed — no PATCH/DELETE; routes mounted in `index.ts` behind `authMiddleware` (+`requireClinicianOrAdmin` on POST)
+  - File: `api/src/routes/patient-status-updates.ts`
 
 - [ ] **6.3 — Mobile**
   - [ ] Add "Post status update" action on `ClinicianPatientDetailScreen`
   - [ ] Add status feed to user home / sponsored patient detail screen
 
-- [ ] **6.4 — Web**
-  - [ ] Status update post UI in clinician portal
-  - [ ] Status feed in sponsored patient detail view
+- [x] **6.4 — Web** — API-first (server action → `/api/patients/:id/status-updates`)
+  - [x] Status update post UI in clinician portal (`StatusUpdatesSection` on appointment-detail page — post form with visibility selector all/sponsor_only/patient_only + list with visibility badge + mark via `router.refresh()`)
+  - [x] Status feed in sponsored patient detail view (read-only feed on `/home/sponsored/[id]`; fetched with sponsor token so RLS returns only `all`/`sponsor_only`)
+  - [x] Patient self-view on `/home` deferred (out of scope this step, at user request)
+  - Files: `webapp/app/clinician-portal/status-update-actions.ts`, `status-update-types.ts`, `appointments/[id]/StatusUpdatesSection.tsx`, edits to `appointments/[id]/page.tsx` + `AppointmentDetailClient.tsx` + `home/sponsored/[id]/page.tsx`
 
 - [ ] **6.5 — Notifications**
   - [ ] Add `patient_status_update` to `notification_type` enum
