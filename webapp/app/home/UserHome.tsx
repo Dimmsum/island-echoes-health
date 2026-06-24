@@ -3,6 +3,7 @@ import { ConsentRequestCards } from "./ConsentRequestCards";
 import { SupportPatientForm } from "./PurchasePlanForm";
 import { UserNavbar } from "./UserNavbar";
 import { WalletCard, type WalletTransaction } from "./WalletCard";
+import type { StatusUpdate } from "@/app/clinician-portal/status-update-types";
 
 const CalendarIcon = ({ className }: { className?: string }) => (
   <svg
@@ -80,6 +81,22 @@ const ClockIcon = () => (
       strokeLinejoin="round"
       strokeWidth={2}
       d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+    />
+  </svg>
+);
+
+const ChatIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className || "h-6 w-6"}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 20l1.3-3.9A7.96 7.96 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
     />
   </svg>
 );
@@ -169,6 +186,7 @@ type Props = {
   notifications: Notification[];
   wallet: Wallet;
   walletTransactions: WalletTransaction[];
+  statusUpdates: StatusUpdate[];
   patientId: string | null;
   viewerId: string | null;
 };
@@ -182,6 +200,7 @@ export function UserHome({
   notifications,
   wallet,
   walletTransactions,
+  statusUpdates,
   patientId,
   viewerId,
 }: Props) {
@@ -280,6 +299,44 @@ export function UserHome({
                 patientId={patientId}
                 viewerId={viewerId}
               />
+            </div>
+          )}
+
+          {/* Status updates shared by the care team about the patient */}
+          {statusUpdates.length > 0 && (
+            <div className="mt-10 rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur">
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-[#1F5F2E]/10 p-2.5 text-[#1F5F2E]">
+                  <ChatIcon />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Status updates
+                  </h2>
+                  <p className="mt-0.5 text-sm text-slate-600">
+                    Updates shared by your care team
+                  </p>
+                </div>
+              </div>
+              <ul className="mt-5 space-y-3">
+                {statusUpdates.map((u) => (
+                  <li
+                    key={u.id}
+                    className="rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3"
+                  >
+                    <span className="text-xs text-slate-500">
+                      {new Date(u.createdAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </span>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+                      {u.statusText}
+                    </p>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
 

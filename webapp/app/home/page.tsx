@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchApiJson } from "@/lib/api";
 import { UserHome } from "./UserHome";
 import type { WalletTransaction } from "./WalletCard";
+import type { StatusUpdate } from "@/app/clinician-portal/status-update-types";
 
 const STAFF_ROLES = ["admin", "clinician"] as const;
 
@@ -54,9 +55,11 @@ export default async function HomePage() {
   // Fetch wallet data — gracefully degrade if unavailable (e.g. sponsor/admin role)
   let wallet: { id: string; balanceCents: number; updatedAt: string } | null = null;
   let walletTransactions: WalletTransaction[] = [];
+  // Status updates the care team shared with the patient (RLS returns all/patient_only).
+  let statusUpdates: StatusUpdate[] = [];
 
   try {
-    const [walletRes, txRes] = await Promise.allSettled([
+    const [walletRes, txRes, statusRes] = await Promise.allSettled([
       fetchApiJson<{ wallet: { id: string; patientId: string; balanceCents: number; updatedAt: string } }>(
         session.access_token,
         "/api/wallet",
@@ -64,6 +67,10 @@ export default async function HomePage() {
       fetchApiJson<{ transactions: WalletTransaction[] }>(
         session.access_token,
         "/api/wallet/transactions",
+      ),
+      fetchApiJson<{ statusUpdates: StatusUpdate[] }>(
+        session.access_token,
+        `/api/patients/${user.id}/status-updates`,
       ),
     ]);
 
@@ -74,8 +81,11 @@ export default async function HomePage() {
     if (txRes.status === "fulfilled") {
       walletTransactions = txRes.value.transactions ?? [];
     }
+    if (statusRes.status === "fulfilled") {
+      statusUpdates = statusRes.value.statusUpdates ?? [];
+    }
   } catch {
-    // Non-fatal — wallet section is hidden when wallet is null
+    // Non-fatal — wallet/status sections degrade gracefully when data is absent
   }
 
   return (
@@ -88,6 +98,7 @@ export default async function HomePage() {
       notifications={homeData.notifications}
       wallet={wallet}
       walletTransactions={walletTransactions}
+      statusUpdates={statusUpdates}
       patientId={user.id}
       viewerId={user.id}
     />

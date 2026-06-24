@@ -21,6 +21,7 @@ import * as appointments from "./routes/appointments.js";
 import * as stripe from "./routes/stripe.js";
 import * as wallet from "./routes/wallet.js";
 import * as followUps from "./routes/follow-ups.js";
+import * as patientStatusUpdates from "./routes/patient-status-updates.js";
 
 const app = express();
 const upload = multer({ dest: path.join(process.cwd(), "tmp-uploads") });
@@ -437,6 +438,31 @@ app.patch(
     followUps
       .updateFollowUp(
         req as Parameters<typeof followUps.updateFollowUp>[0],
+        res,
+      )
+      .catch(next),
+);
+
+// Patient status updates
+app.post(
+  "/api/patients/:id/status-updates",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) =>
+    patientStatusUpdates
+      .createStatusUpdate(
+        req as Parameters<typeof patientStatusUpdates.createStatusUpdate>[0],
+        res,
+      )
+      .catch(next),
+);
+app.get(
+  "/api/patients/:id/status-updates",
+  authMiddleware,
+  (req, res, next) =>
+    patientStatusUpdates
+      .listStatusUpdates(
+        req as Parameters<typeof patientStatusUpdates.listStatusUpdates>[0],
         res,
       )
       .catch(next),
