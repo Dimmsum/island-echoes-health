@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchApiJson } from "@/lib/api";
 import { ClinicianPortalDashboard } from "./ClinicianPortalDashboard";
 import type { FollowUp } from "./follow-up-types";
+import type { CareContinuityPatient } from "./CareContinuityPanel";
 
 const STAFF_ROLES = ["admin", "clinician"] as const;
 
@@ -126,23 +127,31 @@ export default async function ClinicianPortalPage() {
 
   // Open follow-ups owned by this clinician, overdue surfaced first.
   let myFollowUps: FollowUp[] = [];
+  let careContinuityPatients: CareContinuityPatient[] = [];
   const {
     data: { session },
   } = await supabase.auth.getSession();
   if (session?.access_token) {
-    try {
-      const data = await fetchApiJson<{ followUps: FollowUp[] }>(
+    const [followUpsResult, careContinuityResult] = await Promise.allSettled([
+      fetchApiJson<{ followUps: FollowUp[] }>(
         session.access_token,
         "/api/follow-ups?status=pending",
-      );
-      myFollowUps = data.followUps
+      ),
+      fetchApiJson<{ patients: CareContinuityPatient[] }>(
+        session.access_token,
+        "/api/clinician-portal/care-continuity",
+      ),
+    ]);
+    if (followUpsResult.status === "fulfilled") {
+      myFollowUps = followUpsResult.value.followUps
         .filter((f) => f.clinicianId === user.id)
         .sort((a, b) => {
           if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
           return a.dueDate.localeCompare(b.dueDate);
         });
-    } catch {
-      myFollowUps = [];
+    }
+    if (careContinuityResult.status === "fulfilled") {
+      careContinuityPatients = careContinuityResult.value.patients;
     }
   }
 
@@ -181,6 +190,7 @@ export default async function ClinicianPortalPage() {
       }}
       followUps={myFollowUps}
       followUpPatientNames={followUpPatientNames}
+      careContinuityPatients={careContinuityPatients}
     />
   );
 }

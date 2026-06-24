@@ -268,12 +268,68 @@ export async function getSponsoredPatient(req: AuthRequest, res: Response): Prom
     };
   });
 
+  const now = new Date();
+  const nowStr = now.toISOString();
+  const todayStr = nowStr.split("T")[0];
+
+  const [lastApptRes, nextApptRes, pendingFollowUpsRes, recentStatusRes] = await Promise.all([
+    supabase
+      .from("appointments")
+      .select("scheduled_at")
+      .eq("patient_id", link.patient_id)
+      .in("status", ["completed", "no_show"])
+      .order("scheduled_at", { ascending: false })
+      .limit(1),
+    supabase
+      .from("appointments")
+      .select("scheduled_at")
+      .eq("patient_id", link.patient_id)
+      .eq("status", "scheduled")
+      .gte("scheduled_at", nowStr)
+      .order("scheduled_at", { ascending: true })
+      .limit(1),
+    supabase
+      .from("follow_ups")
+      .select("id, due_date")
+      .eq("patient_id", link.patient_id)
+      .eq("status", "pending"),
+    supabase
+      .from("patient_status_updates")
+      .select("id, status_text, visibility, created_at")
+      .eq("patient_id", link.patient_id)
+      .order("created_at", { ascending: false })
+      .limit(3),
+  ]);
+
+  const lastVisitDate = lastApptRes.data?.[0]?.scheduled_at ?? null;
+  const daysSinceLastVisit = lastVisitDate
+    ? Math.floor((now.getTime() - new Date(lastVisitDate).getTime()) / 86400000)
+    : null;
+  const nextAppointmentDate = nextApptRes.data?.[0]?.scheduled_at ?? null;
+  const pendingFollowUps = pendingFollowUpsRes.data ?? [];
+  const openFollowUpsCount = pendingFollowUps.length;
+  const overdueFollowUpsCount = pendingFollowUps.filter((f) => f.due_date < todayStr).length;
+  const recentStatusUpdates = (recentStatusRes.data ?? []).map((s) => ({
+    id: s.id,
+    statusText: s.status_text,
+    visibility: s.visibility,
+    createdAt: s.created_at,
+  }));
+
   res.json({
     link: { id: link.id, started_at: link.started_at, care_plan_id: link.care_plan_id, patient_id: link.patient_id },
     patient: patientRes.data ?? null,
     carePlan: planRes.data ?? null,
     metrics: metricsRes.data ?? [],
     appointments,
+    careSummary: {
+      lastVisitDate,
+      daysSinceLastVisit,
+      nextAppointmentDate,
+      openFollowUpsCount,
+      overdueFollowUpsCount,
+      recentStatusUpdates,
+    },
   });
 }
 

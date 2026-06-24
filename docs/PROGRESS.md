@@ -6,9 +6,9 @@
 
 | Field | Value |
 |---|---|
-| **Last session date** | 2026-06-23 |
-| **Current focus area** | Priority 6.4 — Patient Status Updates web |
-| **Status** | Web UI shipped (API-first). Clinician: `StatusUpdatesSection` on appointment-detail page (post form w/ visibility selector all/sponsor_only/patient_only + list w/ visibility badge), via `status-update-actions.ts` → `POST /api/patients/:id/status-updates`. Sponsor: read-only status feed on `/home/sponsored/[id]` via `GET /api/patients/:id/status-updates` (RLS returns all/sponsor_only). Build clean; no new lint errors. Requires **00034 applied in Supabase**. Next: 6.5 notifications (or 6.3 mobile — backlogged). (Priority 3.5 notifications, 3.3 mobile, 2.2 backend proxy, 1.4 mobile still pending/deferred.) |
+| **Last session date** | 2026-06-24 |
+| **Current focus area** | Priority 7.4 — Care Continuity Dashboard web |
+| **Status** | Web UI shipped. Clinician portal: new `CareContinuityPanel.tsx` added to dashboard showing patients not seen in 30+ days or with overdue follow-ups (filtered + sorted, empty "all clear" state). Fetched via `GET /api/clinician-portal/care-continuity` in page.tsx (parallel with follow-ups fetch using Promise.allSettled). Sponsor view: `careSummary` type added to sponsored/[id]/page.tsx; Care Summary card rendered between stats row and vitals — shows last visit (Xd ago), next appointment date, open/overdue follow-up counts. Build clean. Next: 7.2 mobile (deferred) or move to Priority 2 (recommendations). |
 
 > Update this table at the start of each session.
 
@@ -29,6 +29,8 @@
 | 9 | 2026-06-23 | Priority 6.1 — Patient status updates DB | Migration 00034: `status_update_visibility` enum (all, sponsor_only, patient_only) + `patient_status_updates` table (patient_id, created_by, status_text, visibility, created_at). Immutable/append-only (no updated_at), mirrors wallet_transactions ledger + follow_ups (00033) patterns. Visibility-aware RLS: patient reads own all/patient_only; linked sponsor (ended_at is null) reads all/sponsor_only; clinician reads all; service-role writes. **00034 must be applied in Supabase.** |
 | 10 | 2026-06-23 | Priority 6.2 — Patient status updates backend | New `api/src/routes/patient-status-updates.ts`: POST (clinician/admin posts, validates target is a patient, visibility defaults 'all', service-role write) + GET (RLS-scoped user client so visibility views are enforced via the API — patient sees all/patient_only, linked sponsor sees all/sponsor_only, clinician sees all). Immutable: no PATCH/DELETE. Mounted at `/api/patients/:id/status-updates` in `index.ts` behind authMiddleware (+requireClinicianOrAdmin on POST). Mirrors follow-ups (3.2). Build clean. |
 | 11 | 2026-06-23 | Priority 6.4 — Patient status updates web | API-first web UI mirroring follow-ups (3.4). New `status-update-types.ts`, `status-update-actions.ts` (server action → `/api/patients/:id/status-updates`), `appointments/[id]/StatusUpdatesSection.tsx` (clinician post form w/ visibility selector + list w/ visibility badge). Wired into appointment-detail page/client. Sponsor read-only status feed added to `home/sponsored/[id]/page.tsx` (fetches via sponsor token; RLS returns all/sponsor_only). Build clean; no new lint errors. Patient self-view + 6.3 mobile out of scope. |
+| 12 | 2026-06-24 | Priority 7.1 — Care continuity dashboard backend | New `GET /api/clinician-portal/care-continuity`: queries all patients (admin client), last completed/no_show appointment, pending follow_ups; returns per-patient `patientId/Name/Avatar/lastAppointmentDate/daysSinceLastAppointment/openFollowUpsCount/overdueFollowUpsCount`. Extended `GET /api/home/sponsored/:id` with `careSummary` block (lastVisitDate, daysSinceLastVisit, nextAppointmentDate, openFollowUpsCount, overdueFollowUpsCount, recentStatusUpdates — user-client for RLS-scoped status visibility). No migration. Build clean. Pending referral count deferred to Priority 5. |
+| 13 | 2026-06-24 | Priority 7.4 — Care continuity dashboard web | New `CareContinuityPanel.tsx` on clinician portal dashboard: filters patients with `daysSinceLastAppointment >= 30 || overdueFollowUpsCount > 0`, sorts overdue first, shows "all clear" empty state. Fetched via parallel Promise.allSettled in page.tsx. Sponsor view (`home/sponsored/[id]`): added `careSummary` type block, rendered as 3-column card (last visit · next appointment · follow-ups) between stats row and vitals. Build clean. |
 
 > Add a row each session. Example: `| 1 | 2026-06-22 | Priority 1 — Remove care plan tiers | Completed DB migration, updated LinkPatientScreen |`
 
@@ -210,9 +212,10 @@ Items are ordered by the recommended priority from the gap analysis. Check off e
 ### Priority 7 — Care Continuity Dashboard
 > Depends on Priority 3 (follow-ups) and Priority 6 (status updates) being in place.
 
-- [ ] **7.1 — Backend**
-  - [ ] Extend clinician portal API to return: days since last appointment per patient, overdue follow-up count, pending referral count
-  - [ ] Extend home API to return care summary per linked patient (last visit, next appointment, alerts)
+- [x] **7.1 — Backend**
+  - [x] New `GET /api/clinician-portal/care-continuity` — per-patient: last appointment date, days since last appointment, open + overdue follow-up counts (pending referral count deferred to Priority 5)
+  - [x] Extended `GET /api/home/sponsored/:id` — added `careSummary` block: last visit date, days since last visit, next appointment date, open/overdue follow-up counts, recent status updates (RLS-scoped)
+  - Files: `api/src/routes/clinician-portal.ts`, `api/src/routes/home.ts`, `api/src/index.ts`
 
 - [ ] **7.2 — Mobile (Clinician)**
   - [ ] Rework `ClinicianDashboardScreen` to lead with care gaps
@@ -223,9 +226,10 @@ Items are ordered by the recommended priority from the gap analysis. Check off e
   - [ ] Add "Care Summary" card per linked patient on user home
   - [ ] Show: last visit date, next appointment, open follow-ups, any alerts
 
-- [ ] **7.4 — Web**
-  - [ ] Rework clinician portal dashboard to care-continuity framing
-  - [ ] Add care summary panel to sponsored patient detail view
+- [x] **7.4 — Web**
+  - [x] `CareContinuityPanel.tsx` on clinician portal dashboard — patients not seen in 30+ days or with overdue follow-ups, sorted by urgency, "all clear" empty state, links to appointments
+  - [x] Care Summary card on `/home/sponsored/[id]` — last visit date + days ago, next appointment, open/overdue follow-up counts
+  - Files: `webapp/app/clinician-portal/CareContinuityPanel.tsx`, edits to `clinician-portal/page.tsx`, `ClinicianPortalDashboard.tsx`, `home/sponsored/[id]/page.tsx`
 
 ---
 

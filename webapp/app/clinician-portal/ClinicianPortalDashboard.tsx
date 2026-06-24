@@ -4,7 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { FollowUpsPanel } from "./FollowUpsPanel";
+import { CareContinuityPanel } from "./CareContinuityPanel";
 import type { FollowUp } from "./follow-up-types";
+import type { CareContinuityPatient } from "./CareContinuityPanel";
 
 type PatientWithPlan = {
   patient_id: string;
@@ -32,6 +34,7 @@ type Props = {
   stats: Stats;
   followUps: FollowUp[];
   followUpPatientNames: Record<string, string>;
+  careContinuityPatients: CareContinuityPatient[];
 };
 
 const CalendarIcon = () => (
@@ -106,6 +109,7 @@ export function ClinicianPortalDashboard({
   stats,
   followUps,
   followUpPatientNames,
+  careContinuityPatients,
 }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -254,6 +258,9 @@ export function ClinicianPortalDashboard({
           followUps={followUps}
           patientNames={followUpPatientNames}
         />
+
+        {/* Care Continuity Panel */}
+        <CareContinuityPanel patients={careContinuityPatients} />
 
         {/* Patients Section */}
         <section>

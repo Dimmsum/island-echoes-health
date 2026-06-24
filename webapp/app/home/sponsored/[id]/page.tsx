@@ -40,6 +40,14 @@ export default async function SponsoredPatientPage({ params }: Props) {
       clinician_name: string | null;
       clinician_avatar_url: string | null;
     }[];
+    careSummary: {
+      lastVisitDate: string | null;
+      daysSinceLastVisit: number | null;
+      nextAppointmentDate: string | null;
+      openFollowUpsCount: number;
+      overdueFollowUpsCount: number;
+      recentStatusUpdates: { id: string; statusText: string; visibility: string; createdAt: string }[];
+    } | null;
   };
   try {
     data = await fetchApiJson(session.access_token, `/api/home/sponsored/${linkId}`);
@@ -205,6 +213,83 @@ export default async function SponsoredPatientPage({ params }: Props) {
             <p className="mt-1 text-xs font-medium text-slate-500">Metrics recorded</p>
           </div>
         </section>
+
+        {/* Care Summary */}
+        {data.careSummary && (
+          <section className="mt-6">
+            <div className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur">
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-[#1F5F2E]/10 p-2.5 text-[#1F5F2E]">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">Care summary</h2>
+                  <p className="text-sm text-slate-500">At a glance</p>
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {/* Last visit */}
+                <div className="rounded-xl bg-slate-50 p-4">
+                  <p className="text-xs font-medium text-slate-500">Last visit</p>
+                  {data.careSummary.lastVisitDate ? (
+                    <>
+                      <p className="mt-1 text-lg font-bold text-slate-900">
+                        {data.careSummary.daysSinceLastVisit}d ago
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {new Date(data.careSummary.lastVisitDate).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mt-1 text-lg font-bold text-slate-400">No visits yet</p>
+                  )}
+                </div>
+                {/* Next appointment */}
+                <div className="rounded-xl bg-slate-50 p-4">
+                  <p className="text-xs font-medium text-slate-500">Next appointment</p>
+                  {data.careSummary.nextAppointmentDate ? (
+                    <>
+                      <p className="mt-1 text-lg font-bold text-[#1F5F2E]">
+                        {new Date(data.careSummary.nextAppointmentDate).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {new Date(data.careSummary.nextAppointmentDate).toLocaleTimeString("en-US", {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mt-1 text-lg font-bold text-slate-400">None scheduled</p>
+                  )}
+                </div>
+                {/* Follow-ups */}
+                <div className="rounded-xl bg-slate-50 p-4">
+                  <p className="text-xs font-medium text-slate-500">Follow-ups</p>
+                  <p className="mt-1 text-lg font-bold text-slate-900">
+                    {data.careSummary.openFollowUpsCount} open
+                  </p>
+                  {data.careSummary.overdueFollowUpsCount > 0 ? (
+                    <span className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                      {data.careSummary.overdueFollowUpsCount} overdue
+                    </span>
+                  ) : (
+                    <p className="mt-0.5 text-xs text-slate-500">None overdue</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Latest Vitals Snapshot */}
         {latestMetric && (

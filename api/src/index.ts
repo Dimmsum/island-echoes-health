@@ -315,6 +315,18 @@ app.get(
       )
       .catch(next),
 );
+app.get(
+  "/api/clinician-portal/care-continuity",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) =>
+    clinicianPortal
+      .getCareContinuity(
+        req as Parameters<typeof clinicianPortal.getCareContinuity>[0],
+        res,
+      )
+      .catch(next),
+);
 
 // Appointments (clinician or admin)
 app.post(

@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { createSupabaseForUser } from "../lib/supabase.js";
+import { createSupabaseForUser, createClientAdmin } from "../lib/supabase.js";
 import type { AuthRequest } from "../middleware/auth.js";
 
 export async function getDashboard(req: AuthRequest, res: Response): Promise<void> {
@@ -155,6 +155,65 @@ export async function getClinicianPortalAppointmentById(req: AuthRequest, res: R
     services: servicesRes.data ?? [],
     previousMetrics: metricsRes.data ?? [],
   });
+}
+
+export async function getCareContinuity(_req: AuthRequest, res: Response): Promise<void> {
+  const adminClient = createClientAdmin();
+  const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
+
+  const [patientsRes, appointmentsRes, followUpsRes] = await Promise.all([
+    adminClient.from("profiles").select("id, full_name, avatar_url").eq("role", "patient"),
+    adminClient
+      .from("appointments")
+      .select("patient_id, scheduled_at")
+      .in("status", ["completed", "no_show"])
+      .order("scheduled_at", { ascending: false }),
+    adminClient.from("follow_ups").select("patient_id, due_date").eq("status", "pending"),
+  ]);
+
+  const patients = patientsRes.data ?? [];
+  const appointments = appointmentsRes.data ?? [];
+  const followUps = followUpsRes.data ?? [];
+
+  const lastApptByPatient = appointments.reduce(
+    (acc, a) => {
+      if (!acc[a.patient_id] || new Date(a.scheduled_at) > new Date(acc[a.patient_id])) {
+        acc[a.patient_id] = a.scheduled_at;
+      }
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
+
+  const followUpsByPatient = followUps.reduce(
+    (acc, f) => {
+      if (!acc[f.patient_id]) acc[f.patient_id] = { open: 0, overdue: 0 };
+      acc[f.patient_id].open += 1;
+      if (f.due_date < todayStr) acc[f.patient_id].overdue += 1;
+      return acc;
+    },
+    {} as Record<string, { open: number; overdue: number }>,
+  );
+
+  const result = patients.map((p) => {
+    const lastDate = lastApptByPatient[p.id] ?? null;
+    const daysSince = lastDate
+      ? Math.floor((today.getTime() - new Date(lastDate).getTime()) / 86400000)
+      : null;
+    const counts = followUpsByPatient[p.id] ?? { open: 0, overdue: 0 };
+    return {
+      patientId: p.id,
+      patientName: p.full_name ?? "Patient",
+      patientAvatar: p.avatar_url ?? null,
+      lastAppointmentDate: lastDate,
+      daysSinceLastAppointment: daysSince,
+      openFollowUpsCount: counts.open,
+      overdueFollowUpsCount: counts.overdue,
+    };
+  });
+
+  res.json({ patients: result });
 }
 
 export async function getClinicianProfile(req: AuthRequest, res: Response): Promise<void> {
