@@ -2,7 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchApiJson } from "@/lib/api";
 import { ClinicianPortalDashboard } from "./ClinicianPortalDashboard";
+import type { FollowUp } from "./follow-up-types";
 
 const STAFF_ROLES = ["admin", "clinician"] as const;
 
@@ -122,6 +124,50 @@ export default async function ClinicianPortalPage() {
   ).length;
   const todayAppointmentsCount = todayAppointments.length;
 
+  // Open follow-ups owned by this clinician, overdue surfaced first.
+  let myFollowUps: FollowUp[] = [];
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    try {
+      const data = await fetchApiJson<{ followUps: FollowUp[] }>(
+        session.access_token,
+        "/api/follow-ups?status=pending",
+      );
+      myFollowUps = data.followUps
+        .filter((f) => f.clinicianId === user.id)
+        .sort((a, b) => {
+          if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+          return a.dueDate.localeCompare(b.dueDate);
+        });
+    } catch {
+      myFollowUps = [];
+    }
+  }
+
+  // Resolve patient names for follow-ups (reuse loaded profiles; look up the rest).
+  const followUpPatientNames: Record<string, string> = {};
+  for (const p of patientProfiles) {
+    if (p.full_name) followUpPatientNames[p.id] = p.full_name;
+  }
+  const missingNameIds = [
+    ...new Set(
+      myFollowUps
+        .map((f) => f.patientId)
+        .filter((pid) => !followUpPatientNames[pid]),
+    ),
+  ];
+  if (missingNameIds.length > 0) {
+    const { data: extraProfiles } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", missingNameIds);
+    for (const p of extraProfiles ?? []) {
+      if (p.full_name) followUpPatientNames[p.id] = p.full_name;
+    }
+  }
+
   return (
     <ClinicianPortalDashboard
       fullName={fullName}
@@ -133,6 +179,8 @@ export default async function ClinicianPortalPage() {
         upcomingAppointments: upcomingAppointmentsCount,
         todayAppointments: todayAppointmentsCount,
       }}
+      followUps={myFollowUps}
+      followUpPatientNames={followUpPatientNames}
     />
   );
 }
