@@ -4,7 +4,8 @@ type NotificationType =
   | "consent_request"
   | "visit_update"
   | "no_show_alert"
-  | "sponsorship_accepted";
+  | "sponsorship_accepted"
+  | "coordination_note";
 
 export async function createNotification(
   userId: string,
@@ -21,6 +22,23 @@ export async function createNotification(
     body,
     reference_id: referenceId,
   });
+}
+
+export async function notifyAdmins(
+  type: NotificationType,
+  title: string,
+  body: string,
+  referenceId: string | null
+): Promise<void> {
+  const admin = createClientAdmin();
+  const { data: admins } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("role", "admin");
+  if (!admins?.length) return;
+  for (const { id } of admins) {
+    await createNotification(id, type, title, body, referenceId);
+  }
 }
 
 export async function notifySponsorsOfPatient(

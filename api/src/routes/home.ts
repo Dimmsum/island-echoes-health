@@ -400,7 +400,7 @@ export async function getHomeAppointmentById(req: AuthRequest, res: Response): P
   const [patientRes, clinicianRes, notesRes, servicesRes, metricsRes] = await Promise.all([
     supabase.from("profiles").select("id, full_name, avatar_url").eq("id", appointment.patient_id).single(),
     supabase.from("profiles").select("id, full_name, avatar_url").eq("id", appointment.clinician_id).single(),
-    supabase.from("appointment_notes").select("id, content, created_at").eq("appointment_id", appointmentId).order("created_at", { ascending: false }),
+    supabase.from("appointment_notes").select("id, content, note_type, flag_for_follow_up, created_at").eq("appointment_id", appointmentId).order("created_at", { ascending: false }),
     supabase.from("appointment_services").select("id, service_type, details, created_at").eq("appointment_id", appointmentId).order("created_at", { ascending: false }),
     isStaff
       ? supabase

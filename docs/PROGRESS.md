@@ -7,8 +7,8 @@
 | Field | Value |
 |---|---|
 | **Last session date** | 2026-06-24 |
-| **Current focus area** | Priority 7.4 — Care Continuity Dashboard web |
-| **Status** | Web UI shipped. Clinician portal: new `CareContinuityPanel.tsx` added to dashboard showing patients not seen in 30+ days or with overdue follow-ups (filtered + sorted, empty "all clear" state). Fetched via `GET /api/clinician-portal/care-continuity` in page.tsx (parallel with follow-ups fetch using Promise.allSettled). Sponsor view: `careSummary` type added to sponsored/[id]/page.tsx; Care Summary card rendered between stats row and vitals — shows last visit (Xd ago), next appointment date, open/overdue follow-up counts. Build clean. Next: 7.2 mobile (deferred) or move to Priority 2 (recommendations). |
+| **Current focus area** | Priority 8.4 — Structured Clinic Notes web |
+| **Status** | Note form updated: `CustomSelect` for note type (general/coordination/clinical_summary/discharge), checkbox for flag-for-follow-up, conditional date input for due date. Note list shows note-type badge + "follow-up flagged" pill. `addAppointmentNote` server action switched from direct Supabase insert to API call so side-effects (auto-follow-up, coordination notification) fire. Notes SELECT updated in home API route + both page.tsx files. Both api/ and webapp/ builds clean. **00035 must be applied in Supabase before testing.** Next: 8.3 mobile (note type selector + flag toggle) or move to next priority. |
 
 > Update this table at the start of each session.
 
@@ -31,6 +31,9 @@
 | 11 | 2026-06-23 | Priority 6.4 — Patient status updates web | API-first web UI mirroring follow-ups (3.4). New `status-update-types.ts`, `status-update-actions.ts` (server action → `/api/patients/:id/status-updates`), `appointments/[id]/StatusUpdatesSection.tsx` (clinician post form w/ visibility selector + list w/ visibility badge). Wired into appointment-detail page/client. Sponsor read-only status feed added to `home/sponsored/[id]/page.tsx` (fetches via sponsor token; RLS returns all/sponsor_only). Build clean; no new lint errors. Patient self-view + 6.3 mobile out of scope. |
 | 12 | 2026-06-24 | Priority 7.1 — Care continuity dashboard backend | New `GET /api/clinician-portal/care-continuity`: queries all patients (admin client), last completed/no_show appointment, pending follow_ups; returns per-patient `patientId/Name/Avatar/lastAppointmentDate/daysSinceLastAppointment/openFollowUpsCount/overdueFollowUpsCount`. Extended `GET /api/home/sponsored/:id` with `careSummary` block (lastVisitDate, daysSinceLastVisit, nextAppointmentDate, openFollowUpsCount, overdueFollowUpsCount, recentStatusUpdates — user-client for RLS-scoped status visibility). No migration. Build clean. Pending referral count deferred to Priority 5. |
 | 13 | 2026-06-24 | Priority 7.4 — Care continuity dashboard web | New `CareContinuityPanel.tsx` on clinician portal dashboard: filters patients with `daysSinceLastAppointment >= 30 || overdueFollowUpsCount > 0`, sorts overdue first, shows "all clear" empty state. Fetched via parallel Promise.allSettled in page.tsx. Sponsor view (`home/sponsored/[id]`): added `careSummary` type block, rendered as 3-column card (last visit · next appointment · follow-ups) between stats row and vitals. Build clean. |
+| 14 | 2026-06-24 | Priority 8.1 — Structured clinic notes DB | Migration 00035: `note_type` enum (`general`, `coordination`, `clinical_summary`, `discharge`); `appointment_notes.note_type` column converted from text → enum; `flag_for_follow_up boolean default false` added; SELECT RLS policy updated to block sponsors from `coordination` notes (clinician-internal). **00035 must be applied in Supabase.** |
+| 15 | 2026-06-24 | Priority 8.2 — Structured clinic notes backend | `addNote()` updated to accept `note_type` + `flag_for_follow_up` + `followUpDueDate`; validates note type; fetches appointment for `patient_id`; auto-creates follow-up via admin client; notifies admins on coordination notes via new `notifyAdmins()` in `lib/notifications.ts`. Migration 00035 amended to add `coordination_note` to `notification_type` enum. Build clean. |
+| 16 | 2026-06-24 | Priority 8.4 — Structured clinic notes web | Note form: `CustomSelect` for note type, checkbox for flag-for-follow-up, conditional date input. Note list: type badge + "follow-up flagged" pill. `addAppointmentNote` server action switched from direct Supabase insert to API call. Notes SELECT updated in home API route + both page.tsx files. `Note` type updated in both `AppointmentDetailClient.tsx` files. Both builds clean. |
 
 > Add a row each session. Example: `| 1 | 2026-06-22 | Priority 1 — Remove care plan tiers | Completed DB migration, updated LinkPatientScreen |`
 
@@ -236,20 +239,30 @@ Items are ordered by the recommended priority from the gap analysis. Check off e
 ### Priority 8 — Structured Clinic Notes & Coordination Workflows
 > Enhance existing appointment notes with structure and coordination triggers.
 
-- [ ] **8.1 — Database**
-  - [ ] Extend `appointment_notes.note_type` enum: add `coordination`, `clinical_summary`, `discharge`
-  - [ ] No new table needed; extend existing `appointment_notes`
+- [x] **8.1 — Database**
+  - [x] Create `note_type` enum (`general`, `coordination`, `clinical_summary`, `discharge`) — converts existing text column
+  - [x] Added `flag_for_follow_up boolean default false` to `appointment_notes`
+  - [x] Updated SELECT RLS: sponsors blocked from `coordination` notes; all other roles unaffected
+  - Migration: `supabase/migrations/00035_structured_clinic_notes.sql` (**must be applied in Supabase**)
 
-- [ ] **8.2 — Backend**
-  - [ ] Update `POST /api/appointments/:id/notes` to accept new note types
-  - [ ] Trigger notification to care coordinator on `coordination` note type
+- [x] **8.2 — Backend**
+  - [x] Updated `POST /api/appointments/:id/notes`: accepts `note_type` (validated enum, default `general`), `flag_for_follow_up` (bool), `followUpDueDate` (optional)
+  - [x] Auto-creates `follow_ups` row via service-role client when `flag_for_follow_up=true`
+  - [x] Triggers `coordination_note` notification to all admins when `note_type=coordination`
+  - [x] Added `notifyAdmins()` helper to `api/src/lib/notifications.ts`
+  - [x] Migration 00035 amended: `coordination_note` added to `notification_type` enum
 
 - [ ] **8.3 — Mobile**
   - [ ] Add note type selector (General / Clinical Summary / Coordination / Discharge) to note creation UI
   - [ ] Add "Flag for follow-up" toggle on coordination notes (auto-creates a follow-up task)
 
-- [ ] **8.4 — Web**
-  - [ ] Update appointment detail note form to include note type selector
+- [x] **8.4 — Web**
+  - [x] Note type selector (`CustomSelect`: general / coordination / clinical_summary / discharge) on note form
+  - [x] "Flag for follow-up" checkbox; conditional follow-up due date input when checked
+  - [x] Note list: type badge + "follow-up flagged" pill per note
+  - [x] `addAppointmentNote` server action switched to API call (auto-follow-up + coordination notification now fire)
+  - [x] Notes SELECT expanded to include `note_type, flag_for_follow_up` in home API route + both page.tsx files
+  - Files: `webapp/app/home/appointments/[id]/AppointmentDetailClient.tsx`, `webapp/app/home/clinician-actions.ts`, `webapp/app/home/appointments/[id]/page.tsx`, `webapp/app/clinician-portal/appointments/[id]/AppointmentDetailClient.tsx` + `page.tsx`, `api/src/routes/home.ts`
 
 ---
 

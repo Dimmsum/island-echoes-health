@@ -11,7 +11,13 @@ import { CustomInput } from "@/app/components/CustomInput";
 import { CustomTextArea } from "@/app/components/CustomTextArea";
 import { CustomSelect, type CustomSelectOption } from "@/app/components/CustomSelect";
 
-type Note = { id: string; content: string; created_at: string };
+type Note = {
+  id: string;
+  content: string;
+  note_type: string;
+  flag_for_follow_up: boolean;
+  created_at: string;
+};
 type Service = { id: string; service_type: string; details: string | null; created_at: string };
 
 const SERVICE_TYPES = [
@@ -26,6 +32,16 @@ const SERVICE_TYPE_OPTIONS: CustomSelectOption<(typeof SERVICE_TYPES)[number]>[]
   value: t,
   label: t.replace(/_/g, " "),
 }));
+
+const NOTE_TYPES = ["general", "coordination", "clinical_summary", "discharge"] as const;
+type NoteType = (typeof NOTE_TYPES)[number];
+
+const NOTE_TYPE_OPTIONS: CustomSelectOption<NoteType>[] = [
+  { value: "general",          label: "General" },
+  { value: "coordination",     label: "Coordination" },
+  { value: "clinical_summary", label: "Clinical Summary" },
+  { value: "discharge",        label: "Discharge" },
+];
 
 const ADHERENCE_OPTIONS: CustomSelectOption<"good" | "fair" | "poor" | "">[] = [
   { value: "", label: "—" },
@@ -55,6 +71,9 @@ export function AppointmentDetailClient({
 }: Props) {
   const router = useRouter();
   const [noteContent, setNoteContent] = useState("");
+  const [noteType, setNoteType] = useState<NoteType>("general");
+  const [flagForFollowUp, setFlagForFollowUp] = useState(false);
+  const [followUpDueDate, setFollowUpDueDate] = useState("");
   const [serviceType, setServiceType] = useState<(typeof SERVICE_TYPES)[number]>("vitals");
   const [serviceDetails, setServiceDetails] = useState("");
   const [bpSystolic, setBpSystolic] = useState("");
@@ -70,11 +89,14 @@ export function AppointmentDetailClient({
     if (!noteContent.trim()) return;
     setError(null);
     setPending("note");
-    const result = await addAppointmentNote(appointmentId, noteContent);
+    const result = await addAppointmentNote(appointmentId, noteContent, noteType, flagForFollowUp, followUpDueDate || undefined);
     setPending(null);
     if (result.error) setError(result.error);
     else {
       setNoteContent("");
+      setNoteType("general");
+      setFlagForFollowUp(false);
+      setFollowUpDueDate("");
       router.refresh();
     }
   }
@@ -134,9 +156,19 @@ export function AppointmentDetailClient({
                 className="rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3 text-sm text-slate-700"
               >
                 <p className="whitespace-pre-wrap">{n.content}</p>
-                <p className="mt-2 text-xs text-slate-400">
-                  {new Date(n.created_at).toLocaleString()}
-                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs capitalize text-slate-500">
+                    {n.note_type.replace(/_/g, " ")}
+                  </span>
+                  {n.flag_for_follow_up && (
+                    <span className="inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-600">
+                      follow-up flagged
+                    </span>
+                  )}
+                  <span className="text-xs text-slate-400">
+                    {new Date(n.created_at).toLocaleString()}
+                  </span>
+                </div>
               </li>
             ))}
           </ul>
@@ -152,6 +184,37 @@ export function AppointmentDetailClient({
             rows={4}
             containerClassName="mb-4"
           />
+          <div className="mb-4 sm:max-w-[220px]">
+            <CustomSelect
+              label="Note type"
+              value={noteType}
+              onChange={setNoteType}
+              options={NOTE_TYPE_OPTIONS}
+              aria-label="Note type"
+            />
+          </div>
+          <label className="mb-4 flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={flagForFollowUp}
+              onChange={(e) => {
+                setFlagForFollowUp(e.target.checked);
+                if (!e.target.checked) setFollowUpDueDate("");
+              }}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            Flag for follow-up
+          </label>
+          {flagForFollowUp && (
+            <div className="mb-4 sm:max-w-[220px]">
+              <CustomInput
+                label="Follow-up due date (optional)"
+                type="date"
+                value={followUpDueDate}
+                onChange={(e) => setFollowUpDueDate(e.target.value)}
+              />
+            </div>
+          )}
           <button
             type="submit"
             disabled={pending !== null}

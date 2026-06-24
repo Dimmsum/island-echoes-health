@@ -28,7 +28,7 @@ export default async function AppointmentDetailPage({ params }: Props) {
     appointment: { id: string; patient_id: string; clinician_id: string; scheduled_at: string; status: string };
     patient: { id: string; full_name: string | null; avatar_url?: string | null } | null;
     clinician: { id: string; full_name: string | null; avatar_url?: string | null } | null;
-    notes: { id: string; content: string; created_at: string }[];
+    notes: { id: string; content: string; note_type: string; flag_for_follow_up: boolean; created_at: string }[];
     services: { id: string; service_type: string; details: string | null; created_at: string }[];
   };
   try {

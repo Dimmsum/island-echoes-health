@@ -9,7 +9,7 @@ import { StatusUpdatesSection } from "./StatusUpdatesSection";
 import type { FollowUp } from "../../follow-up-types";
 import type { StatusUpdate } from "../../status-update-types";
 
-type Note = { id: string; content: string; created_at: string };
+type Note = { id: string; content: string; note_type: string; flag_for_follow_up: boolean; created_at: string };
 type Service = { id: string; service_type: string; details: string | null; created_at: string };
 
 type PreviousMetric = {

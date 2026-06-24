@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createClientAdmin } from "@/lib/supabase/admin";
+import { fetchFromApi } from "@/lib/api";
+
+const NOTE_TYPES_WEB = ["general", "coordination", "clinical_summary", "discharge"] as const;
+type NoteType = (typeof NOTE_TYPES_WEB)[number];
 
 export type ClinicianActionResult = { error: string | null };
 
@@ -154,22 +158,30 @@ export async function rescheduleAppointment(
 
 export async function addAppointmentNote(
   appointmentId: string,
-  content: string
+  content: string,
+  noteType: NoteType = "general",
+  flagForFollowUp = false,
+  followUpDueDate?: string,
 ): Promise<ClinicianActionResult> {
-  const { error, userId } = await ensureClinicianOrAdmin();
-  if (error || !userId) return { error: error ?? "Not signed in." };
-
   const supabase = await createClient();
-  const { error: insertError } = await supabase.from("appointment_notes").insert({
-    appointment_id: appointmentId,
-    content: content.trim(),
-    created_by: userId,
-  });
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return { error: "Not signed in." };
 
-  if (insertError) {
-    console.error("Add note failed:", insertError);
-    return { error: "Failed to add note." };
-  }
+  const res = await fetchFromApi(
+    session.access_token,
+    `/api/appointments/${appointmentId}/notes`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        content: content.trim(),
+        note_type: noteType,
+        flag_for_follow_up: flagForFollowUp,
+        ...(followUpDueDate ? { followUpDueDate } : {}),
+      }),
+    }
+  );
+
+  if (!res.ok) return { error: "Failed to add note." };
 
   revalidatePath("/home/appointments");
   revalidatePath("/home/appointments/" + appointmentId);

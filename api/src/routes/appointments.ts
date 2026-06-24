@@ -1,9 +1,11 @@
 import { Response } from "express";
-import { createSupabaseForUser } from "../lib/supabase.js";
-import { notifySponsorsOfPatient } from "../lib/notifications.js";
+import { createSupabaseForUser, createClientAdmin } from "../lib/supabase.js";
+import { notifyAdmins, notifySponsorsOfPatient } from "../lib/notifications.js";
 import type { AuthRequest } from "../middleware/auth.js";
 
 const SERVICE_TYPES = ["vitals", "chronic_lab", "wellness_check", "follow_up", "coordination"] as const;
+const NOTE_TYPES = ["general", "coordination", "clinical_summary", "discharge"] as const;
+type NoteType = (typeof NOTE_TYPES)[number];
 
 export async function createAppointment(req: AuthRequest, res: Response): Promise<void> {
   const supabase = createSupabaseForUser(req.accessToken);
@@ -92,25 +94,90 @@ export async function rescheduleAppointment(req: AuthRequest, res: Response): Pr
 
 export async function addNote(req: AuthRequest, res: Response): Promise<void> {
   const supabase = createSupabaseForUser(req.accessToken);
+  const admin = createClientAdmin();
   const appointmentId = req.params.id;
   const userId = req.user.id;
-  const { content } = req.body as { content?: string };
+  const { content, note_type, flag_for_follow_up, followUpDueDate } = req.body as {
+    content?: string;
+    note_type?: string;
+    flag_for_follow_up?: boolean;
+    followUpDueDate?: string;
+  };
+
   if (!content?.trim()) {
     res.status(400).json({ error: "content is required." });
     return;
   }
 
-  const { error } = await supabase.from("appointment_notes").insert({
-    appointment_id: appointmentId,
-    content: content.trim(),
-    created_by: userId,
-  });
+  const noteType: NoteType = (note_type as NoteType) ?? "general";
+  if (!NOTE_TYPES.includes(noteType)) {
+    res.status(400).json({ error: `note_type must be one of: ${NOTE_TYPES.join(", ")}.` });
+    return;
+  }
 
-  if (error) {
+  const flagFollowUp = flag_for_follow_up === true;
+
+  // Fetch appointment to get patient_id (needed for follow-up + notification).
+  const { data: apt } = await supabase
+    .from("appointments")
+    .select("id, patient_id")
+    .eq("id", appointmentId)
+    .single();
+
+  if (!apt) {
+    res.status(404).json({ error: "Appointment not found." });
+    return;
+  }
+
+  const { data: note, error } = await supabase
+    .from("appointment_notes")
+    .insert({
+      appointment_id: appointmentId,
+      content: content.trim(),
+      created_by: userId,
+      note_type: noteType,
+      flag_for_follow_up: flagFollowUp,
+    })
+    .select("id, note_type, flag_for_follow_up")
+    .single();
+
+  if (error || !note) {
     res.status(500).json({ error: "Failed to add note." });
     return;
   }
-  res.status(201).json({ error: null });
+
+  // Auto-create follow-up when flagged.
+  if (flagFollowUp) {
+    const dueDate = followUpDueDate && !Number.isNaN(Date.parse(followUpDueDate))
+      ? followUpDueDate.slice(0, 10)
+      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    await admin.from("follow_ups").insert({
+      patient_id: apt.patient_id,
+      clinician_id: userId,
+      appointment_id: appointmentId,
+      due_date: dueDate,
+      status: "pending",
+    });
+  }
+
+  // Notify admins when a coordination note is posted.
+  if (noteType === "coordination") {
+    await notifyAdmins(
+      "coordination_note",
+      "Coordination note added",
+      content.trim().slice(0, 200),
+      String(appointmentId)
+    );
+  }
+
+  res.status(201).json({
+    note: {
+      id: note.id,
+      noteType: note.note_type,
+      flagForFollowUp: note.flag_for_follow_up,
+    },
+  });
 }
 
 export async function addService(req: AuthRequest, res: Response): Promise<void> {
