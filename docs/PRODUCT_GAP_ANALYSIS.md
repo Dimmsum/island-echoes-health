@@ -32,10 +32,10 @@ The platform has a solid technical foundation (auth, appointments, clinician por
 | Follow-up tracking (standalone) | ❌ Missing |
 | Referral management | ❌ Missing |
 | Patient status / health status field | ❌ Missing |
-| Healthcare provider recommendations | ❌ Missing |
+| Healthcare provider recommendations | ❌ Missing — planned as a live Google Places proxy (see §3.1) |
 | Country/location filtering | ❌ Missing |
 | Patient self-pay (non-sponsor) | ❌ Missing |
-| Community/patient feedback on providers | ❌ Missing |
+| Community/patient feedback on providers | ➖ Out of scope — ratings/reviews handled **off-platform on Google**, not built in-app (see §3.1) |
 
 ### Frontend — Mobile (React Native/Expo)
 | Screen/Feature | Status |
@@ -138,29 +138,27 @@ The platform has a solid technical foundation (auth, appointments, clinician por
 
 The document calls this *"a major visible feature."* Currently **zero** implementation exists.
 
+> **Updated 2026-06-23:** Re-scoped to a **live Google Places integration**. We do **not** host or curate an owned provider catalog (that would imply we endorse a hand-picked list); instead we fetch providers live by **location + need**. Ratings/reviews are **off-platform on Google** — we surface each provider's Google rating and a "view / rate on Google" link (`googleMapsUri`), with **no in-app feedback**. This supersedes the owned-table + admin/feedback design previously sketched here.
+
 **Required components:**
 
-**Database (new tables):**
-- `providers` — id, name, category (clinic/mental_health/specialist/pharmacy/diagnostic/wellness), country, city/parish, description, website, phone, verified (bool), created_at
-- `provider_feedback` — id, provider_id, user_id (FK profiles), rating (1–5), comment, created_at
-- `provider_recommendations` — optional curated list table (admin-managed)
+**Database:** **None.** No owned provider catalog and no in-app feedback ⇒ no tables, no migration.
 
-**Backend (new routes):**
-- `GET /api/recommendations` — List/search providers (filter by category, country, search term)
-- `GET /api/recommendations/:id` — Provider detail + feedback
-- `POST /api/recommendations/:id/feedback` — Submit patient feedback/rating
-- `POST /api/admin/providers` — Admin: add/edit/verify provider
-- `PATCH /api/admin/providers/:id` — Admin: update provider listing
+**Backend (new routes — Google Places proxy):**
+- `GET /api/recommendations/search` — query Google Places by `lat`, `lng`, `category`/`q`, `radius`; returns normalized providers (name, address, location, rating, `googleMapsUri`, phone, website)
+- `GET /api/recommendations/:placeId` — Place Details passthrough (normalized provider detail)
+- New `api/src/lib/googlePlaces.ts` client (native fetch, mirrors `lib/stripe.ts`) with a healthcare-category → Google-query/type map
+- New `GOOGLE_PLACES_API_KEY` env var (API only)
 
 **Mobile (new screens):**
-- Recommendations tab (new tab in user navigation) — browse/search directory
-- Provider detail screen — info, ratings, "refer this provider" action
+- Recommendations tab (new tab in user navigation) — browse/search by location + need
+- Provider detail screen — info, Google rating, **"View / rate on Google"** link, "refer this provider" action
 - Category filter UI (chips: Clinic, Mental Health, Specialist, Pharmacy, etc.)
-- Country/location filter
+- Location filter (device location / lat-lng)
 
 **Web (new pages):**
-- `/recommendations` — Public-facing or authenticated directory
-- `/recommendations/[id]` — Provider detail
+- `/recommendations` — authenticated directory (search + filters)
+- `/recommendations/[id]` — provider detail with Google rating + link out to Google
 
 ---
 
@@ -184,7 +182,8 @@ The document calls this *"a major visible feature."* Currently **zero** implemen
 ### 3.3 Referral Management
 
 **Database:**
-- `referrals` — id, patient_id, referring_clinician_id, provider_id (FK providers, nullable), provider_name_free_text (fallback), reason, status (created/sent/accepted/completed), created_at, updated_at
+- `referrals` — id, patient_id, referring_clinician_id, google_place_id (text, nullable — from recommendations), provider_name_free_text (fallback), reason, status (created/sent/accepted/completed), created_at, updated_at
+  - Note: no owned `providers` table exists, so referrals reference an external Google **place id** and/or free-text provider name rather than a local FK.
 
 **Backend:**
 - `POST /api/referrals` — Clinician creates referral
@@ -265,7 +264,7 @@ Current notification types: `consent_request`, `visit_update`, `no_show_alert`, 
 - `follow_up_overdue` — Escalation
 - `referral_update` — Referral status change
 - `patient_status_update` — Sponsor sees new clinician update
-- `new_recommendation` — (Optional) new provider added in patient's area
+- ~~`new_recommendation` — new provider added in patient's area~~ — **dropped** (no owned provider list to detect "new in area"; recommendations are live Google Places lookups)
 
 ---
 
@@ -289,10 +288,10 @@ Current notification types: `consent_request`, `visit_update`, `no_show_alert`, 
 | Table | Action |
 |---|---|
 | `care_plans` | Simplify or deprecate tiered structure; move to single sponsorship amount |
-| `providers` | **New** — healthcare provider directory |
-| `provider_feedback` | **New** — community ratings on providers |
+| ~~`providers`~~ | **Not created** — recommendations use live Google Places, no owned catalog |
+| ~~`provider_feedback`~~ | **Not created** — ratings/reviews are off-platform on Google |
 | `follow_ups` | **New** — follow-up task tracking |
-| `referrals` | **New** — referral management |
+| `referrals` | **New** — referral management. Note: with no owned `providers` table, a referral references an external Google **place id** (text) and/or a free-text provider name, not an FK to a local catalog. |
 | `patient_status_updates` | **New** — clinician-posted patient status |
 | `notification_type` enum | Extend with new types listed above |
 | `appointment_notes.note_type` | Extend enum: add `coordination`, `clinical_summary`, `discharge` |

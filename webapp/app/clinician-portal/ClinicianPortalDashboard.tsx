@@ -3,6 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { FollowUpsPanel } from "./FollowUpsPanel";
+import type { FollowUp } from "./follow-up-types";
 
 type PatientWithPlan = {
   patient_id: string;
@@ -28,6 +30,8 @@ type Props = {
   role: "admin" | "clinician";
   patientsWithPlans: PatientWithPlan[];
   stats: Stats;
+  followUps: FollowUp[];
+  followUpPatientNames: Record<string, string>;
 };
 
 const CalendarIcon = () => (
@@ -100,6 +104,8 @@ export function ClinicianPortalDashboard({
   role,
   patientsWithPlans,
   stats,
+  followUps,
+  followUpPatientNames,
 }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -242,6 +248,12 @@ export function ClinicianPortalDashboard({
             </div>
           </div>
         </div>
+
+        {/* Follow-ups Panel */}
+        <FollowUpsPanel
+          followUps={followUps}
+          patientNames={followUpPatientNames}
+        />
 
         {/* Patients Section */}
         <section>

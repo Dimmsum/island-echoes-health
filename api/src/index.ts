@@ -20,6 +20,7 @@ import * as clinicianPortal from "./routes/clinician-portal.js";
 import * as appointments from "./routes/appointments.js";
 import * as stripe from "./routes/stripe.js";
 import * as wallet from "./routes/wallet.js";
+import * as followUps from "./routes/follow-ups.js";
 
 const app = express();
 const upload = multer({ dest: path.join(process.cwd(), "tmp-uploads") });
@@ -408,6 +409,37 @@ app.get("/api/wallet/transactions", authMiddleware, (req, res, next) =>
       res,
     )
     .catch(next),
+);
+
+// Follow-ups
+app.post(
+  "/api/follow-ups",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) =>
+    followUps
+      .createFollowUp(
+        req as Parameters<typeof followUps.createFollowUp>[0],
+        res,
+      )
+      .catch(next),
+);
+app.get("/api/follow-ups", authMiddleware, (req, res, next) =>
+  followUps
+    .listFollowUps(req as Parameters<typeof followUps.listFollowUps>[0], res)
+    .catch(next),
+);
+app.patch(
+  "/api/follow-ups/:id",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) =>
+    followUps
+      .updateFollowUp(
+        req as Parameters<typeof followUps.updateFollowUp>[0],
+        res,
+      )
+      .catch(next),
 );
 
 // 404 handler for unknown API routes

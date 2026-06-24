@@ -2,7 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchApiJson } from "@/lib/api";
 import { ClinicianAppointmentDetailClient } from "./AppointmentDetailClient";
+import type { FollowUp } from "../../follow-up-types";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -31,6 +33,23 @@ export default async function ClinicianPortalAppointmentDetailPage({ params }: P
     .single();
 
   if (error || !appointment) redirect("/clinician-portal/appointments");
+
+  // Follow-ups for this patient (API has no appointment filter — narrow client-side).
+  let followUps: FollowUp[] = [];
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    try {
+      const data = await fetchApiJson<{ followUps: FollowUp[] }>(
+        session.access_token,
+        `/api/follow-ups?patientId=${appointment.patient_id}`,
+      );
+      followUps = data.followUps.filter((f) => f.appointmentId === id);
+    } catch {
+      followUps = [];
+    }
+  }
 
   const [
     { data: patient },
@@ -99,6 +118,7 @@ export default async function ClinicianPortalAppointmentDetailPage({ params }: P
           previousMetrics={previousMetrics ?? []}
           notes={notes ?? []}
           services={services ?? []}
+          followUps={followUps}
         />
       </main>
     </div>

@@ -7,8 +7,8 @@
 | Field | Value |
 |---|---|
 | **Last session date** | 2026-06-23 |
-| **Current focus area** | Priority 1 — Remove care plan tiers & simplify payment |
-| **Status** | In progress — 1.1 (DB) + 1.2 (backend) + 1.3 (web) complete, Stripe top-up crediting fixed (00032), 1.4 (mobile) next |
+| **Current focus area** | Priority 3.4 — Follow-up Tracking web |
+| **Status** | Web UI shipped (API-first): follow-up create/list section on clinician appointment detail + open/overdue panel on clinician dashboard, both via `/api/follow-ups`. Build clean, no new lint errors. Requires **00033 applied in Supabase**. Next: 3.5 notifications. (Priority 3.3 mobile **backlogged**; Priority 2.2 backend proxy and Priority 1.4 mobile still deferred.) |
 
 > Update this table at the start of each session.
 
@@ -22,6 +22,10 @@
 | 2 | 2026-06-23 | Priority 1.2 — Backend: decouple consent, wallet API | New routes: POST /sponsorship/invite, GET+POST /wallet, GET /wallet/transactions. Removed create-payment + care-plans routes. Migration 00031: increment_wallet_balance fn. TypeScript build clean. |
 | 3 | 2026-06-23 | Priority 1.3 — Web: wallet UI, remove pricing, update copy | Replaced /pricing with redirect. Removed Pricing nav link. Rewrote PurchasePlanForm → SupportPatientForm (email-only invite). Added WalletCard (balance + transactions + topup intent). Updated UserHome copy. Added wallet section to sponsored/[id] page. Build clean. |
 | 4 | 2026-06-23 | Stripe top-up: full Elements flow + crediting fix | Wired full Stripe Elements payment (PaymentElement + confirmPayment) in WalletCard; added webapp/lib/stripe.ts singleton. Removed stale BillingPortalButton from UserHome + profile. Diagnosed: wallet only credited in webhook, which never reaches localhost (no Stripe CLI / no STRIPE_WEBHOOK_SECRET). Fix: migration 00032 (unique index on stripe_payment_intent_id + idempotent credit_wallet_topup fn); new POST /api/wallet/topup/confirm endpoint (verifies PI w/ Stripe, credits idempotently); webhook refactored to same RPC; frontend calls confirmTopup + router.refresh() after payment. Both builds clean. **Migration 00032 must be applied in Supabase.** |
+| 5 | 2026-06-23 | Priority 2 re-scoped — recommendations direction | Decided: recommendations is a **live Google Places proxy**, not an owned/curated catalog (avoids implying endorsement); providers fetched by location + need. Ratings happen **off-platform on Google** (link out via `googleMapsUri`) — no in-app feedback. **2.1 is DB-less** (no `providers`/`provider_feedback` tables, no migration). Updated PROGRESS + PRODUCT_GAP_ANALYSIS. Next: 2.2 backend proxy. |
+| 6 | 2026-06-23 | Priority 3.1 — Follow-up tracking DB | Migration 00033: `follow_up_status` enum (pending, completed, cancelled) + `follow_ups` table (patient_id, clinician_id, nullable appointment_id, due_date DATE, status, notes, completed_at) with RLS (patient/sponsor/clinician read; service-role writes). "Overdue" derived, not stored. Mirrors wallet table patterns from 00030. **00033 must be applied in Supabase.** |
+| 7 | 2026-06-23 | Priority 3.2 — Follow-up tracking backend | New `api/src/routes/follow-ups.ts`: POST (clinician creates, validates patient + optional appointment link), GET (RLS-scoped list via user client, `?patientId`/`?status` filters, derived `overdue`), PATCH (owning-clinician/admin only, manages `completed_at`). Mounted 3 routes in `index.ts` behind authMiddleware (+requireClinicianOrAdmin on write). Build clean. |
+| 8 | 2026-06-23 | Priority 3.4 — Follow-up tracking web | API-first web UI. New `follow-up-actions.ts` (server actions → `/api/follow-ups` via session token), `follow-up-types.ts`, `FollowUpsSection.tsx` (appointment-detail create/list + mark complete), `FollowUpsPanel.tsx` (dashboard open/overdue, clinician's own, overdue-first). Wired into clinician appointment-detail page/client + dashboard page/component. Build clean; no new lint errors. **3.3 mobile backlogged** at user request. |
 
 > Add a row each session. Example: `| 1 | 2026-06-22 | Priority 1 — Remove care plan tiers | Completed DB migration, updated LinkPatientScreen |`
 
@@ -67,56 +71,57 @@ Items are ordered by the recommended priority from the gap analysis. Check off e
 
 ---
 
-### Priority 2 — Healthcare Recommendations Directory
-> Build the provider directory from scratch. This is the highest-priority new feature.
+### Priority 2 — Healthcare Recommendations
+> A trusted healthcare **navigation** experience: users find clinics, specialists, mental-health providers, pharmacies, labs, and wellness resources **based on their location and what they need help with**.
+>
+> **Direction (re-scoped 2026-06-23):** Providers are fetched **live from the Google Places API**, not stored in an owned/curated catalog — we don't want to imply we endorse a hand-picked list. Ratings/reviews happen **off-platform on Google**; we surface each provider's Google rating and a "view / rate on Google" link (`googleMapsUri`). No in-app feedback, no owned provider data.
 
-- [ ] **2.1 — Database**
-  - [ ] Create `providers` table (id, name, category enum, country, city, description, website, phone, verified, created_at)
-  - [ ] Create `provider_category` enum (clinic, mental_health, specialist, pharmacy, diagnostic, wellness)
-  - [ ] Create `provider_feedback` table (id, provider_id, user_id, rating 1–5, comment, created_at)
-  - [ ] Add RLS policies (public read, authenticated users submit feedback, admin manages providers)
+- [x] **2.1 — Database** — **DB-less, no migration.** Providers come live from Google Places; ratings are off-platform. No `providers` or `provider_feedback` tables are created. (Superseded the original owned-catalog + in-app-feedback sketch.)
 
-- [ ] **2.2 — Backend**
-  - [ ] `GET /api/recommendations` — list/search with filters (category, country, search term)
-  - [ ] `GET /api/recommendations/:id` — provider detail + aggregated rating + feedback list
-  - [ ] `POST /api/recommendations/:id/feedback` — authenticated user submits rating/comment
-  - [ ] `POST /api/admin/providers` — admin creates provider listing
-  - [ ] `PATCH /api/admin/providers/:id` — admin edits/verifies provider
+- [ ] **2.2 — Backend** (Google Places proxy)
+  - [ ] `GET /api/recommendations/search` — query Google Places by `lat`, `lng`, `category`/`q`, `radius`; return normalized providers (name, address, location, rating, `googleMapsUri`, phone, website)
+  - [ ] `GET /api/recommendations/:placeId` — Place Details passthrough (normalized provider detail)
+  - [ ] New `api/src/lib/googlePlaces.ts` client (native fetch, mirrors `lib/stripe.ts`) with a healthcare-category → Google-query/type map (clinic, mental_health, specialist, pharmacy, diagnostic, wellness)
+  - [ ] Add `GOOGLE_PLACES_API_KEY` env var (API only); guard unconfigured with 503
+  - [ ] Mount both routes in `index.ts` behind `authMiddleware`
 
 - [ ] **2.3 — Mobile**
   - [ ] Add Recommendations tab to `UserTabsNavigator`
-  - [ ] Build `RecommendationsScreen` — list with search bar and category filter chips
-  - [ ] Build `ProviderDetailScreen` — info, rating, feedback list, "Request referral" CTA
-  - [ ] Add country/location filter UI
+  - [ ] Build `RecommendationsScreen` — search bar + category filter chips, consumes `/api/recommendations/search`
+  - [ ] Build `ProviderDetailScreen` — info + Google rating + **"View / rate on Google"** link (opens `googleMapsUri`) + "Request referral" CTA
+  - [ ] Add location filter UI (uses device location / lat-lng input)
 
 - [ ] **2.4 — Web**
-  - [ ] Create `/recommendations` page — provider directory with search + filters
-  - [ ] Create `/recommendations/[id]` page — provider detail view
-  - [ ] Add admin UI for managing provider listings
+  - [ ] Create `/recommendations` page — search + filters, consumes `/api/recommendations/search`
+  - [ ] Create `/recommendations/[id]` page — provider detail with Google rating + "View / rate on Google" link out
 
 ---
 
 ### Priority 3 — Follow-up Tracking
 > Standalone follow-up tasks, not just a tag on appointments.
 
-- [ ] **3.1 — Database**
-  - [ ] Create `follow_up_status` enum (pending, completed, overdue)
-  - [ ] Create `follow_ups` table (id, patient_id, clinician_id, appointment_id nullable, due_date, status, notes, created_at, completed_at)
-  - [ ] Add RLS policies
+- [x] **3.1 — Database**
+  - [x] Create `follow_up_status` enum (pending, completed, cancelled) — "overdue" is **derived** (`status='pending' AND due_date < current_date`), not a stored status, so no background job is needed
+  - [x] Create `follow_ups` table (id, patient_id, clinician_id, appointment_id nullable, due_date [DATE], status, notes, created_at, updated_at, completed_at)
+  - [x] Add RLS policies (patient reads own; sponsor reads linked patient's; clinician reads all; service role manages writes — mirrors `patient_wallets`)
+  - Migration: `supabase/migrations/00033_follow_ups.sql` (**must be applied in Supabase**)
 
-- [ ] **3.2 — Backend**
-  - [ ] `POST /api/follow-ups` — clinician creates follow-up
-  - [ ] `GET /api/follow-ups` — list (patient sees own; clinician sees assigned; sponsor sees linked patient's)
-  - [ ] `PATCH /api/follow-ups/:id` — update status or notes
+- [x] **3.2 — Backend**
+  - [x] `POST /api/follow-ups` — clinician/admin creates follow-up (validates target is a patient; optional appointment link must match patient)
+  - [x] `GET /api/follow-ups` — list via RLS-scoped user client (patient sees own; clinician sees all; sponsor sees linked patient's); `?patientId`/`?status` filters; response includes derived `overdue`
+  - [x] `PATCH /api/follow-ups/:id` — update status/notes; owning-clinician or admin only; auto-manages `completed_at`
+  - [x] Writes use service-role client (no authenticated-write RLS policy); routes mounted in `index.ts` behind `authMiddleware` (+`requireClinicianOrAdmin` on POST/PATCH)
+  - File: `api/src/routes/follow-ups.ts`
 
-- [ ] **3.3 — Mobile**
+- [ ] **3.3 — Mobile** — **backlogged** (deferred at user request 2026-06-23)
   - [ ] Add "Add follow-up" action on `ClinicianAppointmentDetailScreen`
   - [ ] Add follow-up section to patient home screen (pending items)
   - [ ] Surface overdue follow-ups on clinician dashboard
 
-- [ ] **3.4 — Web**
-  - [ ] Add follow-up creation flow to appointment detail page
-  - [ ] Add follow-ups panel to clinician portal dashboard
+- [x] **3.4 — Web** — API-first (server actions → `/api/follow-ups`)
+  - [x] Add follow-up creation flow to appointment detail page (`FollowUpsSection` — create form + list + mark complete, prefilled with patient + appointment)
+  - [x] Add follow-ups panel to clinician portal dashboard (`FollowUpsPanel` — clinician's own open follow-ups, overdue-first, quick complete)
+  - Files: `webapp/app/clinician-portal/follow-up-actions.ts`, `follow-up-types.ts`, `appointments/[id]/FollowUpsSection.tsx`, `FollowUpsPanel.tsx`
 
 - [ ] **3.5 — Notifications**
   - [ ] Add `follow_up_due` and `follow_up_overdue` to `notification_type` enum
@@ -251,5 +256,6 @@ Items are ordered by the recommended priority from the gap analysis. Check off e
 | Item | Blocker |
 |---|---|
 | 1.1 — Single sponsorship amount | **Resolved**: wallet model — no fixed amount; any user tops up patient's wallet |
-| 2.1 — Provider seeding | Who seeds initial provider listings? Admin manually or import? |
+| 2.1 — Provider seeding | **Resolved**: no seeding — providers are fetched live from Google Places, not stored/curated by us. Ratings are off-platform on Google. |
+| 2.2 — External provider API | **Resolved**: Google Places API. Requires a Google Cloud key (`GOOGLE_PLACES_API_KEY`) with the Places API enabled + billing. |
 
