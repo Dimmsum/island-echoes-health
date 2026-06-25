@@ -1,5 +1,9 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { ConsentRequestCards } from "./ConsentRequestCards";
+import { SupportPatientForm } from "./PurchasePlanForm";
 import { UserNavbar } from "./UserNavbar";
 import { CompactWallet } from "./CompactWallet";
 import type { WalletTransaction } from "./WalletCard";
@@ -109,7 +113,10 @@ export function UserHome({
   patientId,
   viewerId,
 }: Props) {
-  const activePatient = linkedPatients[0] ?? null;
+  const [activePatientIdx, setActivePatientIdx] = useState(0);
+  const [showSupportModal, setShowSupportModal] = useState(false);
+
+  const activePatient = linkedPatients[activePatientIdx] ?? null;
   const userInitials = getInitials(fullName);
   const today = new Date();
   const monoStyle = { fontFamily: "var(--font-ibm-mono, 'IBM Plex Mono', monospace)" };
@@ -118,9 +125,6 @@ export function UserHome({
   const hasWallet = wallet !== null && patientId !== null;
   const hasLinkedPatients = linkedPatients.length > 0;
 
-  // Grid: appointments | vitals | wallet  (3-col)
-  // If no linked patients → drop vitals center column (2-col)
-  // If no wallet → drop wallet right column
   const gridCols =
     hasLinkedPatients && hasWallet
       ? "1fr 1.45fr 1fr"
@@ -128,12 +132,16 @@ export function UserHome({
       ? "1fr 1fr"
       : "1fr";
 
+  // Filter appointments to the active linked patient (matched by patient_name)
+  const activePatientName = activePatient?.patient?.full_name ?? null;
+  const visibleAppointments = hasLinkedPatients
+    ? upcomingAppointments.filter((a) => a.patient_name === activePatientName)
+    : upcomingAppointments;
+
   return (
     <div className="min-h-screen bg-[#F4F7F3]" style={sansStyle}>
-      {/* Navbar */}
       <UserNavbar fullName={fullName} notifications={notifications} />
 
-      {/* Body */}
       <div className="mx-auto max-w-[1440px] px-7 py-6">
 
         {/* Consent requests banner */}
@@ -160,9 +168,8 @@ export function UserHome({
 
               <div className="mx-1 h-9 w-px bg-[#EBF0EB]" />
 
-              {/* Pill switcher */}
               <div className="flex flex-wrap items-center gap-2">
-                {/* You pill */}
+                {/* You pill — display-only */}
                 <div className="flex items-center gap-2 rounded-full border border-[#E6EBE6] px-3 py-2">
                   <div className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-[#DCEFE3] text-[11px] font-bold text-[#13643F]">
                     {userInitials}
@@ -170,17 +177,20 @@ export function UserHome({
                   <span className="text-[13px] font-medium text-[#5a6a60]">You</span>
                 </div>
 
+                {/* Patient pills */}
                 {linkedPatients.map((lp, i) => {
-                  const isActive = i === 0;
+                  const isActive = i === activePatientIdx;
                   const initials = getInitials(lp.patient?.full_name ?? null);
                   const color = AVATAR_COLORS[i % AVATAR_COLORS.length];
                   return (
-                    <div
+                    <button
                       key={lp.id}
-                      className={`flex items-center gap-2 rounded-full border px-3 py-2 ${
+                      type="button"
+                      onClick={() => setActivePatientIdx(i)}
+                      className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 transition-colors ${
                         isActive
                           ? "border-[#15402C] bg-[#15402C]"
-                          : "border-[#E6EBE6] bg-white"
+                          : "border-[#E6EBE6] bg-white hover:border-[#1F8A5B]/40 hover:bg-[#F4F7F3]"
                       }`}
                     >
                       <div
@@ -190,20 +200,25 @@ export function UserHome({
                         {initials}
                       </div>
                       <span
-                        className={`text-[13px] font-${isActive ? "semibold" : "medium"} ${
-                          isActive ? "text-white" : "text-[#5a6a60]"
-                        }`}
+                        className={`text-[13px] ${isActive ? "font-semibold text-white" : "font-medium text-[#5a6a60]"}`}
                       >
                         {lp.patient?.full_name?.split(" ")[0] ?? "Patient"}
                       </span>
                       {isActive && (
                         <span className="h-[7px] w-[7px] rounded-full bg-[#F4C541]" />
                       )}
-                    </div>
+                    </button>
                   );
                 })}
 
-                <SupportPatientPill />
+                {/* Support a patient pill */}
+                <button
+                  type="button"
+                  onClick={() => setShowSupportModal(true)}
+                  className="rounded-full border-[1.5px] border-dashed border-[#C9D6CC] px-3.5 py-2 text-[13px] font-semibold text-[#1F8A5B] transition-colors hover:border-[#1F8A5B] hover:bg-[#F4F7F3]"
+                >
+                  + Support a patient
+                </button>
               </div>
             </div>
 
@@ -219,10 +234,7 @@ export function UserHome({
         )}
 
         {/* ── 3-col main grid ── */}
-        <div
-          className="gap-[18px]"
-          style={{ display: "grid", gridTemplateColumns: gridCols }}
-        >
+        <div className="gap-[18px]" style={{ display: "grid", gridTemplateColumns: gridCols }}>
 
           {/* LEFT — Appointments timeline */}
           <div className="rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
@@ -230,24 +242,20 @@ export function UserHome({
               <span style={monoStyle} className="text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
                 Appointments
               </span>
-              <Link
-                href="/appointments/new"
-                className="text-[12px] font-semibold text-[#1F8A5B]"
-              >
+              <Link href="/appointments/new" className="text-[12px] font-semibold text-[#1F8A5B]">
                 + Book
               </Link>
             </div>
 
-            {upcomingAppointments.length === 0 ? (
+            {visibleAppointments.length === 0 ? (
               <div className="py-8 text-center text-[14px] text-[#94a298]">
                 No upcoming appointments.
               </div>
             ) : (
               <div className="relative pl-[22px]">
-                {/* Timeline line */}
                 <div className="absolute bottom-1.5 left-[5px] top-1.5 w-0.5 bg-[#EAF0EB]" />
 
-                {upcomingAppointments.map((apt, i) => {
+                {visibleAppointments.map((apt, i) => {
                   const date = new Date(apt.scheduled_at);
                   const msUntil = date.getTime() - today.getTime();
                   const daysUntil = Math.ceil(msUntil / 86400000);
@@ -257,9 +265,8 @@ export function UserHome({
                   return (
                     <div
                       key={apt.id}
-                      className={`relative ${i < upcomingAppointments.length - 1 ? "mb-5" : ""}`}
+                      className={`relative ${i < visibleAppointments.length - 1 ? "mb-5" : ""}`}
                     >
-                      {/* Timeline node */}
                       {isPast ? (
                         <div
                           className="absolute left-[-22px] top-[3px] flex h-3 w-3 items-center justify-center rounded-full border-2 border-white text-[8px] font-extrabold text-[#1F8A5B]"
@@ -276,7 +283,6 @@ export function UserHome({
                         <div className="absolute left-[-22px] top-[3px] h-3 w-3 rounded-full border-2 border-[#CBD8CE] bg-white" />
                       )}
 
-                      {/* Date + soon badge */}
                       <div className="flex items-center gap-1.5">
                         <span
                           className={`text-[12px] font-bold ${
@@ -289,10 +295,7 @@ export function UserHome({
                           ·{" "}
                           {isPast
                             ? "COMPLETED"
-                            : date.toLocaleTimeString("en-US", {
-                                hour: "numeric",
-                                minute: "2-digit",
-                              })}
+                            : date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
                         </span>
                         {isSoon && (
                           <span className="rounded-full bg-[#F8E4A6] px-1.5 py-0.5 text-[9.5px] font-bold text-[#9a7a06]">
@@ -301,11 +304,8 @@ export function UserHome({
                         )}
                       </div>
 
-                      {/* Appointment title */}
                       <div
-                        className={`mt-1 text-[14px] font-${isPast ? "semibold" : "bold"} ${
-                          isPast ? "text-[#7a8a80]" : "text-[#16241D]"
-                        }`}
+                        className={`mt-1 text-[14px] ${isPast ? "font-semibold text-[#7a8a80]" : "font-bold text-[#16241D]"}`}
                       >
                         {apt.patient_name
                           ? `Appt. for ${apt.patient_name}`
@@ -314,11 +314,8 @@ export function UserHome({
                           : "Appointment"}
                       </div>
 
-                      {/* Clinician + status */}
                       {apt.clinician_name && !isPast && (
-                        <div className="mt-0.5 text-[12px] text-[#94a298]">
-                          {apt.clinician_name}
-                        </div>
+                        <div className="mt-0.5 text-[12px] text-[#94a298]">{apt.clinician_name}</div>
                       )}
                       {isPast && (
                         <div className="mt-0.5 text-[12px] text-[#aab5ad]">
@@ -332,7 +329,7 @@ export function UserHome({
             )}
           </div>
 
-          {/* CENTER — Vitals focus (only when linked patients) */}
+          {/* CENTER — Vitals (only when linked patients) */}
           {hasLinkedPatients && (
             <div className="rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
               <div className="mb-4 flex items-center justify-between">
@@ -349,9 +346,7 @@ export function UserHome({
                 </button>
               </div>
 
-              {/* Hero vital + chart */}
               <div className="mb-3.5 flex items-stretch gap-4">
-                {/* Heart rate card */}
                 <div className="flex w-[150px] shrink-0 flex-col justify-center rounded-[13px] border border-[#F0EBD8] bg-[#FCFBF6] p-4">
                   <div style={monoStyle} className="text-[10px] uppercase tracking-[.1em] text-[#9a958a]">
                     Heart rate
@@ -363,37 +358,26 @@ export function UserHome({
                   <div className="mt-2 text-[11.5px] font-bold text-[#9aa89f]">No device linked</div>
                 </div>
 
-                {/* 24h trend placeholder */}
                 <div className="flex flex-1 flex-col items-center justify-center rounded-[13px] border border-[#EAF0EB] bg-[#F8FBF9] p-4 text-center">
                   <div style={monoStyle} className="mb-2 text-[10px] uppercase tracking-[.08em] text-[#9aa89f]">
                     Heart-rate trend · 24h
                   </div>
                   <div className="flex items-end gap-1.5" style={{ height: 70 }}>
                     {[38, 52, 44, 66, 58, 80, 72, 50, 62, 46].map((h, i) => (
-                      <div
-                        key={i}
-                        className="w-[9px] rounded-[3px] bg-[#D0DDD5]"
-                        style={{ height: `${h}%` }}
-                      />
+                      <div key={i} className="w-[9px] rounded-[3px] bg-[#D0DDD5]" style={{ height: `${h}%` }} />
                     ))}
                   </div>
                   <p className="mt-2 text-[11px] text-[#9aa89f]">Link wearable to populate</p>
                 </div>
               </div>
 
-              {/* Secondary vitals grid */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { label: "Blood pressure", value: "—", unit: "mmHg", status: "—", ok: true },
-                  { label: "Blood oxygen", value: "—", unit: "%", status: "—", ok: true },
-                  { label: "Glucose", value: "—", unit: "mg/dL", status: "—", ok: true },
-                ].map(({ label, value, unit, status, ok }) => (
-                  <div
-                    key={label}
-                    className={`rounded-[12px] border p-3.5 ${
-                      ok ? "border-[#E2EEE6] bg-[#F6FAF7]" : "border-[#F0EBD8] bg-[#FCFBF6]"
-                    }`}
-                  >
+                  { label: "Blood pressure", value: "—", unit: "mmHg" },
+                  { label: "Blood oxygen", value: "—", unit: "%" },
+                  { label: "Glucose", value: "—", unit: "mg/dL" },
+                ].map(({ label, value, unit }) => (
+                  <div key={label} className="rounded-[12px] border border-[#E2EEE6] bg-[#F6FAF7] p-3.5">
                     <div style={monoStyle} className="text-[10px] uppercase tracking-[.08em] text-[#8a988f]">
                       {label}
                     </div>
@@ -401,9 +385,7 @@ export function UserHome({
                       {value}
                       <span className="ml-0.5 text-[11px] font-semibold text-[#9aa89f]"> {unit}</span>
                     </div>
-                    <div className={`mt-0.5 text-[11px] font-semibold ${ok ? "text-[#9aa89f]" : "text-[#B68410]"}`}>
-                      {status}
-                    </div>
+                    <div className="mt-0.5 text-[11px] font-semibold text-[#9aa89f]">—</div>
                   </div>
                 ))}
               </div>
@@ -424,7 +406,6 @@ export function UserHome({
 
         {/* ── Secondary sections ── */}
 
-        {/* Status updates (if any) */}
         {statusUpdates.length > 0 && (
           <div className="mt-[18px] rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
             <div style={monoStyle} className="mb-4 text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
@@ -447,7 +428,6 @@ export function UserHome({
           </div>
         )}
 
-        {/* Sponsors (if patient has sponsors) */}
         {mySponsors.length > 0 && (
           <div className="mt-[18px] rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
             <div style={monoStyle} className="mb-4 text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
@@ -455,10 +435,7 @@ export function UserHome({
             </div>
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {mySponsors.map((link) => (
-                <li
-                  key={link.id}
-                  className="flex items-center gap-3 rounded-xl border border-[#EEF2EE] px-4 py-3"
-                >
+                <li key={link.id} className="flex items-center gap-3 rounded-xl border border-[#EEF2EE] px-4 py-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#DCEFE3] text-[14px] font-bold text-[#13643F]">
                     {getInitials(link.sponsor?.full_name ?? null)}
                   </div>
@@ -477,14 +454,46 @@ export function UserHome({
         )}
 
       </div>
-    </div>
-  );
-}
 
-function SupportPatientPill() {
-  return (
-    <div className="rounded-full border-[1.5px] border-dashed border-[#C9D6CC] px-3.5 py-2 text-[13px] font-semibold text-[#1F8A5B]">
-      + Support a patient
+      {/* ── Support-patient modal ── */}
+      {showSupportModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          onClick={() => setShowSupportModal(false)}
+        >
+          <div
+            className="relative w-full max-w-md rounded-2xl border border-[#E9EEE9] bg-white p-6 shadow-2xl"
+            style={sansStyle}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setShowSupportModal(false)}
+              className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full text-[#9aa89f] transition hover:bg-[#F4F7F3] hover:text-[#5a6a60]"
+            >
+              ✕
+            </button>
+
+            <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-xl bg-[#E4F1E9]">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1F8A5B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <line x1="19" y1="8" x2="19" y2="14" />
+                <line x1="22" y1="11" x2="16" y2="11" />
+              </svg>
+            </div>
+
+            <h2 className="mt-3 text-[18px] font-bold text-[#16241D]">Support a patient</h2>
+            <p className="mt-1 text-[13.5px] text-[#6a7a70]">
+              Invite a family member or loved one by email. Once they accept, you'll be able to view their care details and contribute to their wallet.
+            </p>
+
+            <div className="mt-5">
+              <SupportPatientForm />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

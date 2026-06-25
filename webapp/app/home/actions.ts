@@ -20,6 +20,10 @@ export type ConfirmTopupResult =
   | { error: string }
   | { error: null; credited: boolean; balanceCents: number | null };
 
+export type TopupCheckoutResult =
+  | { error: string }
+  | { error: null; url: string };
+
 export type BillingPortalResult =
   | { error: string; url?: undefined }
   | { error: null; url: string };
@@ -93,6 +97,39 @@ export async function createTopupIntent(
 
   if (!data.clientSecret) return { error: "Invalid response from server." };
   return { error: null, clientSecret: data.clientSecret, paymentIntentId: data.paymentIntentId };
+}
+
+/** Creates a Stripe Checkout Session for a wallet top-up. Returns { url } to open in a new tab. */
+export async function createTopupCheckoutSession(
+  patientId: string,
+  amountCents: number,
+): Promise<TopupCheckoutResult> {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) return { error: "Not signed in." };
+
+  const res = await fetch(`${API_BASE}/api/wallet/topup/checkout`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ patientId, amountCents }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message =
+      res.status === 503
+        ? "Payments are not configured. Please try again later."
+        : (data?.error ?? "Failed to create checkout session.");
+    return { error: message };
+  }
+
+  if (!data.url) return { error: "Invalid response from server." };
+  return { error: null, url: data.url };
 }
 
 /** Credits the wallet after client-side payment confirmation. Idempotent on the backend. */

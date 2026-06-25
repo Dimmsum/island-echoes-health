@@ -68,6 +68,53 @@ export async function createWalletTopupIntent(
   }
 }
 
+export type CreateTopupCheckoutParams = {
+  walletId: string;
+  patientId: string;
+  contributorId: string;
+  amountCents: number;
+  successUrl: string;
+  cancelUrl: string;
+};
+
+export async function createWalletTopupCheckoutSession(
+  params: CreateTopupCheckoutParams,
+): Promise<{ url: string } | { error: string }> {
+  const stripe = getStripe();
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            unit_amount: params.amountCents,
+            product_data: { name: "Wallet top-up" },
+          },
+          quantity: 1,
+        },
+      ],
+      payment_intent_data: {
+        metadata: {
+          type: "wallet_topup",
+          wallet_id: params.walletId,
+          patient_id: params.patientId,
+          contributor_id: params.contributorId,
+        },
+      },
+      success_url: params.successUrl,
+      cancel_url: params.cancelUrl,
+    });
+
+    if (!session.url) return { error: "Stripe did not return a checkout URL." };
+    return { url: session.url };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Stripe error";
+    console.error("createWalletTopupCheckoutSession failed:", e);
+    return { error: message };
+  }
+}
+
 export async function cancelSubscription(
   subscriptionId: string,
 ): Promise<{ ok: true } | { error: string }> {

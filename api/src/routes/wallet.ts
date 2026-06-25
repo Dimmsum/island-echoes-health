@@ -2,7 +2,9 @@ import { Response } from "express";
 import { createSupabaseForUser, createClientAdmin } from "../lib/supabase.js";
 import {
   createWalletTopupIntent,
+  createWalletTopupCheckoutSession,
   getStripe,
+  getAppBaseUrl,
   isStripeConfigured,
 } from "../lib/stripe.js";
 import type { AuthRequest } from "../middleware/auth.js";
@@ -354,4 +356,81 @@ export async function getWalletTransactions(
   }));
 
   res.json({ transactions: enriched });
+}
+
+/**
+ * POST /api/wallet/topup/checkout
+ * Body: { patientId, amountCents }
+ * Creates a Stripe Checkout Session (mode: payment) for a wallet top-up.
+ * Returns { url } — the caller opens this in a new tab.
+ * The wallet is credited when Stripe fires payment_intent.succeeded (same webhook as PaymentIntent flow).
+ */
+export async function createTopupCheckoutSession(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
+  if (!isStripeConfigured()) {
+    res.status(503).json({ error: "Payments are not configured." });
+    return;
+  }
+
+  const userId = req.user.id;
+  const { patientId, amountCents } = req.body as {
+    patientId?: string;
+    amountCents?: number;
+  };
+
+  if (!patientId) {
+    res.status(400).json({ error: "patientId is required." });
+    return;
+  }
+  if (!amountCents || typeof amountCents !== "number" || amountCents < 100) {
+    res.status(400).json({ error: "amountCents must be at least 100 (USD $1.00)." });
+    return;
+  }
+
+  const admin = createClientAdmin();
+
+  const { data: targetProfile } = await admin
+    .from("profiles")
+    .select("role")
+    .eq("id", patientId)
+    .single();
+
+  if (!targetProfile || targetProfile.role !== "patient") {
+    res.status(400).json({ error: "Target user is not a patient." });
+    return;
+  }
+
+  await admin
+    .from("patient_wallets")
+    .upsert({ patient_id: patientId }, { onConflict: "patient_id", ignoreDuplicates: true });
+
+  const { data: wallet, error: walletError } = await admin
+    .from("patient_wallets")
+    .select("id")
+    .eq("patient_id", patientId)
+    .single();
+
+  if (walletError || !wallet) {
+    res.status(500).json({ error: "Failed to load patient wallet." });
+    return;
+  }
+
+  const base = getAppBaseUrl();
+  const result = await createWalletTopupCheckoutSession({
+    walletId: wallet.id,
+    patientId,
+    contributorId: userId,
+    amountCents,
+    successUrl: `${base}/home?topup=success`,
+    cancelUrl: `${base}/home`,
+  });
+
+  if ("error" in result) {
+    res.status(500).json({ error: result.error });
+    return;
+  }
+
+  res.status(201).json({ url: result.url });
 }

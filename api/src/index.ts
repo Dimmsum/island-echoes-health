@@ -415,6 +415,14 @@ app.post("/api/wallet/topup/confirm", authMiddleware, (req, res, next) =>
     .confirmTopup(req as Parameters<typeof wallet.confirmTopup>[0], res)
     .catch(next),
 );
+app.post("/api/wallet/topup/checkout", authMiddleware, (req, res, next) =>
+  wallet
+    .createTopupCheckoutSession(
+      req as Parameters<typeof wallet.createTopupCheckoutSession>[0],
+      res,
+    )
+    .catch(next),
+);
 app.get("/api/wallet/transactions", authMiddleware, (req, res, next) =>
   wallet
     .getWalletTransactions(

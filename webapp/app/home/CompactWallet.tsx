@@ -1,15 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  Elements,
-  PaymentElement,
-  useStripe,
-  useElements,
-} from "@stripe/react-stripe-js";
-import { getStripe } from "@/lib/stripe";
-import { createTopupIntent, confirmTopup } from "./actions";
+import { createTopupCheckoutSession } from "./actions";
 import type { WalletTransaction } from "./WalletCard";
 
 type Props = {
@@ -32,117 +24,47 @@ function txLabel(tx: WalletTransaction, viewerId: string | null) {
 }
 
 function txIconLetter(tx: WalletTransaction): string {
-  const label = txLabel(tx, null);
-  return label.slice(0, 2).toUpperCase();
-}
-
-function PaymentForm({
-  amountDollars,
-  paymentIntentId,
-  onSuccess,
-  onCancel,
-}: {
-  amountDollars: number;
-  paymentIntentId: string;
-  onSuccess: () => void;
-  onCancel: () => void;
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const router = useRouter();
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleConfirm(e: React.FormEvent) {
-    e.preventDefault();
-    if (!stripe || !elements) return;
-    setError(null);
-    setPending(true);
-    const { error: stripeError } = await stripe.confirmPayment({
-      elements,
-      confirmParams: { return_url: `${window.location.origin}/home` },
-      redirect: "if_required",
-    });
-    if (stripeError) {
-      setPending(false);
-      setError(stripeError.message ?? "Payment failed.");
-      return;
-    }
-    const result = await confirmTopup(paymentIntentId);
-    setPending(false);
-    if (result.error) {
-      setError(`Payment succeeded but crediting failed: ${result.error}`);
-      return;
-    }
-    router.refresh();
-    onSuccess();
-  }
-
-  return (
-    <form onSubmit={handleConfirm} className="space-y-3">
-      <PaymentElement options={{ layout: "tabs" }} />
-      {error && <p className="text-xs text-red-600">{error}</p>}
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={pending || !stripe || !elements}
-          className="flex-1 rounded-[10px] bg-[#1F8A5B] py-2 text-sm font-semibold text-white disabled:opacity-70"
-        >
-          {pending ? "Processing…" : `Confirm ${fmt(Math.round(amountDollars * 100))}`}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-[10px] border border-[#DCE4DD] bg-white px-3 py-2 text-sm font-medium text-[#16241D]"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
+  return txLabel(tx, null).slice(0, 2).toUpperCase();
 }
 
 export function CompactWallet({ walletId: _walletId, balanceCents, transactions, patientId, viewerId }: Props) {
-  const [showTopup, setShowTopup] = useState(false);
+  const [showAmountInput, setShowAmountInput] = useState(false);
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
-  const [intentError, setIntentError] = useState<string | null>(null);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function reset() {
-    setShowTopup(false);
+  const sansStyle = { fontFamily: "var(--font-hanken, 'Hanken Grotesk', sans-serif)" };
+  const monoStyle = { fontFamily: "var(--font-ibm-mono, 'IBM Plex Mono', monospace)" };
+
+  function openAmountInput() {
+    setShowAmountInput(true);
     setAmount("");
-    setLoading(false);
-    setIntentError(null);
-    setClientSecret(null);
-    setPaymentIntentId(null);
+    setError(null);
   }
 
-  async function handleCreateIntent(e: React.FormEvent) {
+  function cancelAmountInput() {
+    setShowAmountInput(false);
+    setAmount("");
+    setError(null);
+  }
+
+  async function handleCheckout(e: React.FormEvent) {
     e.preventDefault();
-    setIntentError(null);
+    setError(null);
     const dollars = parseFloat(amount);
-    if (!dollars || dollars < 1) { setIntentError("Min $1.00"); return; }
-    const cents = Math.round(dollars * 100);
+    if (!dollars || dollars < 1) { setError("Minimum $1.00"); return; }
     setLoading(true);
-    const result = await createTopupIntent(patientId, cents);
+    const result = await createTopupCheckoutSession(patientId, Math.round(dollars * 100));
     setLoading(false);
-    if (result.error) { setIntentError(result.error); return; }
-    if ("clientSecret" in result) {
-      setClientSecret(result.clientSecret);
-      setPaymentIntentId(result.paymentIntentId);
+    if ("error" in result && result.error) { setError(result.error); return; }
+    if ("url" in result) {
+      window.open(result.url, "_blank", "noopener,noreferrer");
+      cancelAmountInput();
     }
   }
 
-  const monoStyle = { fontFamily: "var(--font-ibm-mono, 'IBM Plex Mono', monospace)" };
-
   return (
-    <div
-      className="flex flex-col rounded-2xl border border-[#E9EEE9] bg-white p-5"
-      style={{ fontFamily: "var(--font-hanken, 'Hanken Grotesk', sans-serif)" }}
-    >
+    <div className="flex flex-col rounded-2xl border border-[#E9EEE9] bg-white p-5" style={sansStyle}>
       <div style={monoStyle} className="text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
         Wallet
       </div>
@@ -152,48 +74,29 @@ export function CompactWallet({ walletId: _walletId, balanceCents, transactions,
         {fmt(balanceCents)}
       </div>
 
-      {success && (
-        <div className="mt-3 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-xs font-medium text-green-800">
-          Funds added successfully!
-        </div>
-      )}
+      <div className="mt-4 flex gap-2.5">
+        <button
+          type="button"
+          onClick={openAmountInput}
+          className="flex-1 rounded-[10px] bg-[#1F8A5B] py-2.5 text-[13px] font-semibold text-white transition hover:bg-[#196e49]"
+        >
+          Add funds
+        </button>
+        <button
+          type="button"
+          className="flex-1 rounded-[10px] border border-[#DCE4DD] bg-white py-2.5 text-[13px] font-semibold text-[#16241D]"
+        >
+          Send
+        </button>
+      </div>
 
-      {!showTopup ? (
-        <div className="mt-4 flex gap-2.5">
-          <button
-            type="button"
-            onClick={() => { setShowTopup(true); setSuccess(false); }}
-            className="flex-1 rounded-[10px] bg-[#1F8A5B] py-2.5 text-[13px] font-semibold text-white"
-          >
-            Add funds
-          </button>
-          <button
-            type="button"
-            className="flex-1 rounded-[10px] border border-[#DCE4DD] bg-white py-2.5 text-[13px] font-semibold text-[#16241D]"
-          >
-            Send
-          </button>
-        </div>
-      ) : clientSecret && paymentIntentId ? (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/50 p-3">
-          <Elements stripe={getStripe()} options={{ clientSecret, appearance: { theme: "stripe" } }}>
-            <PaymentForm
-              amountDollars={parseFloat(amount)}
-              paymentIntentId={paymentIntentId}
-              onSuccess={() => { setSuccess(true); reset(); }}
-              onCancel={reset}
-            />
-          </Elements>
-        </div>
-      ) : (
-        <form onSubmit={handleCreateIntent} className="mt-4 rounded-xl border border-[#E6EBE6] p-3">
-          <div className="mb-2.5 flex items-center justify-between">
-            <span className="text-sm font-semibold text-[#16241D]">Add funds</span>
-            <button type="button" onClick={reset} className="text-[#9aa89f] hover:text-[#5a6a60]">✕</button>
-          </div>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-[#6a7a70]">$</span>
+      {/* Inline amount input */}
+      {showAmountInput && (
+        <form onSubmit={handleCheckout} className="mt-4 space-y-2.5">
+          <div>
+            <label className="mb-1.5 block text-[12px] font-semibold text-[#16241D]">Amount to add</label>
+            <div className="relative">
+              <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-[14px] font-medium text-[#6a7a70]">$</span>
               <input
                 type="number"
                 min="1"
@@ -201,18 +104,28 @@ export function CompactWallet({ walletId: _walletId, balanceCents, transactions,
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full rounded-[9px] border border-[#E6EBE6] py-2 pl-7 pr-3 text-sm text-[#16241D] placeholder:text-[#9aa89f] focus:border-[#1F8A5B] focus:outline-none"
+                autoFocus
+                className="w-full rounded-[10px] border border-[#E6EBE6] py-2 pl-7 pr-4 text-[14px] text-[#16241D] placeholder:text-[#9aa89f] focus:border-[#1F8A5B] focus:outline-none focus:ring-2 focus:ring-[#1F8A5B]/20"
               />
             </div>
+            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+          </div>
+          <div className="flex gap-2">
             <button
               type="submit"
               disabled={loading || !amount}
-              className="rounded-[9px] bg-[#1F8A5B] px-4 py-2 text-sm font-semibold text-white disabled:opacity-70"
+              className="flex-1 rounded-[10px] bg-[#1F8A5B] py-2 text-[13px] font-semibold text-white transition hover:bg-[#196e49] disabled:opacity-70"
             >
-              {loading ? "…" : "Next"}
+              {loading ? "Opening…" : "Continue →"}
+            </button>
+            <button
+              type="button"
+              onClick={cancelAmountInput}
+              className="rounded-[10px] border border-[#DCE4DD] px-3.5 py-2 text-[13px] font-medium text-[#16241D]"
+            >
+              Cancel
             </button>
           </div>
-          {intentError && <p className="mt-1.5 text-xs text-red-600">{intentError}</p>}
         </form>
       )}
 
@@ -237,9 +150,7 @@ export function CompactWallet({ walletId: _walletId, balanceCents, transactions,
                   {new Date(tx.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                 </div>
               </div>
-              <div
-                className={`shrink-0 text-[13px] font-bold ${tx.amount_cents >= 0 ? "text-[#1F8A5B]" : "text-[#16241D]"}`}
-              >
+              <div className={`shrink-0 text-[13px] font-bold ${tx.amount_cents >= 0 ? "text-[#1F8A5B]" : "text-[#16241D]"}`}>
                 {tx.amount_cents >= 0 ? "+" : "−"}{fmt(tx.amount_cents)}
               </div>
             </div>
