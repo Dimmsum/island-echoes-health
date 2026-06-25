@@ -173,12 +173,7 @@ export function UserHome({
   const hasWallet = activePatientId !== null && (activePatientIdx === -1 ? wallet !== null : true);
   const hasLinkedPatients = linkedPatients.length > 0;
 
-  const gridCols =
-    hasLinkedPatients && hasWallet
-      ? "1fr 1.45fr 1fr"
-      : hasLinkedPatients || hasWallet
-      ? "1fr 1fr"
-      : "1fr";
+  const gridCols = hasWallet ? "1fr 1.45fr 1fr" : "1fr 1.45fr";
 
   // Filter appointments to the active linked patient (matched by patient_name)
   const activePatientName = activePatient?.patient?.full_name ?? null;
@@ -200,8 +195,7 @@ export function UserHome({
         )}
 
         {/* ── Care circle band ── */}
-        {hasLinkedPatients && (
-          <div className="mb-[18px] flex items-center justify-between rounded-2xl border border-[#E9EEE9] bg-white px-5 py-[18px]">
+        <div className="mb-[18px] flex items-center justify-between rounded-2xl border border-[#E9EEE9] bg-white px-5 py-[18px]">
             <div className="flex items-center gap-4">
               <div>
                 <div style={monoStyle} className="text-[10px] uppercase tracking-[.12em] text-[#8a988f]">
@@ -292,7 +286,6 @@ export function UserHome({
               </button>
             </div>
           </div>
-        )}
 
         {/* ── 3-col main grid ── */}
         <div className="gap-[18px]" style={{ display: "grid", gridTemplateColumns: gridCols }}>
@@ -390,9 +383,8 @@ export function UserHome({
             )}
           </div>
 
-          {/* CENTER — Latest vitals (only when linked patients) */}
-          {hasLinkedPatients && (
-            <div className="rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
+          {/* CENTER — Latest vitals */}
+          <div className="rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <div style={monoStyle} className="text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
@@ -472,7 +464,6 @@ export function UserHome({
                 );
               })()}
             </div>
-          )}
 
           {/* RIGHT — Compact wallet */}
           {hasWallet && (

@@ -13,8 +13,9 @@ export async function requestAppointment(req: AuthRequest, res: Response): Promi
   const userId = req.user.id;
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", userId).single();
-  if (profile?.role !== "patient") {
-    res.status(403).json({ error: "Only patients can request appointments." });
+  const STAFF_ROLES = ["clinician", "admin"];
+  if (!profile || STAFF_ROLES.includes(profile.role)) {
+    res.status(403).json({ error: "Staff cannot book through the patient portal." });
     return;
   }
 

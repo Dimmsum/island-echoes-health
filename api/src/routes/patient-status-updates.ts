@@ -68,7 +68,8 @@ export async function createStatusUpdate(
     .eq("id", patientId)
     .single();
 
-  if (!targetProfile || targetProfile.role !== "patient") {
+  const STAFF_ROLES = ["clinician", "admin"];
+  if (!targetProfile || STAFF_ROLES.includes(targetProfile.role)) {
     res.status(400).json({ error: "Target user is not a patient." });
     return;
   }
