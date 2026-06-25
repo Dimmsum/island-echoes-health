@@ -7,6 +7,46 @@ const SERVICE_TYPES = ["vitals", "chronic_lab", "wellness_check", "follow_up", "
 const NOTE_TYPES = ["general", "coordination", "clinical_summary", "discharge"] as const;
 type NoteType = (typeof NOTE_TYPES)[number];
 
+export async function requestAppointment(req: AuthRequest, res: Response): Promise<void> {
+  const supabase = createSupabaseForUser(req.accessToken);
+  const admin = createClientAdmin();
+  const userId = req.user.id;
+
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", userId).single();
+  if (profile?.role !== "patient") {
+    res.status(403).json({ error: "Only patients can request appointments." });
+    return;
+  }
+
+  const { clinicianId, scheduledAt, appointmentType, patientNotes } = req.body as {
+    clinicianId?: string;
+    scheduledAt?: string;
+    appointmentType?: string;
+    patientNotes?: string;
+  };
+
+  if (!clinicianId || !scheduledAt) {
+    res.status(400).json({ error: "clinicianId and scheduledAt are required." });
+    return;
+  }
+
+  const { error: insertError } = await admin.from("appointments").insert({
+    patient_id: userId,
+    clinician_id: clinicianId,
+    scheduled_at: scheduledAt,
+    status: "scheduled",
+    appointment_type: appointmentType ?? null,
+    patient_notes: patientNotes?.trim() || null,
+  });
+
+  if (insertError) {
+    console.error("requestAppointment insert error:", insertError.message);
+    res.status(500).json({ error: "Failed to create appointment." });
+    return;
+  }
+  res.status(201).json({ error: null });
+}
+
 export async function createAppointment(req: AuthRequest, res: Response): Promise<void> {
   const supabase = createSupabaseForUser(req.accessToken);
   const userId = req.user.id;

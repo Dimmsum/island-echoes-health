@@ -4,6 +4,7 @@ import { fetchApiJson } from "@/lib/api";
 import { UserHome } from "./UserHome";
 import type { WalletTransaction } from "./WalletCard";
 import type { StatusUpdate } from "@/app/clinician-portal/status-update-types";
+import type { PatientMetric } from "./actions";
 
 const STAFF_ROLES = ["admin", "clinician"] as const;
 
@@ -57,9 +58,10 @@ export default async function HomePage() {
   let walletTransactions: WalletTransaction[] = [];
   // Status updates the care team shared with the patient (RLS returns all/patient_only).
   let statusUpdates: StatusUpdate[] = [];
+  let metrics: PatientMetric[] = [];
 
   try {
-    const [walletRes, txRes, statusRes] = await Promise.allSettled([
+    const [walletRes, txRes, statusRes, metricsRes] = await Promise.allSettled([
       fetchApiJson<{ wallet: { id: string; patientId: string; balanceCents: number; updatedAt: string } }>(
         session.access_token,
         "/api/wallet",
@@ -71,6 +73,10 @@ export default async function HomePage() {
       fetchApiJson<{ statusUpdates: StatusUpdate[] }>(
         session.access_token,
         `/api/patients/${user.id}/status-updates`,
+      ),
+      fetchApiJson<{ metrics: PatientMetric[] }>(
+        session.access_token,
+        `/api/patients/${user.id}/metrics`,
       ),
     ]);
 
@@ -84,8 +90,11 @@ export default async function HomePage() {
     if (statusRes.status === "fulfilled") {
       statusUpdates = statusRes.value.statusUpdates ?? [];
     }
+    if (metricsRes.status === "fulfilled") {
+      metrics = metricsRes.value.metrics ?? [];
+    }
   } catch {
-    // Non-fatal — wallet/status sections degrade gracefully when data is absent
+    // Non-fatal — wallet/status/metrics sections degrade gracefully when data is absent
   }
 
   return (
@@ -99,6 +108,7 @@ export default async function HomePage() {
       wallet={wallet}
       walletTransactions={walletTransactions}
       statusUpdates={statusUpdates}
+      metrics={metrics}
       patientId={user.id}
       viewerId={user.id}
     />

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { WalletTransaction } from "./WalletCard";
+import type { StatusUpdate } from "@/app/clinician-portal/status-update-types";
 
 export type HomeActionResult = { error: string | null };
 
@@ -334,6 +335,56 @@ export async function getStripeCustomerPortalUrl(
   }
 
   return { error: null, url: data.url };
+}
+
+export type PatientMetric = {
+  id: string;
+  recorded_at: string;
+  blood_pressure_systolic: number | null;
+  blood_pressure_diastolic: number | null;
+  weight_kg: number | null;
+  a1c: number | null;
+  medication_adherence: "good" | "fair" | "poor" | null;
+};
+
+/** Fetches the 5 most recent clinician-recorded metrics for a patient. */
+export async function fetchPatientMetrics(patientId: string): Promise<PatientMetric[]> {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) return [];
+
+  try {
+    const res = await fetch(`${API_BASE}/api/patients/${patientId}/metrics`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => ({}));
+    return data.metrics ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Fetches status updates for a linked patient the viewer has access to. */
+export async function fetchPatientStatusUpdates(patientId: string): Promise<StatusUpdate[]> {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) return [];
+
+  try {
+    const res = await fetch(`${API_BASE}/api/patients/${patientId}/status-updates`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => ({}));
+    return data.statusUpdates ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export async function markNotificationRead(

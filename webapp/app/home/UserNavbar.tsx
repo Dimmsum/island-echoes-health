@@ -17,6 +17,7 @@ type Notification = {
 type Props = {
   fullName: string | null;
   notifications: Notification[];
+  activePath?: string;
 };
 
 function getInitials(name: string | null): string {
@@ -29,7 +30,10 @@ function getInitials(name: string | null): string {
     .toUpperCase();
 }
 
-export function UserNavbar({ fullName, notifications: initial }: Props) {
+const activeClass = "rounded-[9px] bg-[#EFF6F1] px-3.5 py-2 text-[14px] font-semibold text-[#13643F]";
+const inactiveClass = "rounded-[9px] px-3.5 py-2 text-[14px] font-medium text-[#5a6a60] transition hover:bg-[#F4F7F3]";
+
+export function UserNavbar({ fullName, notifications: initial, activePath = "/home" }: Props) {
   const [notifications, setNotifications] = useState(initial);
   const [notifsOpen, setNotifsOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
@@ -68,28 +72,16 @@ export function UserNavbar({ fullName, notifications: initial }: Props) {
         </Link>
 
         <nav className="flex items-center gap-1">
-          <Link
-            href="/home"
-            className="rounded-[9px] bg-[#EFF6F1] px-3.5 py-2 text-[14px] font-semibold text-[#13643F]"
-          >
+          <Link href="/home" className={activePath === "/home" ? activeClass : inactiveClass}>
             Home
           </Link>
-          <Link
-            href="/home"
-            className="rounded-[9px] px-3.5 py-2 text-[14px] font-medium text-[#5a6a60] transition hover:bg-[#F4F7F3]"
-          >
+          <Link href="/home" className={activePath === "/patients" ? activeClass : inactiveClass}>
             Patients
           </Link>
-          <Link
-            href="/appointments"
-            className="rounded-[9px] px-3.5 py-2 text-[14px] font-medium text-[#5a6a60] transition hover:bg-[#F4F7F3]"
-          >
+          <Link href="/appointments" className={activePath === "/appointments" ? activeClass : inactiveClass}>
             Appointments
           </Link>
-          <Link
-            href="/home/profile"
-            className="rounded-[9px] px-3.5 py-2 text-[14px] font-medium text-[#5a6a60] transition hover:bg-[#F4F7F3]"
-          >
+          <Link href="/home/profile" className={activePath === "/home/profile" ? activeClass : inactiveClass}>
             Profile
           </Link>
         </nav>

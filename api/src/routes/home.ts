@@ -421,3 +421,36 @@ export async function getHomeAppointmentById(req: AuthRequest, res: Response): P
     previousMetrics: metricsRes.data ?? [],
   });
 }
+
+export async function getClinicians(req: AuthRequest, res: Response): Promise<void> {
+  const supabase = createSupabaseForUser(req.accessToken);
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, full_name, avatar_url")
+    .eq("role", "clinician")
+    .order("full_name");
+  if (error) {
+    res.status(500).json({ error: "Failed to load clinicians." });
+    return;
+  }
+  res.json({ clinicians: data ?? [] });
+}
+
+export async function getPatientMetrics(req: AuthRequest, res: Response): Promise<void> {
+  const patientId = req.params.id;
+  const supabase = createSupabaseForUser(req.accessToken);
+
+  const { data, error } = await supabase
+    .from("patient_metrics")
+    .select("id, recorded_at, blood_pressure_systolic, blood_pressure_diastolic, weight_kg, a1c, medication_adherence")
+    .eq("patient_id", patientId)
+    .order("recorded_at", { ascending: false })
+    .limit(5);
+
+  if (error) {
+    res.status(500).json({ error: "Failed to load metrics." });
+    return;
+  }
+
+  res.json({ metrics: data ?? [] });
+}

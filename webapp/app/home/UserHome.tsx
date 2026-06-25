@@ -6,9 +6,11 @@ import { ConsentRequestCards } from "./ConsentRequestCards";
 import { SupportPatientForm } from "./PurchasePlanForm";
 import { UserNavbar } from "./UserNavbar";
 import { CompactWallet } from "./CompactWallet";
-import { fetchPatientWalletData } from "./actions";
+import { fetchPatientWalletData, fetchPatientStatusUpdates, fetchPatientMetrics } from "./actions";
 import type { WalletTransaction } from "./WalletCard";
 import type { StatusUpdate } from "@/app/clinician-portal/status-update-types";
+import type { PatientMetric } from "./actions";
+import { SkeletonCard } from "./SkeletonCard";
 
 type LinkedPatient = {
   id: string;
@@ -80,6 +82,7 @@ type Props = {
   wallet: Wallet;
   walletTransactions: WalletTransaction[];
   statusUpdates: StatusUpdate[];
+  metrics: PatientMetric[];
   patientId: string | null;
   viewerId: string | null;
 };
@@ -111,6 +114,7 @@ export function UserHome({
   wallet,
   walletTransactions,
   statusUpdates,
+  metrics,
   patientId,
   viewerId,
 }: Props) {
@@ -118,24 +122,40 @@ export function UserHome({
   const [activePatientIdx, setActivePatientIdx] = useState(-1);
   const [showSupportModal, setShowSupportModal] = useState(false);
 
-  // Wallet data for the currently viewed patient — refreshed on pill switch
+  // Wallet + status + metrics data for the currently viewed patient — refreshed on pill switch
   const [displayWallet, setDisplayWallet] = useState(wallet);
   const [displayWalletTxs, setDisplayWalletTxs] = useState<WalletTransaction[]>(walletTransactions);
   const [walletLoading, setWalletLoading] = useState(false);
+  const [displayStatusUpdates, setDisplayStatusUpdates] = useState<StatusUpdate[]>(statusUpdates);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [displayMetrics, setDisplayMetrics] = useState<PatientMetric[]>(metrics);
+  const [metricsLoading, setMetricsLoading] = useState(false);
 
   useEffect(() => {
     if (activePatientIdx === -1) {
       setDisplayWallet(wallet);
       setDisplayWalletTxs(walletTransactions);
+      setDisplayStatusUpdates(statusUpdates);
+      setDisplayMetrics(metrics);
       return;
     }
     const patient = linkedPatients[activePatientIdx]?.patient;
     if (!patient?.id) return;
     setWalletLoading(true);
-    fetchPatientWalletData(patient.id).then((data) => {
-      setDisplayWallet(data.wallet);
-      setDisplayWalletTxs(data.transactions);
+    setStatusLoading(true);
+    setMetricsLoading(true);
+    Promise.all([
+      fetchPatientWalletData(patient.id),
+      fetchPatientStatusUpdates(patient.id),
+      fetchPatientMetrics(patient.id),
+    ]).then(([walletData, statusData, metricsData]) => {
+      setDisplayWallet(walletData.wallet);
+      setDisplayWalletTxs(walletData.transactions);
       setWalletLoading(false);
+      setDisplayStatusUpdates(statusData);
+      setStatusLoading(false);
+      setDisplayMetrics(metricsData);
+      setMetricsLoading(false);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePatientIdx]);
@@ -370,66 +390,87 @@ export function UserHome({
             )}
           </div>
 
-          {/* CENTER — Vitals (only when linked patients) */}
+          {/* CENTER — Latest vitals (only when linked patients) */}
           {hasLinkedPatients && (
             <div className="rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <div style={monoStyle} className="text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
-                    Live vitals · {activePatientIdx === -1 ? (fullName ?? "You") : (activePatient?.patient?.full_name ?? "Patient")}
+                    Latest vitals · {activePatientIdx === -1 ? (fullName ?? "You") : (activePatient?.patient?.full_name ?? "Patient")}
                   </div>
                   <div className="mt-0.5 text-[11.5px] text-[#94a298]">
-                    Connect a device to view real-time vitals
+                    Recorded by care team
                   </div>
-                </div>
-                <button className="rounded-[9px] bg-[#1F8A5B] px-3 py-1.5 text-[12px] font-semibold text-white">
-                  Full report
-                </button>
-              </div>
-
-              <div className="mb-3.5 flex items-stretch gap-4">
-                <div className="flex w-[150px] shrink-0 flex-col justify-center rounded-[13px] border border-[#F0EBD8] bg-[#FCFBF6] p-4">
-                  <div style={monoStyle} className="text-[10px] uppercase tracking-[.1em] text-[#9a958a]">
-                    Heart rate
-                  </div>
-                  <div className="mt-2 text-[40px] font-extrabold leading-none tracking-[-0.03em] text-[#16241D]">
-                    —
-                  </div>
-                  <div className="text-[12px] font-semibold text-[#9aa89f]">bpm</div>
-                  <div className="mt-2 text-[11.5px] font-bold text-[#9aa89f]">No device linked</div>
-                </div>
-
-                <div className="flex flex-1 flex-col items-center justify-center rounded-[13px] border border-[#EAF0EB] bg-[#F8FBF9] p-4 text-center">
-                  <div style={monoStyle} className="mb-2 text-[10px] uppercase tracking-[.08em] text-[#9aa89f]">
-                    Heart-rate trend · 24h
-                  </div>
-                  <div className="flex items-end gap-1.5" style={{ height: 70 }}>
-                    {[38, 52, 44, 66, 58, 80, 72, 50, 62, 46].map((h, i) => (
-                      <div key={i} className="w-[9px] rounded-[3px] bg-[#D0DDD5]" style={{ height: `${h}%` }} />
-                    ))}
-                  </div>
-                  <p className="mt-2 text-[11px] text-[#9aa89f]">Link wearable to populate</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { label: "Blood pressure", value: "—", unit: "mmHg" },
-                  { label: "Blood oxygen", value: "—", unit: "%" },
-                  { label: "Glucose", value: "—", unit: "mg/dL" },
-                ].map(({ label, value, unit }) => (
-                  <div key={label} className="rounded-[12px] border border-[#E2EEE6] bg-[#F6FAF7] p-3.5">
-                    <div style={monoStyle} className="text-[10px] uppercase tracking-[.08em] text-[#8a988f]">
-                      {label}
+              {metricsLoading ? (
+                <SkeletonCard rows={4} />
+              ) : displayMetrics.length === 0 ? (
+                <div className="py-8 text-center text-[14px] text-[#94a298]">
+                  No vitals recorded yet.
+                </div>
+              ) : (() => {
+                const m = displayMetrics[0];
+                const hasBP = m.blood_pressure_systolic !== null && m.blood_pressure_diastolic !== null;
+                const adherenceColor: Record<string, string> = {
+                  good: "text-[#1F8A5B]",
+                  fair: "text-[#9a7a06]",
+                  poor: "text-[#b94a2c]",
+                };
+                return (
+                  <>
+                    {/* Blood pressure — large tile */}
+                    <div className="mb-3.5 flex items-center justify-between rounded-[13px] border border-[#F0EBD8] bg-[#FCFBF6] px-5 py-4">
+                      <div>
+                        <div style={monoStyle} className="text-[10px] uppercase tracking-[.1em] text-[#9a958a]">
+                          Blood pressure
+                        </div>
+                        <div className="mt-1.5 text-[36px] font-extrabold leading-none tracking-[-0.03em] text-[#16241D]">
+                          {hasBP ? `${m.blood_pressure_systolic}/${m.blood_pressure_diastolic}` : "—"}
+                        </div>
+                        <div className="mt-1 text-[12px] font-semibold text-[#9aa89f]">mmHg</div>
+                      </div>
+                      <div className="text-right">
+                        <div style={monoStyle} className="text-[10px] text-[#c0c8c3]">Last recorded</div>
+                        <div className="mt-0.5 text-[12px] font-semibold text-[#9aa89f]">
+                          {new Date(m.recorded_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </div>
+                      </div>
                     </div>
-                    <div className="mt-1.5 text-[20px] font-extrabold text-[#16241D]">
-                      {value}
-                      <span className="ml-0.5 text-[11px] font-semibold text-[#9aa89f]"> {unit}</span>
+
+                    {/* Secondary metrics grid */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="rounded-[12px] border border-[#E2EEE6] bg-[#F6FAF7] p-3.5">
+                        <div style={monoStyle} className="text-[10px] uppercase tracking-[.08em] text-[#8a988f]">
+                          Weight
+                        </div>
+                        <div className="mt-1.5 text-[20px] font-extrabold text-[#16241D]">
+                          {m.weight_kg !== null ? m.weight_kg.toFixed(1) : "—"}
+                          <span className="ml-0.5 text-[11px] font-semibold text-[#9aa89f]"> kg</span>
+                        </div>
+                      </div>
+                      <div className="rounded-[12px] border border-[#E2EEE6] bg-[#F6FAF7] p-3.5">
+                        <div style={monoStyle} className="text-[10px] uppercase tracking-[.08em] text-[#8a988f]">
+                          A1C
+                        </div>
+                        <div className="mt-1.5 text-[20px] font-extrabold text-[#16241D]">
+                          {m.a1c !== null ? m.a1c.toFixed(1) : "—"}
+                          <span className="ml-0.5 text-[11px] font-semibold text-[#9aa89f]"> %</span>
+                        </div>
+                      </div>
+                      <div className="rounded-[12px] border border-[#E2EEE6] bg-[#F6FAF7] p-3.5">
+                        <div style={monoStyle} className="text-[10px] uppercase tracking-[.08em] text-[#8a988f]">
+                          Adherence
+                        </div>
+                        <div className={`mt-1.5 text-[16px] font-extrabold capitalize ${m.medication_adherence ? adherenceColor[m.medication_adherence] ?? "text-[#16241D]" : "text-[#9aa89f]"}`}>
+                          {m.medication_adherence ?? "—"}
+                        </div>
+                      </div>
                     </div>
-                    <div className="mt-0.5 text-[11px] font-semibold text-[#9aa89f]">—</div>
-                  </div>
-                ))}
-              </div>
+                  </>
+                );
+              })()}
             </div>
           )}
 
@@ -448,25 +489,29 @@ export function UserHome({
 
         {/* ── Secondary sections ── */}
 
-        {statusUpdates.length > 0 && (
+        {(statusLoading || displayStatusUpdates.length > 0) && (
           <div className="mt-[18px] rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
             <div style={monoStyle} className="mb-4 text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
               Status updates
             </div>
-            <ul className="space-y-3">
-              {statusUpdates.map((u) => (
-                <li key={u.id} className="rounded-xl border border-[#EEF2EE] bg-[#F6FAF7] px-4 py-3">
-                  <span className="text-[11px] text-[#94a298]">
-                    {new Date(u.createdAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </span>
-                  <p className="mt-1.5 whitespace-pre-wrap text-[14px] text-[#3f5247]">{u.statusText}</p>
-                </li>
-              ))}
-            </ul>
+            {statusLoading ? (
+              <SkeletonCard rows={3} />
+            ) : (
+              <ul className="space-y-3">
+                {displayStatusUpdates.map((u) => (
+                  <li key={u.id} className="rounded-xl border border-[#EEF2EE] bg-[#F6FAF7] px-4 py-3">
+                    <span className="text-[11px] text-[#94a298]">
+                      {new Date(u.createdAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </span>
+                    <p className="mt-1.5 whitespace-pre-wrap text-[14px] text-[#3f5247]">{u.statusText}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 

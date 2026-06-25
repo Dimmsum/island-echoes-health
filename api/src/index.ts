@@ -328,6 +328,26 @@ app.get(
       .catch(next),
 );
 
+// Clinician directory (any authenticated user)
+app.get(
+  "/api/clinicians",
+  authMiddleware,
+  (req, res, next) =>
+    home
+      .getClinicians(req as Parameters<typeof home.getClinicians>[0], res)
+      .catch(next),
+);
+
+// Patient appointment request (patient role only, checked in handler)
+app.post(
+  "/api/appointments/request",
+  authMiddleware,
+  (req, res, next) =>
+    appointments
+      .requestAppointment(req as Parameters<typeof appointments.requestAppointment>[0], res)
+      .catch(next),
+);
+
 // Appointments (clinician or admin)
 app.post(
   "/api/appointments",
@@ -460,6 +480,16 @@ app.patch(
         req as Parameters<typeof followUps.updateFollowUp>[0],
         res,
       )
+      .catch(next),
+);
+
+// Patient metrics
+app.get(
+  "/api/patients/:id/metrics",
+  authMiddleware,
+  (req, res, next) =>
+    home
+      .getPatientMetrics(req as Parameters<typeof home.getPatientMetrics>[0], res)
       .catch(next),
 );
 
