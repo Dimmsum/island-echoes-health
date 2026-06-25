@@ -1,121 +1,9 @@
 import Link from "next/link";
 import { ConsentRequestCards } from "./ConsentRequestCards";
-import { SupportPatientForm } from "./PurchasePlanForm";
 import { UserNavbar } from "./UserNavbar";
-import { WalletCard, type WalletTransaction } from "./WalletCard";
+import { CompactWallet } from "./CompactWallet";
+import type { WalletTransaction } from "./WalletCard";
 import type { StatusUpdate } from "@/app/clinician-portal/status-update-types";
-
-const CalendarIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className || "h-6 w-6"}
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-    />
-  </svg>
-);
-
-const UsersIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className || "h-6 w-6"}
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-    />
-  </svg>
-);
-
-const HeartIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className || "h-6 w-6"}
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-    />
-  </svg>
-);
-
-const GiftIcon = () => (
-  <svg
-    className="h-6 w-6"
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"
-    />
-  </svg>
-);
-
-const ClockIcon = () => (
-  <svg
-    className="h-5 w-5"
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-    />
-  </svg>
-);
-
-const ChatIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className || "h-6 w-6"}
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 20l1.3-3.9A7.96 7.96 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-    />
-  </svg>
-);
-
-const ArrowRightIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className || "h-5 w-5"}
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M9 5l7 7-7 7"
-    />
-  </svg>
-);
 
 type LinkedPatient = {
   id: string;
@@ -191,6 +79,23 @@ type Props = {
   viewerId: string | null;
 };
 
+function getInitials(name: string | null): string {
+  if (!name) return "?";
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+const AVATAR_COLORS = [
+  { bg: "#E7E1F2", text: "#5b4a86" },
+  { bg: "#D6E8F2", text: "#2b5e7d" },
+  { bg: "#DCEFE3", text: "#13643F" },
+  { bg: "#F2E1D6", text: "#7d4a2b" },
+];
+
 export function UserHome({
   fullName,
   linkedPatients,
@@ -204,321 +109,382 @@ export function UserHome({
   patientId,
   viewerId,
 }: Props) {
-  const greeting = fullName ? `Welcome back, ${fullName}` : "Welcome back";
+  const activePatient = linkedPatients[0] ?? null;
+  const userInitials = getInitials(fullName);
+  const today = new Date();
+  const monoStyle = { fontFamily: "var(--font-ibm-mono, 'IBM Plex Mono', monospace)" };
+  const sansStyle = { fontFamily: "var(--font-hanken, 'Hanken Grotesk', sans-serif)" };
+
+  const hasWallet = wallet !== null && patientId !== null;
   const hasLinkedPatients = linkedPatients.length > 0;
-  const hasSponsors = mySponsors.length > 0;
+
+  // Grid: appointments | vitals | wallet  (3-col)
+  // If no linked patients → drop vitals center column (2-col)
+  // If no wallet → drop wallet right column
+  const gridCols =
+    hasLinkedPatients && hasWallet
+      ? "1fr 1.45fr 1fr"
+      : hasLinkedPatients || hasWallet
+      ? "1fr 1fr"
+      : "1fr";
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-40 top-0 h-96 w-96 rounded-full bg-[#E6E15A]/20 blur-3xl" />
-        <div className="absolute right-[-10rem] bottom-[-10rem] h-[32rem] w-[48rem] rounded-full bg-[#9CCB4A]/15 blur-3xl" />
-        <div className="absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#1F5F2E]/5 blur-3xl" />
-      </div>
+    <div className="min-h-screen bg-[#F4F7F3]" style={sansStyle}>
+      {/* Navbar */}
+      <UserNavbar fullName={fullName} notifications={notifications} />
 
-      <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        <UserNavbar fullName={fullName} notifications={notifications} />
+      {/* Body */}
+      <div className="mx-auto max-w-[1440px] px-7 py-6">
 
-        <section className="mt-12 flex w-full flex-1 flex-col sm:mt-16">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="rounded-full bg-[#1F5F2E]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#1F5F2E]">
-              Your care journey
-            </span>
+        {/* Consent requests banner */}
+        {pendingConsents.length > 0 && (
+          <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50/70 p-5">
+            <ConsentRequestCards requests={pendingConsents} />
           </div>
-          <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-            {greeting}
-          </h1>
-          <p className="mt-3 max-w-2xl text-lg text-slate-600">
-            Stay connected with your care team. View upcoming appointments and
-            your plan of care.
-          </p>
+        )}
 
-          {pendingConsents.length > 0 && (
-            <div className="mt-10 rounded-2xl border border-amber-200 bg-amber-50/50 p-6">
-              <ConsentRequestCards requests={pendingConsents} />
-            </div>
-          )}
-
-          {hasSponsors && (
-            <div className="mt-10 rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-[#1F5F2E]/10 p-2.5 text-[#1F5F2E]">
-                  <GiftIcon />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">
-                    Your sponsors
-                  </h2>
-                  <p className="mt-0.5 text-sm text-slate-600">
-                    People who have chosen to support your care
-                  </p>
-                </div>
-              </div>
-              <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {mySponsors.map((link) => (
-                  <li
-                    key={link.id}
-                    className="group rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:border-[#1F5F2E]/30 hover:shadow-md"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 shrink-0 rounded-full bg-[#1F5F2E]/10 flex items-center justify-center overflow-hidden">
-                        {link.sponsor?.avatar_url ? (
-                          <img
-                            src={link.sponsor.avatar_url}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <HeartIcon className="h-4 w-4 text-[#1F5F2E]" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-slate-900">
-                          {link.sponsor?.full_name ?? "Sponsor"}
-                        </p>
-                        {link.care_plan && (
-                          <p className="text-sm text-slate-600">
-                            {link.care_plan.name}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Wallet section — shown for patients with a wallet */}
-          {wallet && patientId && (
-            <div className="mt-10">
-              <WalletCard
-                walletId={wallet.id}
-                balanceCents={wallet.balanceCents}
-                transactions={walletTransactions}
-                patientId={patientId}
-                viewerId={viewerId}
-              />
-            </div>
-          )}
-
-          {/* Status updates shared by the care team about the patient */}
-          {statusUpdates.length > 0 && (
-            <div className="mt-10 rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-[#1F5F2E]/10 p-2.5 text-[#1F5F2E]">
-                  <ChatIcon />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">
-                    Status updates
-                  </h2>
-                  <p className="mt-0.5 text-sm text-slate-600">
-                    Updates shared by your care team
-                  </p>
-                </div>
-              </div>
-              <ul className="mt-5 space-y-3">
-                {statusUpdates.map((u) => (
-                  <li
-                    key={u.id}
-                    className="rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3"
-                  >
-                    <span className="text-xs text-slate-500">
-                      {new Date(u.createdAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </span>
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
-                      {u.statusText}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {hasLinkedPatients && (
-            <div className="mt-10">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-[#1F5F2E]/10 p-2.5 text-[#1F5F2E]">
-                  <UsersIcon />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">
-                    Linked patients
-                  </h2>
-                  <p className="mt-0.5 text-sm text-slate-600">
-                    View metrics, appointments, and visit summaries for patients
-                    you support
-                  </p>
-                </div>
-              </div>
-              <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {linkedPatients.map((link) => (
-                  <li key={link.id}>
-                    <div className="group rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur transition hover:border-[#1F5F2E]/30 hover:shadow-lg">
-                      <Link
-                        href={`/home/sponsored/${link.id}`}
-                        className="block"
-                      >
-                        <div className="flex items-start gap-4">
-                          <div className="h-12 w-12 shrink-0 rounded-xl bg-gradient-to-br from-[#1F5F2E]/20 to-[#9CCB4A]/20 flex items-center justify-center overflow-hidden">
-                            {link.patient?.avatar_url ? (
-                              <img
-                                src={link.patient.avatar_url}
-                                alt=""
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <UsersIcon className="h-6 w-6 text-[#1F5F2E]" />
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-slate-900">
-                              {link.patient?.full_name ?? "Patient"}
-                              {link.patient?.age != null && (
-                                <span className="ml-2 font-normal text-slate-500">
-                                  ({link.patient.age} years)
-                                </span>
-                              )}
-                            </h3>
-                            <p className="mt-1 text-sm text-slate-600">
-                              {link.care_plan?.name ?? "Supported patient"}
-                            </p>
-                            <div className="mt-3 flex items-center gap-1 text-sm font-medium text-[#1F5F2E]">
-                              <span>View details</span>
-                              <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                            </div>
-                          </div>
-                        </div>
-                      </Link>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <div className="mt-10">
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-[#1F5F2E]/10 p-2.5 text-[#1F5F2E]">
-                <CalendarIcon />
-              </div>
+        {/* ── Care circle band ── */}
+        {hasLinkedPatients && (
+          <div className="mb-[18px] flex items-center justify-between rounded-2xl border border-[#E9EEE9] bg-white px-5 py-[18px]">
+            <div className="flex items-center gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">
-                  Upcoming appointments
-                </h2>
-                <p className="mt-0.5 text-sm text-slate-600">
-                  Your scheduled visits and consultations
-                </p>
+                <div style={monoStyle} className="text-[10px] uppercase tracking-[.12em] text-[#8a988f]">
+                  Your care circle
+                </div>
+                <div className="mt-0.5 text-[18px] font-bold text-[#16241D]">
+                  {activePatient
+                    ? `Viewing: ${activePatient.patient?.full_name ?? "Patient"}`
+                    : `Welcome, ${fullName ?? "you"}`}
+                </div>
               </div>
-            </div>
-            {upcomingAppointments.length === 0 ? (
-              <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white/50 p-8 text-center">
-                <CalendarIcon className="mx-auto h-12 w-12 text-slate-400" />
-                <p className="mt-3 text-sm font-medium text-slate-900">
-                  No upcoming appointments
-                </p>
-                <p className="mt-1 text-sm text-slate-500">
-                  Your scheduled visits will appear here
-                </p>
-              </div>
-            ) : (
-              <ul className="mt-6 space-y-3">
-                {upcomingAppointments.map((apt) => {
-                  const date = new Date(apt.scheduled_at);
-                  const isToday =
-                    date.toDateString() === new Date().toDateString();
+
+              <div className="mx-1 h-9 w-px bg-[#EBF0EB]" />
+
+              {/* Pill switcher */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* You pill */}
+                <div className="flex items-center gap-2 rounded-full border border-[#E6EBE6] px-3 py-2">
+                  <div className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-[#DCEFE3] text-[11px] font-bold text-[#13643F]">
+                    {userInitials}
+                  </div>
+                  <span className="text-[13px] font-medium text-[#5a6a60]">You</span>
+                </div>
+
+                {linkedPatients.map((lp, i) => {
+                  const isActive = i === 0;
+                  const initials = getInitials(lp.patient?.full_name ?? null);
+                  const color = AVATAR_COLORS[i % AVATAR_COLORS.length];
                   return (
-                    <li
-                      key={apt.id}
-                      className="group flex items-center gap-4 rounded-xl border border-slate-200 bg-white/90 p-4 shadow-sm transition hover:border-[#1F5F2E]/30 hover:shadow-md"
+                    <div
+                      key={lp.id}
+                      className={`flex items-center gap-2 rounded-full border px-3 py-2 ${
+                        isActive
+                          ? "border-[#15402C] bg-[#15402C]"
+                          : "border-[#E6EBE6] bg-white"
+                      }`}
                     >
-                      <div className="h-12 w-12 shrink-0 rounded-xl bg-[#1F5F2E]/10 flex items-center justify-center overflow-hidden">
-                        {apt.clinician_avatar_url ? (
-                          <img
-                            src={apt.clinician_avatar_url}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <CalendarIcon className="h-6 w-6 text-[#1F5F2E]" />
-                        )}
+                      <div
+                        className="flex h-[26px] w-[26px] items-center justify-center rounded-full text-[11px] font-bold"
+                        style={{ background: color.bg, color: color.text }}
+                      >
+                        {initials}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-slate-900">
-                            {date.toLocaleDateString("en-US", {
-                              weekday: "short",
-                              month: "short",
-                              day: "numeric",
-                            })}
-                            {isToday && (
-                              <span className="ml-2 rounded-full bg-[#1F5F2E] px-2 py-0.5 text-xs font-medium text-white">
-                                Today
-                              </span>
-                            )}
-                          </p>
-                        </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-slate-600">
-                          <ClockIcon />
-                          <span>
-                            {date.toLocaleTimeString("en-US", {
-                              hour: "numeric",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                          {apt.clinician_name && (
-                            <>
-                              <span className="text-slate-400">•</span>
-                              <span>with {apt.clinician_name}</span>
-                            </>
-                          )}
-                          {apt.patient_name && (
-                            <>
-                              <span className="text-slate-400">•</span>
-                              <span>for {apt.patient_name}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium capitalize text-slate-700">
-                        {apt.status}
+                      <span
+                        className={`text-[13px] font-${isActive ? "semibold" : "medium"} ${
+                          isActive ? "text-white" : "text-[#5a6a60]"
+                        }`}
+                      >
+                        {lp.patient?.full_name?.split(" ")[0] ?? "Patient"}
                       </span>
-                    </li>
+                      {isActive && (
+                        <span className="h-[7px] w-[7px] rounded-full bg-[#F4C541]" />
+                      )}
+                    </div>
                   );
                 })}
-              </ul>
+
+                <SupportPatientPill />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-[#FBF1CF] px-3 py-1.5 text-[11px] font-semibold text-[#9a7a06]">
+                Needs review
+              </span>
+              <button className="rounded-[10px] bg-[#1F8A5B] px-4 py-2 text-[13.5px] font-semibold text-white">
+                Message care team
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── 3-col main grid ── */}
+        <div
+          className="gap-[18px]"
+          style={{ display: "grid", gridTemplateColumns: gridCols }}
+        >
+
+          {/* LEFT — Appointments timeline */}
+          <div className="rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
+            <div className="mb-[18px] flex items-center justify-between">
+              <span style={monoStyle} className="text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
+                Appointments
+              </span>
+              <Link
+                href="/appointments/new"
+                className="text-[12px] font-semibold text-[#1F8A5B]"
+              >
+                + Book
+              </Link>
+            </div>
+
+            {upcomingAppointments.length === 0 ? (
+              <div className="py-8 text-center text-[14px] text-[#94a298]">
+                No upcoming appointments.
+              </div>
+            ) : (
+              <div className="relative pl-[22px]">
+                {/* Timeline line */}
+                <div className="absolute bottom-1.5 left-[5px] top-1.5 w-0.5 bg-[#EAF0EB]" />
+
+                {upcomingAppointments.map((apt, i) => {
+                  const date = new Date(apt.scheduled_at);
+                  const msUntil = date.getTime() - today.getTime();
+                  const daysUntil = Math.ceil(msUntil / 86400000);
+                  const isSoon = daysUntil <= 3 && msUntil >= 0;
+                  const isPast = msUntil < 0;
+
+                  return (
+                    <div
+                      key={apt.id}
+                      className={`relative ${i < upcomingAppointments.length - 1 ? "mb-5" : ""}`}
+                    >
+                      {/* Timeline node */}
+                      {isPast ? (
+                        <div
+                          className="absolute left-[-22px] top-[3px] flex h-3 w-3 items-center justify-center rounded-full border-2 border-white text-[8px] font-extrabold text-[#1F8A5B]"
+                          style={{ background: "#E4F1E9", boxShadow: "0 0 0 2px #DCEFE3" }}
+                        >
+                          ✓
+                        </div>
+                      ) : isSoon ? (
+                        <div
+                          className="absolute left-[-22px] top-[3px] h-3 w-3 rounded-full border-2 border-white bg-[#1F8A5B]"
+                          style={{ boxShadow: "0 0 0 2px #C9E6D5" }}
+                        />
+                      ) : (
+                        <div className="absolute left-[-22px] top-[3px] h-3 w-3 rounded-full border-2 border-[#CBD8CE] bg-white" />
+                      )}
+
+                      {/* Date + soon badge */}
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`text-[12px] font-bold ${
+                            isSoon ? "text-[#1F8A5B]" : isPast ? "text-[#aab5ad]" : "text-[#7a8a80]"
+                          }`}
+                        >
+                          {date
+                            .toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                            .toUpperCase()}{" "}
+                          ·{" "}
+                          {isPast
+                            ? "COMPLETED"
+                            : date.toLocaleTimeString("en-US", {
+                                hour: "numeric",
+                                minute: "2-digit",
+                              })}
+                        </span>
+                        {isSoon && (
+                          <span className="rounded-full bg-[#F8E4A6] px-1.5 py-0.5 text-[9.5px] font-bold text-[#9a7a06]">
+                            SOON
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Appointment title */}
+                      <div
+                        className={`mt-1 text-[14px] font-${isPast ? "semibold" : "bold"} ${
+                          isPast ? "text-[#7a8a80]" : "text-[#16241D]"
+                        }`}
+                      >
+                        {apt.patient_name
+                          ? `Appt. for ${apt.patient_name}`
+                          : apt.clinician_name
+                          ? `Appt. with ${apt.clinician_name}`
+                          : "Appointment"}
+                      </div>
+
+                      {/* Clinician + status */}
+                      {apt.clinician_name && !isPast && (
+                        <div className="mt-0.5 text-[12px] text-[#94a298]">
+                          {apt.clinician_name}
+                        </div>
+                      )}
+                      {isPast && (
+                        <div className="mt-0.5 text-[12px] text-[#aab5ad]">
+                          {apt.status === "completed" ? "Results available" : apt.status}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
 
-          <div className="mt-10 rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur">
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-[#1F5F2E]/10 p-2.5 text-[#1F5F2E]">
-                <UsersIcon />
+          {/* CENTER — Vitals focus (only when linked patients) */}
+          {hasLinkedPatients && (
+            <div className="rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <div style={monoStyle} className="text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
+                    Live vitals · {activePatient?.patient?.full_name ?? "Patient"}
+                  </div>
+                  <div className="mt-0.5 text-[11.5px] text-[#94a298]">
+                    Connect a device to view real-time vitals
+                  </div>
+                </div>
+                <button className="rounded-[9px] bg-[#1F8A5B] px-3 py-1.5 text-[12px] font-semibold text-white">
+                  Full report
+                </button>
               </div>
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">
-                  {hasLinkedPatients
-                    ? "Support another patient"
-                    : "Support a family member"}
-                </h2>
-                <p className="mt-0.5 text-sm text-slate-600">
-                  {hasLinkedPatients
-                    ? "Send a care support invite to an additional patient"
-                    : "Send a care support invite to get started"}
-                </p>
+
+              {/* Hero vital + chart */}
+              <div className="mb-3.5 flex items-stretch gap-4">
+                {/* Heart rate card */}
+                <div className="flex w-[150px] shrink-0 flex-col justify-center rounded-[13px] border border-[#F0EBD8] bg-[#FCFBF6] p-4">
+                  <div style={monoStyle} className="text-[10px] uppercase tracking-[.1em] text-[#9a958a]">
+                    Heart rate
+                  </div>
+                  <div className="mt-2 text-[40px] font-extrabold leading-none tracking-[-0.03em] text-[#16241D]">
+                    —
+                  </div>
+                  <div className="text-[12px] font-semibold text-[#9aa89f]">bpm</div>
+                  <div className="mt-2 text-[11.5px] font-bold text-[#9aa89f]">No device linked</div>
+                </div>
+
+                {/* 24h trend placeholder */}
+                <div className="flex flex-1 flex-col items-center justify-center rounded-[13px] border border-[#EAF0EB] bg-[#F8FBF9] p-4 text-center">
+                  <div style={monoStyle} className="mb-2 text-[10px] uppercase tracking-[.08em] text-[#9aa89f]">
+                    Heart-rate trend · 24h
+                  </div>
+                  <div className="flex items-end gap-1.5" style={{ height: 70 }}>
+                    {[38, 52, 44, 66, 58, 80, 72, 50, 62, 46].map((h, i) => (
+                      <div
+                        key={i}
+                        className="w-[9px] rounded-[3px] bg-[#D0DDD5]"
+                        style={{ height: `${h}%` }}
+                      />
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[11px] text-[#9aa89f]">Link wearable to populate</p>
+                </div>
+              </div>
+
+              {/* Secondary vitals grid */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: "Blood pressure", value: "—", unit: "mmHg", status: "—", ok: true },
+                  { label: "Blood oxygen", value: "—", unit: "%", status: "—", ok: true },
+                  { label: "Glucose", value: "—", unit: "mg/dL", status: "—", ok: true },
+                ].map(({ label, value, unit, status, ok }) => (
+                  <div
+                    key={label}
+                    className={`rounded-[12px] border p-3.5 ${
+                      ok ? "border-[#E2EEE6] bg-[#F6FAF7]" : "border-[#F0EBD8] bg-[#FCFBF6]"
+                    }`}
+                  >
+                    <div style={monoStyle} className="text-[10px] uppercase tracking-[.08em] text-[#8a988f]">
+                      {label}
+                    </div>
+                    <div className="mt-1.5 text-[20px] font-extrabold text-[#16241D]">
+                      {value}
+                      <span className="ml-0.5 text-[11px] font-semibold text-[#9aa89f]"> {unit}</span>
+                    </div>
+                    <div className={`mt-0.5 text-[11px] font-semibold ${ok ? "text-[#9aa89f]" : "text-[#B68410]"}`}>
+                      {status}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-            <div className="mt-6">
-              <SupportPatientForm />
+          )}
+
+          {/* RIGHT — Compact wallet */}
+          {hasWallet && (
+            <CompactWallet
+              walletId={wallet!.id}
+              balanceCents={wallet!.balanceCents}
+              transactions={walletTransactions}
+              patientId={patientId!}
+              viewerId={viewerId}
+            />
+          )}
+        </div>
+
+        {/* ── Secondary sections ── */}
+
+        {/* Status updates (if any) */}
+        {statusUpdates.length > 0 && (
+          <div className="mt-[18px] rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
+            <div style={monoStyle} className="mb-4 text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
+              Status updates
             </div>
+            <ul className="space-y-3">
+              {statusUpdates.map((u) => (
+                <li key={u.id} className="rounded-xl border border-[#EEF2EE] bg-[#F6FAF7] px-4 py-3">
+                  <span className="text-[11px] text-[#94a298]">
+                    {new Date(u.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
+                  <p className="mt-1.5 whitespace-pre-wrap text-[14px] text-[#3f5247]">{u.statusText}</p>
+                </li>
+              ))}
+            </ul>
           </div>
-        </section>
-      </main>
+        )}
+
+        {/* Sponsors (if patient has sponsors) */}
+        {mySponsors.length > 0 && (
+          <div className="mt-[18px] rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
+            <div style={monoStyle} className="mb-4 text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
+              Your sponsors
+            </div>
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {mySponsors.map((link) => (
+                <li
+                  key={link.id}
+                  className="flex items-center gap-3 rounded-xl border border-[#EEF2EE] px-4 py-3"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#DCEFE3] text-[14px] font-bold text-[#13643F]">
+                    {getInitials(link.sponsor?.full_name ?? null)}
+                  </div>
+                  <div>
+                    <div className="text-[14px] font-semibold text-[#16241D]">
+                      {link.sponsor?.full_name ?? "Sponsor"}
+                    </div>
+                    {link.care_plan && (
+                      <div className="text-[12px] text-[#94a298]">{link.care_plan.name}</div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+function SupportPatientPill() {
+  return (
+    <div className="rounded-full border-[1.5px] border-dashed border-[#C9D6CC] px-3.5 py-2 text-[13px] font-semibold text-[#1F8A5B]">
+      + Support a patient
     </div>
   );
 }

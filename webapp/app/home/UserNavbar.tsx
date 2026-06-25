@@ -1,31 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { clearAllNotifications, markNotificationRead } from "./actions";
-
-const BellIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-    />
-  </svg>
-);
-
-const UserIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-    />
-  </svg>
-);
 
 type Notification = {
   id: string;
@@ -42,10 +19,17 @@ type Props = {
   notifications: Notification[];
 };
 
-export function UserNavbar({
-  fullName,
-  notifications: initial,
-}: Props) {
+function getInitials(name: string | null): string {
+  if (!name) return "?";
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+export function UserNavbar({ fullName, notifications: initial }: Props) {
   const [notifications, setNotifications] = useState(initial);
   const [notifsOpen, setNotifsOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
@@ -61,41 +45,88 @@ export function UserNavbar({
     setClearing(true);
     const result = await clearAllNotifications();
     setClearing(false);
-    if (!result.error) {
-      setNotifications([]);
-    }
+    if (!result.error) setNotifications([]);
   }
 
   const unreadCount = notifications.filter((n) => !n.read_at).length;
+  const initials = getInitials(fullName);
 
   return (
-    <header className="flex items-center justify-between gap-4">
-      <Link href="/home" className="flex items-center gap-3">
-        <Image
-          src="/island-echoes-health.svg"
-          alt="Island Echoes Health"
-          width={140}
-          height={50}
-          priority
-        />
-      </Link>
+    <header
+      className="flex items-center justify-between border-b border-[#EBF0EB] bg-white px-7 py-4"
+      style={{ fontFamily: "var(--font-hanken, 'Hanken Grotesk', sans-serif)" }}
+    >
+      {/* Left: logo + nav links */}
+      <div className="flex items-center gap-9">
+        <Link href="/home" className="flex items-center gap-2.5">
+          <div className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-[#1F8A5B] text-[13px] font-extrabold text-white">
+            IE
+          </div>
+          <span className="text-[16px] font-bold tracking-[-0.01em] text-[#16241D]">
+            Island Echoes <span className="text-[#1F8A5B]">Health</span>
+          </span>
+        </Link>
 
-      <nav className="flex items-center gap-2 sm:gap-3">
-        {/* Notifications dropdown */}
+        <nav className="flex items-center gap-1">
+          <Link
+            href="/home"
+            className="rounded-[9px] bg-[#EFF6F1] px-3.5 py-2 text-[14px] font-semibold text-[#13643F]"
+          >
+            Home
+          </Link>
+          <Link
+            href="/home"
+            className="rounded-[9px] px-3.5 py-2 text-[14px] font-medium text-[#5a6a60] transition hover:bg-[#F4F7F3]"
+          >
+            Patients
+          </Link>
+          <Link
+            href="/appointments"
+            className="rounded-[9px] px-3.5 py-2 text-[14px] font-medium text-[#5a6a60] transition hover:bg-[#F4F7F3]"
+          >
+            Appointments
+          </Link>
+          <Link
+            href="/home/profile"
+            className="rounded-[9px] px-3.5 py-2 text-[14px] font-medium text-[#5a6a60] transition hover:bg-[#F4F7F3]"
+          >
+            Profile
+          </Link>
+        </nav>
+      </div>
+
+      {/* Right: search + notifications + avatar */}
+      <div className="flex items-center gap-3.5">
+        {/* Search (decorative) */}
+        <div className="flex w-48 items-center gap-2 rounded-[10px] border border-[#E6EBE6] px-3.5 py-2 text-[13px] text-[#9aa89f]">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <circle cx="6" cy="6" r="4.5" stroke="#9aa89f" strokeWidth="1.4" />
+            <line x1="9.5" y1="9.5" x2="12.5" y2="12.5" stroke="#9aa89f" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+          Search
+        </div>
+
+        {/* Notifications */}
         <div className="relative">
           <button
             type="button"
             onClick={() => setNotifsOpen(!notifsOpen)}
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
+            className="relative flex h-[38px] w-[38px] items-center justify-center rounded-[10px] border border-[#E6EBE6] transition hover:bg-[#F4F7F3]"
           >
-            <BellIcon />
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M8 2.2c-2 0-3.4 1.5-3.4 3.5 0 3-1.3 4-1.3 4h9.4s-1.3-1-1.3-4c0-2-1.4-3.5-3.4-3.5z"
+                stroke="#5a6a60"
+                strokeWidth="1.3"
+                strokeLinejoin="round"
+              />
+              <circle cx="8" cy="13" r="1.2" fill="#5a6a60" />
+            </svg>
             {unreadCount > 0 && (
-              <span className="rounded-full bg-[#1F5F2E] px-2 py-0.5 text-xs font-medium text-white">
-                {unreadCount}
-              </span>
+              <span className="absolute right-[9px] top-[8px] h-[7px] w-[7px] rounded-full border-[1.5px] border-white bg-[#F4C541]" />
             )}
-            <span className="hidden sm:inline">Notifications</span>
           </button>
+
           {notifsOpen && (
             <>
               <div
@@ -123,15 +154,12 @@ export function UserNavbar({
                   ) : (
                     <ul className="divide-y divide-slate-100">
                       {notifications.map((n) => (
-                        <li
-                          key={n.id}
-                          className={`p-4 ${!n.read_at ? "bg-[#1F5F2E]/5" : ""}`}
-                        >
+                        <li key={n.id} className={`p-4 ${!n.read_at ? "bg-[#1F8A5B]/5" : ""}`}>
                           <div className="flex items-start justify-between gap-2">
                             <div>
                               <p className="font-medium text-slate-900">{n.title}</p>
                               {n.body && (
-                                <p className="mt-0.5 text-sm text-slate-600 line-clamp-2">
+                                <p className="mt-0.5 line-clamp-2 text-sm text-slate-600">
                                   {n.body}
                                 </p>
                               )}
@@ -159,15 +187,11 @@ export function UserNavbar({
           )}
         </div>
 
-        {/* Profile link */}
-        <Link
-          href="/home/profile"
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
-        >
-          <UserIcon />
-          <span className="hidden sm:inline">{fullName ?? "Profile"}</span>
-        </Link>
-      </nav>
+        {/* User avatar */}
+        <div className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#DCEFE3] text-[14px] font-bold text-[#13643F]">
+          {initials}
+        </div>
+      </div>
     </header>
   );
 }
