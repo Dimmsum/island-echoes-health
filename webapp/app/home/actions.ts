@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import type { WalletTransaction } from "./WalletCard";
 
 export type HomeActionResult = { error: string | null };
 
@@ -23,6 +24,12 @@ export type ConfirmTopupResult =
 export type TopupCheckoutResult =
   | { error: string }
   | { error: null; url: string };
+
+export type PatientWalletResult = {
+  wallet: { id: string; balanceCents: number; updatedAt: string } | null;
+  transactions: WalletTransaction[];
+  error?: string;
+};
 
 export type BillingPortalResult =
   | { error: string; url?: undefined }
@@ -97,6 +104,41 @@ export async function createTopupIntent(
 
   if (!data.clientSecret) return { error: "Invalid response from server." };
   return { error: null, clientSecret: data.clientSecret, paymentIntentId: data.paymentIntentId };
+}
+
+/** Fetches wallet balance + recent transactions for a linked patient the viewer has access to. */
+export async function fetchPatientWalletData(patientId: string): Promise<PatientWalletResult> {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) return { wallet: null, transactions: [], error: "Not signed in." };
+
+  const token = session.access_token;
+  const [walletRes, txRes] = await Promise.allSettled([
+    fetch(`${API_BASE}/api/wallet?patientId=${patientId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+    fetch(`${API_BASE}/api/wallet/transactions?patientId=${patientId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  ]);
+
+  let wallet: PatientWalletResult["wallet"] = null;
+  let transactions: WalletTransaction[] = [];
+
+  if (walletRes.status === "fulfilled" && walletRes.value.ok) {
+    const data = await walletRes.value.json().catch(() => ({}));
+    if (data.wallet) {
+      wallet = { id: data.wallet.id, balanceCents: data.wallet.balanceCents, updatedAt: data.wallet.updatedAt };
+    }
+  }
+  if (txRes.status === "fulfilled" && txRes.value.ok) {
+    const data = await txRes.value.json().catch(() => ({}));
+    transactions = data.transactions ?? [];
+  }
+
+  return { wallet, transactions };
 }
 
 /** Creates a Stripe Checkout Session for a wallet top-up. Returns { url } to open in a new tab. */

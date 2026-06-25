@@ -10,6 +10,7 @@ type Props = {
   transactions: WalletTransaction[];
   patientId: string;
   viewerId: string | null;
+  dataLoading?: boolean;
 };
 
 function fmt(cents: number) {
@@ -27,7 +28,7 @@ function txIconLetter(tx: WalletTransaction): string {
   return txLabel(tx, null).slice(0, 2).toUpperCase();
 }
 
-export function CompactWallet({ walletId: _walletId, balanceCents, transactions, patientId, viewerId }: Props) {
+export function CompactWallet({ walletId: _walletId, balanceCents, transactions, patientId, viewerId, dataLoading = false }: Props) {
   const [showAmountInput, setShowAmountInput] = useState(false);
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
@@ -64,7 +65,12 @@ export function CompactWallet({ walletId: _walletId, balanceCents, transactions,
   }
 
   return (
-    <div className="flex flex-col rounded-2xl border border-[#E9EEE9] bg-white p-5" style={sansStyle}>
+    <div className="relative flex flex-col rounded-2xl border border-[#E9EEE9] bg-white p-5" style={sansStyle}>
+      {dataLoading && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/80 backdrop-blur-[2px]">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#E9EEE9] border-t-[#1F8A5B]" />
+        </div>
+      )}
       <div style={monoStyle} className="text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
         Wallet
       </div>

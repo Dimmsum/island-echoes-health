@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ConsentRequestCards } from "./ConsentRequestCards";
 import { SupportPatientForm } from "./PurchasePlanForm";
 import { UserNavbar } from "./UserNavbar";
 import { CompactWallet } from "./CompactWallet";
+import { fetchPatientWalletData } from "./actions";
 import type { WalletTransaction } from "./WalletCard";
 import type { StatusUpdate } from "@/app/clinician-portal/status-update-types";
 
@@ -113,8 +114,31 @@ export function UserHome({
   patientId,
   viewerId,
 }: Props) {
-  const [activePatientIdx, setActivePatientIdx] = useState(0);
+  // -1 = viewing own dashboard; 0+ = linked patient index
+  const [activePatientIdx, setActivePatientIdx] = useState(-1);
   const [showSupportModal, setShowSupportModal] = useState(false);
+
+  // Wallet data for the currently viewed patient — refreshed on pill switch
+  const [displayWallet, setDisplayWallet] = useState(wallet);
+  const [displayWalletTxs, setDisplayWalletTxs] = useState<WalletTransaction[]>(walletTransactions);
+  const [walletLoading, setWalletLoading] = useState(false);
+
+  useEffect(() => {
+    if (activePatientIdx === -1) {
+      setDisplayWallet(wallet);
+      setDisplayWalletTxs(walletTransactions);
+      return;
+    }
+    const patient = linkedPatients[activePatientIdx]?.patient;
+    if (!patient?.id) return;
+    setWalletLoading(true);
+    fetchPatientWalletData(patient.id).then((data) => {
+      setDisplayWallet(data.wallet);
+      setDisplayWalletTxs(data.transactions);
+      setWalletLoading(false);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePatientIdx]);
 
   const activePatient = linkedPatients[activePatientIdx] ?? null;
   const userInitials = getInitials(fullName);
@@ -122,7 +146,11 @@ export function UserHome({
   const monoStyle = { fontFamily: "var(--font-ibm-mono, 'IBM Plex Mono', monospace)" };
   const sansStyle = { fontFamily: "var(--font-hanken, 'Hanken Grotesk', sans-serif)" };
 
-  const hasWallet = wallet !== null && patientId !== null;
+  const activePatientId = activePatientIdx === -1
+    ? patientId
+    : (linkedPatients[activePatientIdx]?.patient?.id ?? null);
+  // For self: only show wallet column if viewer has one. For linked patient: always show (sponsors can top up).
+  const hasWallet = activePatientId !== null && (activePatientIdx === -1 ? wallet !== null : true);
   const hasLinkedPatients = linkedPatients.length > 0;
 
   const gridCols =
@@ -160,22 +188,35 @@ export function UserHome({
                   Your care circle
                 </div>
                 <div className="mt-0.5 text-[18px] font-bold text-[#16241D]">
-                  {activePatient
-                    ? `Viewing: ${activePatient.patient?.full_name ?? "Patient"}`
-                    : `Welcome, ${fullName ?? "you"}`}
+                  {activePatientIdx === -1
+                    ? `Viewing: You`
+                    : `Viewing: ${activePatient?.patient?.full_name ?? "Patient"}`}
                 </div>
               </div>
 
               <div className="mx-1 h-9 w-px bg-[#EBF0EB]" />
 
               <div className="flex flex-wrap items-center gap-2">
-                {/* You pill — display-only */}
-                <div className="flex items-center gap-2 rounded-full border border-[#E6EBE6] px-3 py-2">
+                {/* You pill */}
+                <button
+                  type="button"
+                  onClick={() => setActivePatientIdx(-1)}
+                  className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 transition-colors ${
+                    activePatientIdx === -1
+                      ? "border-[#15402C] bg-[#15402C]"
+                      : "border-[#E6EBE6] bg-white hover:border-[#1F8A5B]/40 hover:bg-[#F4F7F3]"
+                  }`}
+                >
                   <div className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-[#DCEFE3] text-[11px] font-bold text-[#13643F]">
                     {userInitials}
                   </div>
-                  <span className="text-[13px] font-medium text-[#5a6a60]">You</span>
-                </div>
+                  <span className={`text-[13px] ${activePatientIdx === -1 ? "font-semibold text-white" : "font-medium text-[#5a6a60]"}`}>
+                    You
+                  </span>
+                  {activePatientIdx === -1 && (
+                    <span className="h-[7px] w-[7px] rounded-full bg-[#F4C541]" />
+                  )}
+                </button>
 
                 {/* Patient pills */}
                 {linkedPatients.map((lp, i) => {
@@ -335,7 +376,7 @@ export function UserHome({
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <div style={monoStyle} className="text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
-                    Live vitals · {activePatient?.patient?.full_name ?? "Patient"}
+                    Live vitals · {activePatientIdx === -1 ? (fullName ?? "You") : (activePatient?.patient?.full_name ?? "Patient")}
                   </div>
                   <div className="mt-0.5 text-[11.5px] text-[#94a298]">
                     Connect a device to view real-time vitals
@@ -395,11 +436,12 @@ export function UserHome({
           {/* RIGHT — Compact wallet */}
           {hasWallet && (
             <CompactWallet
-              walletId={wallet!.id}
-              balanceCents={wallet!.balanceCents}
-              transactions={walletTransactions}
-              patientId={patientId!}
+              walletId={displayWallet?.id ?? ""}
+              balanceCents={displayWallet?.balanceCents ?? 0}
+              transactions={displayWalletTxs}
+              patientId={activePatientId!}
               viewerId={viewerId}
+              dataLoading={walletLoading}
             />
           )}
         </div>
