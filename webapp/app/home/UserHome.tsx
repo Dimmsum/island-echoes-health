@@ -89,6 +89,51 @@ type Props = {
   viewerId: string | null;
 };
 
+type RiskLevel = "green" | "amber" | "red" | "none";
+
+function computeRiskSignal(
+  followUps: FollowUp[],
+  metrics: PatientMetric[],
+  appointments: Appointment[],
+): RiskLevel {
+  if (!followUps.length && !metrics.length && !appointments.length) return "none";
+  const pendingFollowUps = followUps.filter((f) => f.status === "pending");
+  const latestMetric = metrics[0] ?? null;
+  if (
+    pendingFollowUps.some((f) => f.overdue) ||
+    latestMetric?.medication_adherence === "poor" ||
+    (latestMetric?.a1c !== null && latestMetric?.a1c !== undefined && latestMetric.a1c > 9) ||
+    (latestMetric?.blood_pressure_systolic !== null && latestMetric?.blood_pressure_systolic !== undefined && latestMetric.blood_pressure_systolic > 160)
+  ) return "red";
+  if (
+    pendingFollowUps.length > 0 ||
+    latestMetric?.medication_adherence === "fair" ||
+    (latestMetric?.a1c !== null && latestMetric?.a1c !== undefined && latestMetric.a1c > 7) ||
+    (latestMetric?.blood_pressure_systolic !== null && latestMetric?.blood_pressure_systolic !== undefined && latestMetric.blood_pressure_systolic > 140)
+  ) return "amber";
+  return "green";
+}
+
+const RISK_CONFIG: Record<RiskLevel, { bg: string; text: string; dot: string; label: string }> = {
+  green:  { bg: "#DCEFE3", text: "#13643F", dot: "#1F8A5B", label: "On track" },
+  amber:  { bg: "#FBF1CF", text: "#9a7a06", dot: "#c49a00", label: "Needs attention" },
+  red:    { bg: "#FDE8E8", text: "#c0392b", dot: "#e74c3c", label: "At risk" },
+  none:   { bg: "#F0F2F0", text: "#8a988f", dot: "#b5c0b8", label: "No data" },
+};
+
+function RiskBadge({ level }: { level: RiskLevel }) {
+  const cfg = RISK_CONFIG[level];
+  return (
+    <span
+      className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold"
+      style={{ background: cfg.bg, color: cfg.text }}
+    >
+      <span className="h-[7px] w-[7px] rounded-full" style={{ background: cfg.dot }} />
+      {cfg.label}
+    </span>
+  );
+}
+
 function getInitials(name: string | null): string {
   if (!name) return "?";
   return name
@@ -323,14 +368,7 @@ export function UserHome({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-[#FBF1CF] px-3 py-1.5 text-[11px] font-semibold text-[#9a7a06]">
-                Needs review
-              </span>
-              <button className="rounded-[10px] bg-[#1F8A5B] px-4 py-2 text-[13.5px] font-semibold text-white">
-                Message care team
-              </button>
-            </div>
+            <RiskBadge level={computeRiskSignal(displayFollowUps, displayMetrics, visibleAppointments)} />
           </div>
 
         {/* ── 3-col main grid ── */}
