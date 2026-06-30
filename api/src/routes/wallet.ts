@@ -341,18 +341,25 @@ export async function getWalletTransactions(
   ];
 
   const nameById = new Map<string, string | null>();
+  const avatarById = new Map<string, string | null>();
   if (contributorIds.length) {
     const { data: profiles } = await admin
       .from("profiles")
-      .select("id, full_name")
+      .select("id, full_name, avatar_url")
       .in("id", contributorIds);
-    for (const p of profiles ?? []) nameById.set(p.id, p.full_name);
+    for (const p of profiles ?? []) {
+      nameById.set(p.id, p.full_name);
+      avatarById.set(p.id, p.avatar_url ?? null);
+    }
   }
 
   const enriched = (transactions ?? []).map((t) => ({
     ...t,
     contributor_name: t.contributor_id
       ? (nameById.get(t.contributor_id) ?? null)
+      : null,
+    contributor_avatar_url: t.contributor_id
+      ? (avatarById.get(t.contributor_id) ?? null)
       : null,
   }));
 

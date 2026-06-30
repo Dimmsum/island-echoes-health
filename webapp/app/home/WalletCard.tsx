@@ -18,6 +18,7 @@ export type WalletTransaction = {
   created_at: string;
   contributor_id: string | null;
   contributor_name: string | null;
+  contributor_avatar_url: string | null;
 };
 
 type Props = {

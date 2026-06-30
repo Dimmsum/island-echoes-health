@@ -33,6 +33,7 @@ export function CompactWallet({ walletId: _walletId, balanceCents, transactions,
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAllTx, setShowAllTx] = useState(false);
 
   const sansStyle = { fontFamily: "var(--font-hanken, 'Hanken Grotesk', sans-serif)" };
   const monoStyle = { fontFamily: "var(--font-ibm-mono, 'IBM Plex Mono', monospace)" };
@@ -80,19 +81,13 @@ export function CompactWallet({ walletId: _walletId, balanceCents, transactions,
         {fmt(balanceCents)}
       </div>
 
-      <div className="mt-4 flex gap-2.5">
+      <div className="mt-4">
         <button
           type="button"
           onClick={openAmountInput}
-          className="flex-1 rounded-[10px] bg-[#1F8A5B] py-2.5 text-[13px] font-semibold text-white transition hover:bg-[#196e49]"
+          className="w-full rounded-[10px] bg-[#1F8A5B] py-2.5 text-[13px] font-semibold text-white transition hover:bg-[#196e49]"
         >
           Add funds
-        </button>
-        <button
-          type="button"
-          className="flex-1 rounded-[10px] border border-[#DCE4DD] bg-white py-2.5 text-[13px] font-semibold text-[#16241D]"
-        >
-          Send
         </button>
       </div>
 
@@ -147,9 +142,17 @@ export function CompactWallet({ walletId: _walletId, balanceCents, transactions,
         <div className="flex flex-col gap-3.5">
           {transactions.slice(0, 4).map((tx) => (
             <div key={tx.id} className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[#E7ECE8] text-[11px] font-bold text-[#4a5a50]">
-                {txIconLetter(tx)}
-              </div>
+              {tx.contributor_avatar_url ? (
+                <img
+                  src={tx.contributor_avatar_url}
+                  alt={tx.contributor_name ?? ""}
+                  className="h-8 w-8 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#E7ECE8] text-[11px] font-bold text-[#4a5a50]">
+                  {txIconLetter(tx)}
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[13px] font-semibold text-[#16241D]">{txLabel(tx, viewerId)}</div>
                 <div className="text-[11.5px] text-[#94a298]">
@@ -165,8 +168,70 @@ export function CompactWallet({ walletId: _walletId, balanceCents, transactions,
       )}
 
       {transactions.length > 0 && (
-        <div className="mt-4 text-center text-[12px] font-semibold text-[#1F8A5B]">
+        <button
+          type="button"
+          onClick={() => setShowAllTx(true)}
+          className="mt-4 w-full text-center text-[12px] font-semibold text-[#1F8A5B] transition hover:text-[#196e49]"
+        >
           View all transactions
+        </button>
+      )}
+
+      {showAllTx && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          onClick={() => setShowAllTx(false)}
+        >
+          <div
+            className="relative w-full max-w-md rounded-2xl border border-[#E9EEE9] bg-white p-6 shadow-2xl"
+            style={sansStyle}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setShowAllTx(false)}
+              className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full text-[#9aa89f] transition hover:bg-[#F4F7F3] hover:text-[#5a6a60]"
+            >
+              ✕
+            </button>
+
+            <div style={monoStyle} className="mb-5 text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
+              All transactions
+            </div>
+
+            <div className="max-h-[60vh] overflow-y-auto">
+              {transactions.length === 0 ? (
+                <p className="text-sm text-[#9aa89f]">No transactions yet.</p>
+              ) : (
+                <div className="flex flex-col gap-3.5">
+                  {transactions.map((tx) => (
+                    <div key={tx.id} className="flex items-center gap-2.5">
+                      {tx.contributor_avatar_url ? (
+                        <img
+                          src={tx.contributor_avatar_url}
+                          alt={tx.contributor_name ?? ""}
+                          className="h-8 w-8 shrink-0 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#E7ECE8] text-[11px] font-bold text-[#4a5a50]">
+                          {txIconLetter(tx)}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[13px] font-semibold text-[#16241D]">{txLabel(tx, viewerId)}</div>
+                        <div className="text-[11.5px] text-[#94a298]">
+                          {new Date(tx.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        </div>
+                      </div>
+                      <div className={`shrink-0 text-[13px] font-bold ${tx.amount_cents >= 0 ? "text-[#1F8A5B]" : "text-[#16241D]"}`}>
+                        {tx.amount_cents >= 0 ? "+" : "−"}{fmt(tx.amount_cents)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

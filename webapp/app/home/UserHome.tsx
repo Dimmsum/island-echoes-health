@@ -6,10 +6,10 @@ import { ConsentRequestCards } from "./ConsentRequestCards";
 import { SupportPatientForm } from "./PurchasePlanForm";
 import { UserNavbar } from "./UserNavbar";
 import { CompactWallet } from "./CompactWallet";
-import { fetchPatientWalletData, fetchPatientStatusUpdates, fetchPatientMetrics } from "./actions";
+import { fetchPatientWalletData, fetchPatientStatusUpdates, fetchPatientMetrics, fetchPatientFollowUps } from "./actions";
 import type { WalletTransaction } from "./WalletCard";
 import type { StatusUpdate } from "@/app/clinician-portal/status-update-types";
-import type { PatientMetric } from "./actions";
+import type { PatientMetric, FollowUp } from "./actions";
 import { SkeletonCard } from "./SkeletonCard";
 
 type LinkedPatient = {
@@ -74,6 +74,7 @@ type Wallet = {
 
 type Props = {
   fullName: string | null;
+  viewerAvatarUrl: string | null;
   linkedPatients: LinkedPatient[];
   mySponsors: MySponsor[];
   pendingConsents: PendingConsent[];
@@ -83,6 +84,7 @@ type Props = {
   walletTransactions: WalletTransaction[];
   statusUpdates: StatusUpdate[];
   metrics: PatientMetric[];
+  followUps: FollowUp[];
   patientId: string | null;
   viewerId: string | null;
 };
@@ -104,8 +106,44 @@ const AVATAR_COLORS = [
   { bg: "#F2E1D6", text: "#7d4a2b" },
 ];
 
+function Avatar({
+  src,
+  name,
+  size = 26,
+  bg = "#DCEFE3",
+  color = "#13643F",
+}: {
+  src: string | null;
+  name: string | null;
+  size?: number;
+  bg?: string;
+  color?: string;
+}) {
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={name ?? ""}
+        width={size}
+        height={size}
+        className="rounded-full object-cover"
+        style={{ width: size, height: size, flexShrink: 0 }}
+      />
+    );
+  }
+  return (
+    <div
+      className="flex items-center justify-center rounded-full text-[11px] font-bold"
+      style={{ width: size, height: size, background: bg, color, flexShrink: 0 }}
+    >
+      {getInitials(name)}
+    </div>
+  );
+}
+
 export function UserHome({
   fullName,
+  viewerAvatarUrl,
   linkedPatients,
   mySponsors,
   pendingConsents,
@@ -115,6 +153,7 @@ export function UserHome({
   walletTransactions,
   statusUpdates,
   metrics,
+  followUps,
   patientId,
   viewerId,
 }: Props) {
@@ -130,6 +169,9 @@ export function UserHome({
   const [statusLoading, setStatusLoading] = useState(false);
   const [displayMetrics, setDisplayMetrics] = useState<PatientMetric[]>(metrics);
   const [metricsLoading, setMetricsLoading] = useState(false);
+  const [displayFollowUps, setDisplayFollowUps] = useState<FollowUp[]>(followUps ?? []);
+  const [followUpsLoading, setFollowUpsLoading] = useState(false);
+  const [sponsorsLoading, setSponsorsLoading] = useState(false);
 
   useEffect(() => {
     if (activePatientIdx === -1) {
@@ -137,6 +179,7 @@ export function UserHome({
       setDisplayWalletTxs(walletTransactions);
       setDisplayStatusUpdates(statusUpdates);
       setDisplayMetrics(metrics);
+      setDisplayFollowUps(followUps ?? []);
       return;
     }
     const patient = linkedPatients[activePatientIdx]?.patient;
@@ -144,11 +187,14 @@ export function UserHome({
     setWalletLoading(true);
     setStatusLoading(true);
     setMetricsLoading(true);
+    setFollowUpsLoading(true);
+    setSponsorsLoading(true);
     Promise.all([
       fetchPatientWalletData(patient.id),
       fetchPatientStatusUpdates(patient.id),
       fetchPatientMetrics(patient.id),
-    ]).then(([walletData, statusData, metricsData]) => {
+      fetchPatientFollowUps(patient.id),
+    ]).then(([walletData, statusData, metricsData, followUpsData]) => {
       setDisplayWallet(walletData.wallet);
       setDisplayWalletTxs(walletData.transactions);
       setWalletLoading(false);
@@ -156,12 +202,14 @@ export function UserHome({
       setStatusLoading(false);
       setDisplayMetrics(metricsData);
       setMetricsLoading(false);
+      setDisplayFollowUps(followUpsData ?? []);
+      setFollowUpsLoading(false);
+      setSponsorsLoading(false);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePatientIdx]);
 
   const activePatient = linkedPatients[activePatientIdx] ?? null;
-  const userInitials = getInitials(fullName);
   const today = new Date();
   const monoStyle = { fontFamily: "var(--font-ibm-mono, 'IBM Plex Mono', monospace)" };
   const sansStyle = { fontFamily: "var(--font-hanken, 'Hanken Grotesk', sans-serif)" };
@@ -221,9 +269,7 @@ export function UserHome({
                       : "border-[#E6EBE6] bg-white hover:border-[#1F8A5B]/40 hover:bg-[#F4F7F3]"
                   }`}
                 >
-                  <div className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-[#DCEFE3] text-[11px] font-bold text-[#13643F]">
-                    {userInitials}
-                  </div>
+                  <Avatar src={viewerAvatarUrl} name={fullName} size={26} />
                   <span className={`text-[13px] ${activePatientIdx === -1 ? "font-semibold text-white" : "font-medium text-[#5a6a60]"}`}>
                     You
                   </span>
@@ -235,7 +281,6 @@ export function UserHome({
                 {/* Patient pills */}
                 {linkedPatients.map((lp, i) => {
                   const isActive = i === activePatientIdx;
-                  const initials = getInitials(lp.patient?.full_name ?? null);
                   const color = AVATAR_COLORS[i % AVATAR_COLORS.length];
                   return (
                     <button
@@ -248,12 +293,13 @@ export function UserHome({
                           : "border-[#E6EBE6] bg-white hover:border-[#1F8A5B]/40 hover:bg-[#F4F7F3]"
                       }`}
                     >
-                      <div
-                        className="flex h-[26px] w-[26px] items-center justify-center rounded-full text-[11px] font-bold"
-                        style={{ background: color.bg, color: color.text }}
-                      >
-                        {initials}
-                      </div>
+                      <Avatar
+                        src={lp.patient?.avatar_url ?? null}
+                        name={lp.patient?.full_name ?? null}
+                        size={26}
+                        bg={color.bg}
+                        color={color.text}
+                      />
                       <span
                         className={`text-[13px] ${isActive ? "font-semibold text-white" : "font-medium text-[#5a6a60]"}`}
                       >
@@ -480,13 +526,17 @@ export function UserHome({
 
         {/* ── Secondary sections ── */}
 
-        {(statusLoading || displayStatusUpdates.length > 0) && (
-          <div className="mt-[18px] rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
+        <div className="mt-[18px] grid gap-[18px] lg:grid-cols-3">
+
+          {/* Status updates */}
+          <div className="rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
             <div style={monoStyle} className="mb-4 text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
               Status updates
             </div>
             {statusLoading ? (
               <SkeletonCard rows={3} />
+            ) : displayStatusUpdates.length === 0 ? (
+              <p className="text-[13px] text-[#94a298]">No updates yet.</p>
             ) : (
               <ul className="space-y-3">
                 {displayStatusUpdates.map((u) => (
@@ -504,32 +554,70 @@ export function UserHome({
               </ul>
             )}
           </div>
-        )}
 
-        {mySponsors.length > 0 && (
-          <div className="mt-[18px] rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
+          {/* Your sponsors */}
+          <div className="rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
             <div style={monoStyle} className="mb-4 text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
               Your sponsors
             </div>
-            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {mySponsors.map((link) => (
-                <li key={link.id} className="flex items-center gap-3 rounded-xl border border-[#EEF2EE] px-4 py-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#DCEFE3] text-[14px] font-bold text-[#13643F]">
-                    {getInitials(link.sponsor?.full_name ?? null)}
-                  </div>
-                  <div>
-                    <div className="text-[14px] font-semibold text-[#16241D]">
-                      {link.sponsor?.full_name ?? "Sponsor"}
+            {sponsorsLoading ? (
+              <SkeletonCard rows={2} />
+            ) : mySponsors.length === 0 ? (
+              <p className="text-[13px] text-[#94a298]">No sponsors yet.</p>
+            ) : (
+              <ul className="grid gap-3 sm:grid-cols-2">
+                {mySponsors.map((link) => (
+                  <li key={link.id} className="flex items-center gap-3 rounded-xl border border-[#EEF2EE] px-4 py-3">
+                    <Avatar src={link.sponsor?.avatar_url ?? null} name={link.sponsor?.full_name ?? null} size={40} />
+                    <div>
+                      <div className="text-[14px] font-semibold text-[#16241D]">
+                        {link.sponsor?.full_name ?? "Sponsor"}
+                      </div>
+                      {link.care_plan && (
+                        <div className="text-[12px] text-[#94a298]">{link.care_plan.name}</div>
+                      )}
                     </div>
-                    {link.care_plan && (
-                      <div className="text-[12px] text-[#94a298]">{link.care_plan.name}</div>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        )}
+
+          {/* Follow-ups */}
+          <div className="rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
+            <div style={monoStyle} className="mb-4 text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
+              Follow-ups
+            </div>
+            {followUpsLoading ? (
+              <SkeletonCard rows={2} />
+            ) : displayFollowUps.length === 0 ? (
+              <p className="text-[13px] text-[#94a298]">No follow-ups yet.</p>
+            ) : (
+              <ul className="space-y-3">
+                {displayFollowUps.map((f) => (
+                  <li key={f.id} className="rounded-xl border border-[#EEF2EE] bg-[#F6FAF7] px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-[#94a298]">
+                        Due {new Date(f.dueDate).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                      {f.overdue && (
+                        <span className="text-[11px] font-semibold text-red-500">Overdue</span>
+                      )}
+                    </div>
+                    {f.notes && (
+                      <p className="mt-1.5 whitespace-pre-wrap text-[14px] text-[#3f5247]">{f.notes}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+        </div>
 
       </div>
 
@@ -563,7 +651,7 @@ export function UserHome({
 
             <h2 className="mt-3 text-[18px] font-bold text-[#16241D]">Support a patient</h2>
             <p className="mt-1 text-[13.5px] text-[#6a7a70]">
-              Invite a family member or loved one by email. Once they accept, you'll be able to view their care details and contribute to their wallet.
+              Invite a family member or loved one by email. Once they accept, you&apos;ll be able to view their care details and contribute to their wallet.
             </p>
 
             <div className="mt-5">

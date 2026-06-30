@@ -367,6 +367,37 @@ export async function fetchPatientMetrics(patientId: string): Promise<PatientMet
   }
 }
 
+export type FollowUp = {
+  id: string;
+  dueDate: string;
+  status: "pending" | "completed" | "cancelled";
+  notes: string | null;
+  overdue: boolean;
+};
+
+/** Fetches follow-ups. Pass patientId to scope to a specific linked patient; omit for the current user. */
+export async function fetchPatientFollowUps(patientId?: string): Promise<FollowUp[]> {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) return [];
+
+  try {
+    const url = patientId
+      ? `${API_BASE}/api/follow-ups?patientId=${patientId}`
+      : `${API_BASE}/api/follow-ups`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => ({}));
+    return data.followUps ?? [];
+  } catch {
+    return [];
+  }
+}
+
 /** Fetches status updates for a linked patient the viewer has access to. */
 export async function fetchPatientStatusUpdates(patientId: string): Promise<StatusUpdate[]> {
   const supabase = await createClient();

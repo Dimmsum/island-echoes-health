@@ -4,7 +4,8 @@ import { fetchApiJson } from "@/lib/api";
 import { UserHome } from "./UserHome";
 import type { WalletTransaction } from "./WalletCard";
 import type { StatusUpdate } from "@/app/clinician-portal/status-update-types";
-import type { PatientMetric } from "./actions";
+import type { PatientMetric, FollowUp } from "./actions";
+import { fetchPatientFollowUps } from "./actions";
 
 const STAFF_ROLES = ["admin", "clinician"] as const;
 
@@ -21,7 +22,7 @@ export default async function HomePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, full_name")
+    .select("role, full_name, avatar_url")
     .eq("id", user.id)
     .single();
   const role = profile?.role as string | undefined;
@@ -59,9 +60,10 @@ export default async function HomePage() {
   // Status updates the care team shared with the patient (RLS returns all/patient_only).
   let statusUpdates: StatusUpdate[] = [];
   let metrics: PatientMetric[] = [];
+  let followUps: FollowUp[] = [];
 
   try {
-    const [walletRes, txRes, statusRes, metricsRes] = await Promise.allSettled([
+    const [walletRes, txRes, statusRes, metricsRes, followUpsRes] = await Promise.allSettled([
       fetchApiJson<{ wallet: { id: string; patientId: string; balanceCents: number; updatedAt: string } }>(
         session.access_token,
         "/api/wallet",
@@ -78,6 +80,7 @@ export default async function HomePage() {
         session.access_token,
         `/api/patients/${user.id}/metrics`,
       ),
+      fetchPatientFollowUps(),
     ]);
 
     if (walletRes.status === "fulfilled") {
@@ -93,13 +96,17 @@ export default async function HomePage() {
     if (metricsRes.status === "fulfilled") {
       metrics = metricsRes.value.metrics ?? [];
     }
+    if (followUpsRes.status === "fulfilled") {
+      followUps = followUpsRes.value ?? [];
+    }
   } catch {
-    // Non-fatal — wallet/status/metrics sections degrade gracefully when data is absent
+    // Non-fatal — wallet/status/metrics/follow-ups sections degrade gracefully when data is absent
   }
 
   return (
     <UserHome
       fullName={fullName ?? homeData.profile?.full_name ?? null}
+      viewerAvatarUrl={profile?.avatar_url ?? null}
       linkedPatients={homeData.linkedPatients}
       mySponsors={homeData.mySponsors}
       pendingConsents={homeData.pendingConsents}
@@ -109,6 +116,7 @@ export default async function HomePage() {
       walletTransactions={walletTransactions}
       statusUpdates={statusUpdates}
       metrics={metrics}
+      followUps={followUps}
       patientId={user.id}
       viewerId={user.id}
     />
