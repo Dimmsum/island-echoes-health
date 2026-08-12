@@ -62,13 +62,12 @@ export function UserNavbar({ fullName, notifications: initial, activePath = "/ho
     >
       {/* Left: logo + nav links */}
       <div className="flex items-center gap-9">
-        <Link href="/home" className="flex items-center gap-2.5">
-          <div className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-[#1F8A5B] text-[13px] font-extrabold text-white">
-            IE
-          </div>
-          <span className="text-[16px] font-bold tracking-[-0.01em] text-[#16241D]">
-            Island Echoes <span className="text-[#1F8A5B]">Health</span>
-          </span>
+        <Link href="/home" className="flex items-center">
+          <img
+            src="/island-echoes-health.svg"
+            alt="Island Echoes Health"
+            className="h-9 w-auto"
+          />
         </Link>
 
         <nav className="flex items-center gap-1">
