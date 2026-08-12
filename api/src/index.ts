@@ -557,8 +557,10 @@ const basePort = Number(process.env.PORT) || 4001;
 const maxTries = 10;
 
 function tryListen(port: number): void {
-  const server = app.listen(port, () => {
-    console.log(`API server listening on http://localhost:${port}`);
+  // Bind to 0.0.0.0 so Railway's (and other container platforms') proxy can
+  // reach the app. Node's default bind (::) is not always reachable there.
+  const server = app.listen(port, "0.0.0.0", () => {
+    console.log(`API server listening on http://0.0.0.0:${port}`);
   });
   server.on("error", (err: NodeJS.ErrnoException) => {
     if (err.code === "EADDRINUSE" && port - basePort < maxTries) {
