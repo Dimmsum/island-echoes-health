@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchApiJson } from "@/lib/api";
 import { UserNavbar } from "../UserNavbar";
 import { ProfileEditForm } from "./ProfileEditForm";
+import { EditableDisplayName } from "./EditableDisplayName";
 import { EndSponsorshipButton } from "../EndSponsorshipButton";
 
 const STAFF_ROLES = ["admin", "clinician"] as const;
@@ -26,9 +27,21 @@ const CurrencyIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const MailIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+const MailIcon = ({ className }: { className?: string }) => (
+  <svg className={className || "h-5 w-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+  </svg>
+);
+
+const PhoneIcon = ({ className }: { className?: string }) => (
+  <svg className={className || "h-5 w-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+  </svg>
+);
+
+const CheckCircleIcon = ({ className }: { className?: string }) => (
+  <svg className={className || "h-6 w-6"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
 );
 
@@ -52,7 +65,7 @@ export default async function ProfilePage() {
   if (!session?.user) redirect("/");
 
   const [meData, homeProfileData] = await Promise.all([
-    fetchApiJson<{ user: { id: string; email: string | null }; profile: { role?: string; full_name: string | null; avatar_url: string | null } | null }>(
+    fetchApiJson<{ user: { id: string; email: string | null }; profile: { role?: string; full_name: string | null; avatar_url: string | null; phone: string | null } | null }>(
       session.access_token,
       "/api/me"
     ),
@@ -71,6 +84,7 @@ export default async function ProfilePage() {
 
   const fullName = meData.profile?.full_name ?? null;
   const avatarUrl = meData.profile?.avatar_url ?? null;
+  const phone = meData.profile?.phone ?? null;
   const user = meData.user;
   const { linkedPatients, mySponsors, notifications } = homeProfileData;
 
@@ -87,97 +101,109 @@ export default async function ProfilePage() {
   const totalMonthlyDollars = totalMonthlyCents / 100;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-40 top-0 h-96 w-96 rounded-full bg-[#E6E15A]/20 blur-3xl" />
-        <div className="absolute right-[-10rem] bottom-[-10rem] h-[32rem] w-[48rem] rounded-full bg-[#9CCB4A]/15 blur-3xl" />
-        <div className="absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#1F5F2E]/5 blur-3xl" />
-      </div>
+    <div className="min-h-screen bg-[#F4F7F3]">
+      <UserNavbar fullName={fullName} notifications={notifications} activePath="/home/profile" />
 
-      <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        <UserNavbar fullName={fullName} notifications={notifications} />
-
-        <section className="mt-12 flex flex-1 flex-col">
-          {/* Hero Section */}
-          <div className="mb-2 flex items-center gap-2">
-            <span className="rounded-full bg-[#1F5F2E]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#1F5F2E]">
-              Your profile
-            </span>
+      <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <section className="flex flex-col">
+          {/* Hero */}
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <span className="rounded-full bg-[#1F5F2E]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#1F5F2E]">
+                Your profile
+              </span>
+              <h1 className="mt-2 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+                Profile &amp; settings
+              </h1>
+              <p className="mt-3 max-w-2xl text-lg text-slate-600">
+                Manage your account information and care connections.
+              </p>
+            </div>
+            {/* Account status (static) */}
+            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+              <div className="rounded-xl bg-[#EFF6F1] p-2 text-[#1F5F2E]">
+                <CheckCircleIcon />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Account active</p>
+                <p className="text-xs text-slate-500">Your account is in good standing.</p>
+              </div>
+            </div>
           </div>
-          <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-            Profile & settings
-          </h1>
-          <p className="mt-3 max-w-2xl text-lg text-slate-600">
-            Manage your account information and care connections.
-          </p>
 
-          {/* Profile Edit Section */}
-          <div className="mt-10 rounded-2xl border border-slate-200 bg-white/90 p-8 shadow-lg backdrop-blur">
+          {/* Personal information */}
+          <div className="mt-10 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
             <div className="mb-6 flex items-center gap-3">
-              <div className="rounded-xl bg-[#1F5F2E]/10 p-2.5 text-[#1F5F2E]">
+              <div className="rounded-xl bg-[#EFF6F1] p-2.5 text-[#1F5F2E]">
                 <UsersIcon />
               </div>
               <div>
                 <h2 className="text-xl font-semibold text-slate-900">Personal information</h2>
                 <p className="mt-0.5 text-sm text-slate-600">
-                  Update your profile photo and display name
+                  Update your profile photo and personal details.
                 </p>
               </div>
             </div>
             <ProfileEditForm initialAvatarUrl={avatarUrl} />
-            
-            {/* Account Info */}
+
+            {/* Field tiles */}
             <div className="mt-8 grid gap-4 border-t border-slate-200 pt-8 sm:grid-cols-2">
-              <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3">
-                <div className="rounded-lg bg-white p-2 shadow-sm">
+              <EditableDisplayName initialName={fullName} />
+
+              <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="rounded-lg bg-[#EFF6F1] p-2 text-[#1F5F2E]">
                   <MailIcon />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
                     Email address
                   </p>
-                  <p className="mt-0.5 text-sm font-medium text-slate-900">
+                  <p className="mt-0.5 truncate text-sm font-medium text-slate-900">
                     {user.email ?? "—"}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3">
-                <div className="rounded-lg bg-white p-2 shadow-sm">
-                  <UsersIcon />
+
+              <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="rounded-lg bg-[#EFF6F1] p-2 text-[#1F5F2E]">
+                  <PhoneIcon />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                    Display name
+                    Phone number
                   </p>
-                  <p className="mt-0.5 text-sm font-medium text-slate-900">
-                    {fullName ?? "Not set"}
+                  <p className="mt-0.5 truncate text-sm font-medium text-slate-900">
+                    {phone ?? "—"}
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Care Connections */}
-          <div className="mt-10">
+          {/* Care connections */}
+          <div className="mt-10 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
             <div className="mb-6 flex items-center gap-3">
-              <div className="rounded-xl bg-[#1F5F2E]/10 p-2.5 text-[#1F5F2E]">
+              <div className="rounded-xl bg-[#EFF6F1] p-2.5 text-[#1F5F2E]">
                 <HeartIcon />
               </div>
               <div>
                 <h2 className="text-xl font-semibold text-slate-900">Care connections</h2>
                 <p className="mt-0.5 text-sm text-slate-600">
-                  Your patients, sponsors, and monthly expenses
+                  Manage your patients, sponsors, and monthly expenses.
                 </p>
               </div>
             </div>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {/* Patients you sponsor */}
-              <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur transition hover:border-[#1F5F2E]/30 hover:shadow-md">
+              <div className="rounded-2xl border border-slate-200 bg-[#F4F7F3] p-6">
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="rounded-xl bg-gradient-to-br from-[#1F5F2E]/20 to-[#9CCB4A]/20 p-3 text-[#1F5F2E]">
-                    <UsersIcon />
+                  <div className="rounded-xl bg-[#DCEFE3] p-2.5 text-[#1F5F2E]">
+                    <UsersIcon className="h-5 w-5" />
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-900">Patients you sponsor</h3>
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900">Patients you sponsor</h3>
+                    <p className="text-xs text-slate-500">View and manage patients under your care.</p>
+                  </div>
                 </div>
                 {linkedPatients.length === 0 ? (
                   <div className="py-8 text-center">
@@ -191,9 +217,9 @@ export default async function ProfilePage() {
                       <li key={link.id}>
                         <Link
                           href={`/home/sponsored/${link.id}`}
-                          className="group/item flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-3 transition hover:border-[#1F5F2E]/30 hover:bg-white"
+                          className="group/item flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-3 py-3 transition hover:border-[#1F5F2E]/30"
                         >
-                          <div className="h-10 w-10 shrink-0 rounded-lg bg-gradient-to-br from-[#1F5F2E]/20 to-[#9CCB4A]/20 flex items-center justify-center overflow-hidden">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#DCEFE3]">
                             {link.patient?.avatar_url ? (
                               <img src={link.patient.avatar_url} alt="" className="h-full w-full object-cover" />
                             ) : (
@@ -225,17 +251,20 @@ export default async function ProfilePage() {
                   className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[#1F5F2E] hover:underline"
                 >
                   View dashboard
-                  <ArrowRightIcon />
+                  <ArrowRightIcon className="h-4 w-4" />
                 </Link>
               </div>
 
               {/* Your sponsors */}
-              <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur transition hover:border-[#1F5F2E]/30 hover:shadow-md">
+              <div className="rounded-2xl border border-slate-200 bg-[#F4F7F3] p-6">
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="rounded-xl bg-gradient-to-br from-[#E6E15A]/20 to-[#9CCB4A]/20 p-3 text-[#1F5F2E]">
-                    <HeartIcon />
+                  <div className="rounded-xl bg-[#DCEFE3] p-2.5 text-[#1F5F2E]">
+                    <HeartIcon className="h-5 w-5" />
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-900">Your sponsors</h3>
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900">Your sponsors</h3>
+                    <p className="text-xs text-slate-500">Sponsors who support your care work.</p>
+                  </div>
                 </div>
                 {mySponsors.length === 0 ? (
                   <div className="py-8 text-center">
@@ -248,9 +277,9 @@ export default async function ProfilePage() {
                     {mySponsors.map((link) => (
                       <li
                         key={link.id}
-                        className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-3"
+                        className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-100 bg-white px-3 py-3"
                       >
-                        <div className="h-10 w-10 shrink-0 rounded-lg bg-gradient-to-br from-[#E6E15A]/20 to-[#9CCB4A]/20 flex items-center justify-center overflow-hidden">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#DCEFE3]">
                           {link.sponsor?.avatar_url ? (
                             <img src={link.sponsor.avatar_url} alt="" className="h-full w-full object-cover" />
                           ) : (
@@ -274,17 +303,24 @@ export default async function ProfilePage() {
                     ))}
                   </ul>
                 )}
+                <Link
+                  href="/home"
+                  className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[#1F5F2E] hover:underline"
+                >
+                  View all sponsors
+                  <ArrowRightIcon className="h-4 w-4" />
+                </Link>
               </div>
 
               {/* Monthly expenses (from active sponsorships in DB) */}
-              <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur transition hover:border-[#1F5F2E]/30 hover:shadow-md">
+              <div className="rounded-2xl border border-slate-200 bg-[#F4F7F3] p-6">
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="rounded-xl bg-gradient-to-br from-[#1F5F2E]/20 to-[#9CCB4A]/20 p-3 text-[#1F5F2E]">
-                    <CurrencyIcon />
+                  <div className="rounded-xl bg-[#DCEFE3] p-2.5 text-[#1F5F2E]">
+                    <CurrencyIcon className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-slate-900">Monthly expenses</h3>
-                    <p className="text-xs text-slate-500">From your active sponsorships</p>
+                    <h3 className="text-base font-semibold text-slate-900">Monthly expenses</h3>
+                    <p className="text-xs text-slate-500">Overview of your active sponsorships.</p>
                   </div>
                 </div>
                 <div className="space-y-3">
@@ -299,7 +335,7 @@ export default async function ProfilePage() {
                       {monthlyExpenses.map((item) => (
                         <div
                           key={item.id}
-                          className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2.5"
+                          className="flex items-center justify-between rounded-lg border border-slate-100 bg-white px-3 py-2.5"
                         >
                           <span className="text-sm text-slate-700">{item.plan}</span>
                           <span className="font-semibold text-slate-900">${item.amountDollars.toFixed(2)}</span>
@@ -317,7 +353,7 @@ export default async function ProfilePage() {
           </div>
 
           {/* Sign out */}
-          <div className="mt-12 rounded-2xl border border-red-200 bg-red-50/50 p-6">
+          <div className="mt-10 rounded-2xl border border-red-200 bg-red-50/50 p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="text-base font-semibold text-slate-900">Sign out</h3>
