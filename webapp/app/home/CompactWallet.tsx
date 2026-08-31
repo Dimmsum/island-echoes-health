@@ -65,13 +65,42 @@ export function CompactWallet({ walletId: _walletId, balanceCents, transactions,
     }
   }
 
-  return (
-    <div className="relative flex flex-col rounded-2xl border border-[#E9EEE9] bg-white p-5" style={sansStyle}>
-      {dataLoading && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/80 backdrop-blur-[2px]">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#E9EEE9] border-t-[#1F8A5B]" />
+  if (dataLoading) {
+    return (
+      <div className="flex flex-col rounded-2xl border border-[#E9EEE9] bg-white p-5" style={sansStyle}>
+        <div style={monoStyle} className="text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
+          Wallet
         </div>
-      )}
+
+        <div className="mt-3.5 animate-pulse space-y-4">
+          <div className="space-y-2">
+            <div className="h-3 w-24 rounded-full bg-[#E9EEE9]" />
+            <div className="h-8 w-32 rounded-full bg-[#E9EEE9]" />
+          </div>
+
+          <div className="h-9 w-full rounded-[10px] bg-[#F0F4F0]" />
+
+          <div className="h-px bg-[#EEF2EE]" />
+
+          <div className="space-y-2">
+            <div className="h-2.5 w-28 rounded-full bg-[#E9EEE9]" />
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-2.5 pt-2">
+                <div className="h-8 w-8 shrink-0 rounded-full bg-[#E9EEE9]" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-2.5 rounded-full bg-[#E9EEE9]" style={{ width: `${50 + (i % 3) * 15}%` }} />
+                  <div className="h-2.5 w-16 rounded-full bg-[#F0F4F0]" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col rounded-2xl border border-[#E9EEE9] bg-white p-5" style={sansStyle}>
       <div style={monoStyle} className="text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
         Wallet
       </div>

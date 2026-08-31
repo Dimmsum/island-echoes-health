@@ -137,7 +137,7 @@ export default async function SponsoredPatientPage({ params }: Props) {
         <div className="mt-6 flex items-center gap-2 text-sm text-slate-500">
           <Link href="/home" className="hover:text-[#1F5F2E]">Home</Link>
           <span>/</span>
-          <Link href="/home#patients" className="hover:text-[#1F5F2E]">Patients</Link>
+          <Link href="/patients" className="hover:text-[#1F5F2E]">Patients</Link>
           <span>/</span>
           <span className="font-medium text-slate-900">{patientName}</span>
         </div>
