@@ -58,6 +58,10 @@ export function AppointmentsList({ appointments, patients }: Props) {
   const scheduled = appointments.filter((a) => a.status === "scheduled");
   const pastOrCancelled = appointments.filter((a) => a.status !== "scheduled");
 
+  function isOverdue(apt: Appointment) {
+    return apt.status === "scheduled" && new Date(apt.scheduled_at).getTime() < Date.now();
+  }
+
   return (
     <div className="mt-8 space-y-8">
       <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur">
@@ -141,8 +145,13 @@ export function AppointmentsList({ appointments, patients }: Props) {
                     <td className="py-3 pr-4 text-slate-700">
                       {new Date(apt.scheduled_at).toLocaleString()}
                     </td>
-                    <td className="py-3 pr-4 capitalize text-slate-600">
-                      {apt.status}
+                    <td className="py-3 pr-4 text-slate-600">
+                      <span className="capitalize">{apt.status}</span>
+                      {isOverdue(apt) && (
+                        <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                          Needs update
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 text-right">
                       <Link

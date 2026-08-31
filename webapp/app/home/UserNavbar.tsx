@@ -179,9 +179,12 @@ export function UserNavbar({ fullName, notifications: initial, activePath = "/ho
         </div>
 
         {/* User avatar */}
-        <div className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#DCEFE3] text-[14px] font-bold text-[#13643F]">
+        <Link
+          href="/home/profile"
+          className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#DCEFE3] text-[14px] font-bold text-[#13643F] transition hover:bg-[#C9E6D5]"
+        >
           {initials}
-        </div>
+        </Link>
       </div>
     </header>
   );

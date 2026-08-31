@@ -349,10 +349,18 @@ export async function getHomeAppointments(req: AuthRequest, res: Response): Prom
       .limit(100);
     appointments = data ?? [];
   } else {
+    const { data: linkedPlans } = await supabase
+      .from("sponsor_patient_plans")
+      .select("patient_id")
+      .eq("sponsor_id", userId)
+      .is("ended_at", null);
+    const sponsoredPatientIds = [...new Set((linkedPlans ?? []).map((p) => p.patient_id))];
+    const relevantPatientIds = [...new Set([userId, ...sponsoredPatientIds])];
+
     const { data } = await supabase
       .from("appointments")
       .select("id, patient_id, clinician_id, scheduled_at, status")
-      .eq("patient_id", userId)
+      .in("patient_id", relevantPatientIds)
       .order("scheduled_at", { ascending: false });
     appointments = data ?? [];
   }
@@ -366,7 +374,9 @@ export async function getHomeAppointments(req: AuthRequest, res: Response): Prom
 
   const list = appointments.map((a) => ({
     ...a,
+    is_self: a.patient_id === userId,
     patient_name: patientProfiles.data?.find((p) => p.id === a.patient_id)?.full_name ?? null,
+    patient_avatar: patientProfiles.data?.find((p) => p.id === a.patient_id)?.avatar_url ?? null,
     clinician_name: clinicianProfiles.data?.find((p) => p.id === a.clinician_id)?.full_name ?? null,
   }));
 

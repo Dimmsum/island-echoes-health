@@ -39,12 +39,6 @@ const PhoneIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const CheckCircleIcon = ({ className }: { className?: string }) => (
-  <svg className={className || "h-6 w-6"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-
 const LogoutIcon = () => (
   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -107,7 +101,7 @@ export default async function ProfilePage() {
       <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <section className="flex flex-col">
           {/* Hero */}
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-6">
             <div>
               <span className="rounded-full bg-[#1F5F2E]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#1F5F2E]">
                 Your profile
@@ -118,16 +112,6 @@ export default async function ProfilePage() {
               <p className="mt-3 max-w-2xl text-lg text-slate-600">
                 Manage your account information and care connections.
               </p>
-            </div>
-            {/* Account status (static) */}
-            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-              <div className="rounded-xl bg-[#EFF6F1] p-2 text-[#1F5F2E]">
-                <CheckCircleIcon />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">Account active</p>
-                <p className="text-xs text-slate-500">Your account is in good standing.</p>
-              </div>
             </div>
           </div>
 
