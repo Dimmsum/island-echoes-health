@@ -200,7 +200,7 @@ export default async function ProfilePage() {
                     {linkedPatients.map((link) => (
                       <li key={link.id}>
                         <Link
-                          href={`/home/sponsored/${link.id}`}
+                          href={`/patients?patient=${link.id}`}
                           className="group/item flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-3 py-3 transition hover:border-[#1F5F2E]/30"
                         >
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#DCEFE3]">

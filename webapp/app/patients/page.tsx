@@ -1,8 +1,9 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchApiJson } from "@/lib/api";
 import { UserNavbar } from "../home/UserNavbar";
+import { fetchSponsoredPatientDetail } from "./actions";
+import { PatientsPageClient } from "./PatientsPageClient";
 
 const STAFF_ROLES = ["admin", "clinician"] as const;
 
@@ -23,24 +24,13 @@ type Notification = {
   reference_id: string | null;
 };
 
-function getInitials(name: string | null): string {
-  if (!name) return "?";
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
+type Props = {
+  searchParams: Promise<{ patient?: string }>;
+};
 
-const AVATAR_COLORS = [
-  { bg: "#E7E1F2", text: "#5b4a86" },
-  { bg: "#D6E8F2", text: "#2b5e7d" },
-  { bg: "#DCEFE3", text: "#13643F" },
-  { bg: "#F2E1D6", text: "#7d4a2b" },
-];
+export default async function PatientsPage({ searchParams }: Props) {
+  const { patient: requestedLinkId } = await searchParams;
 
-export default async function PatientsPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -67,7 +57,6 @@ export default async function PatientsPage() {
   let notifications: Notification[] = [];
   try {
     const homeData = await fetchApiJson<{
-      profile: { full_name: string | null } | null;
       linkedPatients: LinkedPatient[];
       notifications: Notification[];
     }>(session.access_token, "/api/home");
@@ -77,7 +66,7 @@ export default async function PatientsPage() {
     return (
       <div className="min-h-screen bg-[#F4F7F3]">
         <UserNavbar fullName={fullName} notifications={[]} activePath="/patients" />
-        <main className="mx-auto max-w-[1440px] px-7 py-6">
+        <main className="mx-auto max-w-[1200px] px-7 py-6">
           <p className="text-[14px] text-[#94a298]">
             Unable to load your patients. Please refresh or try again later.
           </p>
@@ -86,80 +75,42 @@ export default async function PatientsPage() {
     );
   }
 
-  const monoStyle = { fontFamily: "var(--font-ibm-mono, 'IBM Plex Mono', monospace)" };
-  const sansStyle = { fontFamily: "var(--font-hanken, 'Hanken Grotesk', sans-serif)" };
+  if (linkedPatients.length === 0) {
+    return (
+      <div className="min-h-screen bg-[#F4F7F3]">
+        <UserNavbar fullName={fullName} notifications={notifications} activePath="/patients" />
+        <main className="mx-auto max-w-[1200px] px-7 py-6">
+          <div className="mb-6">
+            <div
+              style={{ fontFamily: "var(--font-ibm-mono, 'IBM Plex Mono', monospace)" }}
+              className="text-[11px] uppercase tracking-[.12em] text-[#8a988f]"
+            >
+              Care circle
+            </div>
+            <h1 className="mt-1 text-[24px] font-bold text-[#16241D]">Patients</h1>
+          </div>
+          <div className="rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
+            <div className="py-12 text-center text-[14px] text-[#94a298]">No patients yet.</div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  const initialLinkId =
+    requestedLinkId && linkedPatients.some((lp) => lp.id === requestedLinkId)
+      ? requestedLinkId
+      : linkedPatients[0].id;
+  const initialDetail = await fetchSponsoredPatientDetail(initialLinkId);
 
   return (
-    <div className="min-h-screen bg-[#F4F7F3]" style={sansStyle}>
-      <UserNavbar fullName={fullName} notifications={notifications} activePath="/patients" />
-
-      <div className="mx-auto max-w-[1440px] px-7 py-6">
-        <div className="mb-6">
-          <div style={monoStyle} className="text-[11px] uppercase tracking-[.12em] text-[#8a988f]">
-            Care circle
-          </div>
-          <h1 className="mt-1 text-[24px] font-bold text-[#16241D]">Patients</h1>
-          <p className="mt-1 text-[13.5px] text-[#6a7a70]">
-            Everyone you sponsor, in one place.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
-          {linkedPatients.length === 0 ? (
-            <div className="py-12 text-center text-[14px] text-[#94a298]">
-              No patients yet.
-            </div>
-          ) : (
-            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {linkedPatients.map((lp, i) => {
-                const color = AVATAR_COLORS[i % AVATAR_COLORS.length];
-                const name = lp.patient?.full_name ?? "Patient";
-                const startedDate = new Date(lp.started_at).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                });
-                return (
-                  <li key={lp.id}>
-                    <Link
-                      href={`/home/sponsored/${lp.id}`}
-                      className="flex items-center gap-3 rounded-xl border border-[#EEF2EE] px-4 py-3.5 transition hover:border-[#1F8A5B]/30 hover:bg-[#F6FAF7]"
-                    >
-                      {lp.patient?.avatar_url ? (
-                        <img
-                          src={lp.patient.avatar_url}
-                          alt=""
-                          className="h-11 w-11 shrink-0 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[13px] font-bold"
-                          style={{ background: color.bg, color: color.text }}
-                        >
-                          {getInitials(lp.patient?.full_name ?? null)}
-                        </div>
-                      )}
-                      <div className="min-w-0">
-                        <div className="truncate text-[14px] font-semibold text-[#16241D]">
-                          {name}
-                          {lp.patient?.age != null && (
-                            <span className="ml-1.5 font-normal text-[#94a298]">
-                              · {lp.patient.age}y
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-0.5 truncate text-[12px] text-[#94a298]">
-                          {lp.care_plan?.name ?? "Care plan"} · Since {startedDate}
-                        </div>
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      </div>
-    </div>
+    <PatientsPageClient
+      fullName={fullName}
+      notifications={notifications}
+      linkedPatients={linkedPatients}
+      viewerId={session.user.id}
+      initialLinkId={initialLinkId}
+      initialDetail={initialDetail}
+    />
   );
 }
