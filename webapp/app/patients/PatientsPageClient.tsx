@@ -7,7 +7,9 @@ import { EndSponsorshipButton } from "../home/EndSponsorshipButton";
 import { CompactWallet } from "../home/CompactWallet";
 import { VitalsPanel } from "./VitalsPanel";
 import { PatientTimelineTabs } from "./PatientTimelineTabs";
-import { fetchSponsoredPatientDetail, type SponsoredPatientDetail } from "./actions";
+import { fetchSponsoredPatientDetail, fetchSelfPatientDetail, type SponsoredPatientDetail } from "./actions";
+
+const SELF = "self";
 
 type LinkedPatient = {
   id: string;
@@ -28,6 +30,7 @@ type Notification = {
 
 type Props = {
   fullName: string | null;
+  viewerAvatarUrl: string | null;
   notifications: Notification[];
   linkedPatients: LinkedPatient[];
   viewerId: string;
@@ -66,6 +69,7 @@ const sansStyle = { fontFamily: "var(--font-hanken, 'Hanken Grotesk', sans-serif
 
 export function PatientsPageClient({
   fullName,
+  viewerAvatarUrl,
   notifications,
   linkedPatients,
   viewerId,
@@ -86,7 +90,8 @@ export function PatientsPageClient({
     }
     let cancelled = false;
     setLoading(true);
-    fetchSponsoredPatientDetail(selectedLinkId).then((d) => {
+    const fetchDetail = selectedLinkId === SELF ? fetchSelfPatientDetail() : fetchSponsoredPatientDetail(selectedLinkId);
+    fetchDetail.then((d) => {
       if (cancelled) return;
       cacheRef.current[selectedLinkId] = d;
       setDetail(d);
@@ -100,8 +105,9 @@ export function PatientsPageClient({
   const { link, patient, carePlan, metrics, appointments, careSummary, statusUpdates, followUps, wallet, transactions } =
     detail;
 
+  const isSelf = selectedLinkId === SELF;
   const now = new Date();
-  const patientName = patient?.full_name ?? "Patient";
+  const patientName = patient?.full_name ?? (isSelf ? "You" : "Patient");
   const patientAvatar = patient?.avatar_url ?? null;
   const patientAge =
     patient?.date_of_birth != null
@@ -125,11 +131,32 @@ export function PatientsPageClient({
                 Your care circle
               </div>
               <div className="mt-1 text-[17px] font-semibold text-[#16241D]">
-                Viewing: {patientName.split(" ")[0]}
+                Viewing: {isSelf ? "You" : patientName.split(" ")[0]}
               </div>
             </div>
             <div className="mx-1 h-9 w-px self-stretch bg-[#EBF0EB]" />
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedLinkId(SELF)}
+                className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 transition-colors ${
+                  isSelf
+                    ? "border-[#15402C] bg-[#15402C]"
+                    : "border-[#E6EBE6] bg-white hover:border-[#1F8A5B]/40 hover:bg-[#F4F7F3]"
+                }`}
+              >
+                {viewerAvatarUrl ? (
+                  <img src={viewerAvatarUrl} alt="" className="h-[26px] w-[26px] rounded-full object-cover" />
+                ) : (
+                  <div className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-[#DCEFE3] text-[11px] font-bold text-[#13643F]">
+                    {getInitials(fullName)}
+                  </div>
+                )}
+                <span className={`text-[13px] ${isSelf ? "font-semibold text-white" : "font-medium text-[#5a6a60]"}`}>
+                  You
+                </span>
+                {isSelf && <span className="h-[7px] w-[7px] rounded-full bg-[#F4C541]" />}
+              </button>
               {linkedPatients.map((lp, i) => {
                 const isActive = lp.id === selectedLinkId;
                 const color = AVATAR_COLORS[i % AVATAR_COLORS.length];
@@ -195,8 +222,9 @@ export function PatientsPageClient({
                     )}
                   </div>
                   <div className="mt-1.5 text-[13px] text-[#94a298]">
-                    {carePlan?.name ?? "Care plan"}
-                    {startedDate ? ` · Sponsored since ${startedDate}` : ""}
+                    {isSelf
+                      ? "Your own health record"
+                      : `${carePlan?.name ?? "Care plan"}${startedDate ? ` · Sponsored since ${startedDate}` : ""}`}
                   </div>
                   <div className="mt-2.5 flex flex-wrap items-center gap-2">
                     <span className="rounded-full border border-dashed border-[#DCE4DD] px-2.5 py-1 text-[11px] font-medium text-[#9aa89f]">

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchApiJson } from "@/lib/api";
 import { UserNavbar } from "../home/UserNavbar";
-import { fetchSponsoredPatientDetail } from "./actions";
+import { fetchSponsoredPatientDetail, fetchSelfPatientDetail } from "./actions";
 import { PatientsPageClient } from "./PatientsPageClient";
 
 const STAFF_ROLES = ["admin", "clinician"] as const;
@@ -43,11 +43,12 @@ export default async function PatientsPage({ searchParams }: Props) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, full_name")
+    .select("role, full_name, avatar_url")
     .eq("id", user.id)
     .single();
   const role = profile?.role as string | undefined;
   const fullName = profile?.full_name ?? null;
+  const viewerAvatarUrl = profile?.avatar_url ?? null;
 
   if (role && STAFF_ROLES.includes(role as (typeof STAFF_ROLES)[number])) {
     redirect("/clinician-portal");
@@ -75,37 +76,19 @@ export default async function PatientsPage({ searchParams }: Props) {
     );
   }
 
-  if (linkedPatients.length === 0) {
-    return (
-      <div className="min-h-screen bg-[#F4F7F3]">
-        <UserNavbar fullName={fullName} notifications={notifications} activePath="/patients" />
-        <main className="mx-auto max-w-[1200px] px-7 py-6">
-          <div className="mb-6">
-            <div
-              style={{ fontFamily: "var(--font-ibm-mono, 'IBM Plex Mono', monospace)" }}
-              className="text-[11px] uppercase tracking-[.12em] text-[#8a988f]"
-            >
-              Care circle
-            </div>
-            <h1 className="mt-1 text-[24px] font-bold text-[#16241D]">Patients</h1>
-          </div>
-          <div className="rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
-            <div className="py-12 text-center text-[14px] text-[#94a298]">No patients yet.</div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
+  // "self" is a sentinel selection meaning "my own info" (the You pill), distinct
+  // from any real sponsor_patient_plans link id.
   const initialLinkId =
     requestedLinkId && linkedPatients.some((lp) => lp.id === requestedLinkId)
       ? requestedLinkId
-      : linkedPatients[0].id;
-  const initialDetail = await fetchSponsoredPatientDetail(initialLinkId);
+      : (linkedPatients[0]?.id ?? "self");
+  const initialDetail =
+    initialLinkId === "self" ? await fetchSelfPatientDetail() : await fetchSponsoredPatientDetail(initialLinkId);
 
   return (
     <PatientsPageClient
       fullName={fullName}
+      viewerAvatarUrl={viewerAvatarUrl}
       notifications={notifications}
       linkedPatients={linkedPatients}
       viewerId={session.user.id}
