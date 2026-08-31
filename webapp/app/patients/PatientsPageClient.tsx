@@ -286,62 +286,62 @@ export function PatientsPageClient({
               )}
             </div>
 
-            {/* Vitals panel: range/legend controls, stat tiles, BP trend chart */}
-            <div className="mt-4">
-              <VitalsPanel metrics={metrics} />
-            </div>
+            {/* Vitals + Labs / Medications + Wallet */}
+            <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_340px] lg:items-start">
+              <div className="flex flex-col gap-4">
+                {/* Vitals panel: range/legend controls, stat tiles, BP trend chart */}
+                <VitalsPanel metrics={metrics} />
 
-            {/* Labs + Medications/Wallet */}
-            <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_340px]">
-              <div className="rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
-                <div className="flex items-center justify-between">
-                  <span style={monoStyle} className="text-[10px] uppercase tracking-[.14em] text-[#8a988f]">
-                    Labs
-                  </span>
-                  {latestMetric && (
-                    <span className="text-[11px] text-[#94a298]">
-                      Drawn{" "}
-                      {new Date(latestMetric.recorded_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
+                <div className="rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
+                  <div className="flex items-center justify-between">
+                    <span style={monoStyle} className="text-[10px] uppercase tracking-[.14em] text-[#8a988f]">
+                      Labs
                     </span>
-                  )}
-                </div>
-                <div className="mt-4 grid gap-6 sm:grid-cols-3">
-                  <div>
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-[12.5px] font-medium text-[#3d4a43]">HbA1c</span>
-                      <span className="text-[16px] font-bold text-[#16241D]">
-                        {latestMetric?.a1c != null ? `${latestMetric.a1c}%` : "—"}
+                    {latestMetric && (
+                      <span className="text-[11px] text-[#94a298]">
+                        Drawn{" "}
+                        {new Date(latestMetric.recorded_at).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
                       </span>
-                    </div>
-                    {latestMetric?.a1c != null && (
-                      <div className="mt-2 h-1.5 rounded-full bg-[#eceae4]">
-                        <div
-                          className="h-full rounded-full bg-[#E3B341]"
-                          style={{ width: `${Math.min(100, Math.max(4, ((latestMetric.a1c - 4) / 8) * 100))}%` }}
-                        />
-                      </div>
                     )}
-                    <div className="mt-1.5 text-[11px] text-[#94a298]">Target below 6.5%</div>
                   </div>
-                  <div>
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-[12.5px] font-medium text-[#3d4a43]">LDL</span>
-                      <span className="text-[13px] font-medium text-[#c7cfc8]">Not tracked</span>
+                  <div className="mt-4 grid gap-6 sm:grid-cols-3">
+                    <div>
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[12.5px] font-medium text-[#3d4a43]">HbA1c</span>
+                        <span className="text-[16px] font-bold text-[#16241D]">
+                          {latestMetric?.a1c != null ? `${latestMetric.a1c}%` : "—"}
+                        </span>
+                      </div>
+                      {latestMetric?.a1c != null && (
+                        <div className="mt-2 h-1.5 rounded-full bg-[#eceae4]">
+                          <div
+                            className="h-full rounded-full bg-[#E3B341]"
+                            style={{ width: `${Math.min(100, Math.max(4, ((latestMetric.a1c - 4) / 8) * 100))}%` }}
+                          />
+                        </div>
+                      )}
+                      <div className="mt-1.5 text-[11px] text-[#94a298]">Target below 6.5%</div>
                     </div>
-                    <div className="mt-2 h-1.5 rounded-full bg-[#F0F4F0]" />
-                    <div className="mt-1.5 text-[11px] text-[#c7cfc8]">No lab panel data recorded yet</div>
-                  </div>
-                  <div>
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-[12.5px] font-medium text-[#3d4a43]">HDL</span>
-                      <span className="text-[13px] font-medium text-[#c7cfc8]">Not tracked</span>
+                    <div>
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[12.5px] font-medium text-[#3d4a43]">LDL</span>
+                        <span className="text-[13px] font-medium text-[#c7cfc8]">Not tracked</span>
+                      </div>
+                      <div className="mt-2 h-1.5 rounded-full bg-[#F0F4F0]" />
+                      <div className="mt-1.5 text-[11px] text-[#c7cfc8]">No lab panel data recorded yet</div>
                     </div>
-                    <div className="mt-2 h-1.5 rounded-full bg-[#F0F4F0]" />
-                    <div className="mt-1.5 text-[11px] text-[#c7cfc8]">No lab panel data recorded yet</div>
+                    <div>
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[12.5px] font-medium text-[#3d4a43]">HDL</span>
+                        <span className="text-[13px] font-medium text-[#c7cfc8]">Not tracked</span>
+                      </div>
+                      <div className="mt-2 h-1.5 rounded-full bg-[#F0F4F0]" />
+                      <div className="mt-1.5 text-[11px] text-[#c7cfc8]">No lab panel data recorded yet</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -395,17 +395,19 @@ function DetailSkeleton() {
           </div>
         </div>
       </div>
-      <div className="h-14 rounded-2xl border border-[#E9EEE9] bg-white" />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-[110px] rounded-[14px] bg-[#F0F4F0]" />
-        ))}
-      </div>
-      <div className="h-[260px] rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
-        <div className="h-full w-full rounded-xl bg-[#F0F4F0]" />
-      </div>
-      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
-        <div className="h-40 rounded-2xl border border-[#E9EEE9] bg-white" />
+      <div className="grid gap-4 lg:grid-cols-[1fr_340px] lg:items-start">
+        <div className="flex flex-col gap-4">
+          <div className="h-14 rounded-2xl border border-[#E9EEE9] bg-white" />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-[110px] rounded-[14px] bg-[#F0F4F0]" />
+            ))}
+          </div>
+          <div className="h-[260px] rounded-2xl border border-[#E9EEE9] bg-white p-[22px]">
+            <div className="h-full w-full rounded-xl bg-[#F0F4F0]" />
+          </div>
+          <div className="h-40 rounded-2xl border border-[#E9EEE9] bg-white" />
+        </div>
         <div className="flex flex-col gap-4">
           <div className="h-24 rounded-2xl border border-[#E9EEE9] bg-white" />
           <div className="h-56 rounded-2xl border border-[#E9EEE9] bg-white" />

@@ -1,6 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  type TooltipContentProps,
+} from "recharts";
+import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 import type { PatientMetric } from "@/app/home/actions";
 
 type Props = {
@@ -41,8 +52,6 @@ function withinRange(iso: string, days: number | null): boolean {
 
 export function VitalsPanel({ metrics }: Props) {
   const [range, setRange] = useState<Range>("30D");
-  const [showSystolic, setShowSystolic] = useState(true);
-  const [showDiastolic, setShowDiastolic] = useState(true);
 
   // metrics arrive newest-first; chart wants oldest-first.
   const chronological = useMemo(() => [...metrics].reverse(), [metrics]);
@@ -93,33 +102,10 @@ export function VitalsPanel({ metrics }: Props) {
             </button>
           ))}
         </div>
-        <div className="h-6 w-px bg-[#EEF2EE]" />
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setShowSystolic((v) => !v)}
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold transition ${
-              showSystolic ? "bg-[#0f3d2b] text-white" : "border border-[#E6EBE6] text-[#5a6a60]"
-            }`}
-          >
-            <span className="h-[7px] w-[7px] rounded-full" style={{ background: showSystolic ? "#7ED0A0" : "#c9cec9" }} />
-            Systolic
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowDiastolic((v) => !v)}
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold transition ${
-              showDiastolic ? "bg-[#0f3d2b] text-white" : "border border-[#E6EBE6] text-[#5a6a60]"
-            }`}
-          >
-            <span className="h-[7px] w-[7px] rounded-full" style={{ background: showDiastolic ? "#E3B341" : "#c9cec9" }} />
-            Diastolic
-          </button>
-        </div>
       </div>
 
       {/* Stat tiles */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <div className="rounded-[14px] bg-[#0f3d2b] p-4">
           <div style={monoStyle} className="text-[9.5px] uppercase tracking-[.1em] text-[#8fb5a0]">
             Blood pressure
@@ -239,81 +225,73 @@ export function VitalsPanel({ metrics }: Props) {
         {filtered.length === 0 ? (
           <div className="py-10 text-center text-[13px] text-[#94a298]">No readings recorded in this range.</div>
         ) : (
-          <BpChart data={filtered} showSystolic={showSystolic} showDiastolic={showDiastolic} />
+          <BpChart data={filtered} />
         )}
       </div>
     </div>
   );
 }
 
-function BpChart({
-  data,
-  showSystolic,
-  showDiastolic,
-}: {
-  data: PatientMetric[];
-  showSystolic: boolean;
-  showDiastolic: boolean;
-}) {
-  const W = 760;
-  const H = 180;
-  const padX = 40;
-  const padTop = 16;
-  const padBottom = 30;
+function formatTick(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase();
+}
 
-  const values = data.flatMap((m) => [m.blood_pressure_systolic, m.blood_pressure_diastolic]).filter((v): v is number => v != null);
+function BpTooltip({ active, payload, label }: TooltipContentProps<ValueType, NameType>) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div
+      style={monoStyle}
+      className="rounded-[8px] border border-[#E9EEE9] bg-white px-3 py-2 text-[10px] shadow-md"
+    >
+      <div className="text-[#8C9A91]">{typeof label === "string" ? formatTick(label) : label}</div>
+      {payload.map((entry) => (
+        <div key={entry.dataKey as string} className="mt-0.5 flex items-center gap-1.5" style={{ color: entry.color }}>
+          <span className="h-[6px] w-[6px] rounded-full" style={{ background: entry.color }} />
+          {entry.name}: {entry.value ?? "—"}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BpChart({ data }: { data: PatientMetric[] }) {
+  const values = data
+    .flatMap((m) => [m.blood_pressure_systolic, m.blood_pressure_diastolic])
+    .filter((v): v is number => v != null);
   const min = values.length ? Math.min(...values) - 6 : 60;
   const max = values.length ? Math.max(...values) + 6 : 140;
-  const span = max - min || 1;
 
-  const x = (i: number) => (data.length === 1 ? padX : padX + (i / (data.length - 1)) * (W - padX * 2));
-  const y = (v: number) => padTop + (H - padTop - padBottom) * (1 - (v - min) / span);
-
-  function pathFor(key: "blood_pressure_systolic" | "blood_pressure_diastolic") {
-    const pts = data
-      .map((m, i) => (m[key] != null ? `${x(i).toFixed(1)},${y(m[key] as number).toFixed(1)}` : null))
-      .filter((p): p is string => p != null);
-    return pts.join(" ");
-  }
-
-  const firstLabel = new Date(data[0].recorded_at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const lastLabel = new Date(data[data.length - 1].recorded_at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const midIndex = Math.floor(data.length / 2);
-  const midLabel = data.length > 2 ? new Date(data[midIndex].recorded_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : null;
+  const chartData = data.map((m) => ({
+    date: m.recorded_at,
+    Systolic: m.blood_pressure_systolic,
+    Diastolic: m.blood_pressure_diastolic,
+  }));
 
   return (
-    <svg viewBox={`0 0 ${W} ${H + 20}`} className="mt-3 w-full" style={{ height: 220, overflow: "visible" }}>
-      <g stroke="#eceae4" strokeWidth="1">
-        <line x1={padX} y1={padTop} x2={W - padX} y2={padTop} />
-        <line x1={padX} y1={(H - padBottom + padTop) / 2} x2={W - padX} y2={(H - padBottom + padTop) / 2} />
-        <line x1={padX} y1={H - padBottom} x2={W - padX} y2={H - padBottom} />
-      </g>
-      <g fontFamily="IBM Plex Mono, monospace" fontSize="9" fill="#9aa8a0" textAnchor="end">
-        <text x={padX - 8} y={padTop + 4}>
-          {Math.round(max)}
-        </text>
-        <text x={padX - 8} y={(H - padBottom + padTop) / 2 + 4}>
-          {Math.round((min + max) / 2)}
-        </text>
-        <text x={padX - 8} y={H - padBottom + 4}>
-          {Math.round(min)}
-        </text>
-      </g>
-      {showDiastolic && <polyline fill="none" stroke="#7ED0A0" strokeWidth="2.5" points={pathFor("blood_pressure_diastolic")} />}
-      {showSystolic && <polyline fill="none" stroke="#0f5132" strokeWidth="2.5" points={pathFor("blood_pressure_systolic")} />}
-      <g fontFamily="IBM Plex Mono, monospace" fontSize="9" fill="#9aa8a0" textAnchor="middle">
-        <text x={x(0)} y={H + 12}>
-          {firstLabel.toUpperCase()}
-        </text>
-        {midLabel && (
-          <text x={x(midIndex)} y={H + 12}>
-            {midLabel.toUpperCase()}
-          </text>
-        )}
-        <text x={x(data.length - 1)} y={H + 12}>
-          {lastLabel.toUpperCase()}
-        </text>
-      </g>
-    </svg>
+    <div className="mt-3 w-full" style={{ height: 220 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={chartData} margin={{ top: 16, right: 8, bottom: 8, left: 0 }}>
+          <CartesianGrid vertical={false} stroke="#eceae4" />
+          <XAxis
+            dataKey="date"
+            tickFormatter={formatTick}
+            tick={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 9, fill: "#9aa8a0" }}
+            axisLine={{ stroke: "#eceae4" }}
+            tickLine={false}
+            minTickGap={40}
+          />
+          <YAxis
+            domain={[min, max]}
+            tick={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 9, fill: "#9aa8a0" }}
+            axisLine={false}
+            tickLine={false}
+            width={32}
+          />
+          <Tooltip content={(props: TooltipContentProps<ValueType, NameType>) => <BpTooltip {...props} />} />
+          <Line type="monotone" dataKey="Diastolic" stroke="#7ED0A0" strokeWidth={2.5} dot={false} connectNulls />
+          <Line type="monotone" dataKey="Systolic" stroke="#0f5132" strokeWidth={2.5} dot={false} connectNulls />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
