@@ -83,17 +83,8 @@ export function UserNavbar({ fullName, notifications: initial, activePath = "/ho
         </nav>
       </div>
 
-      {/* Right: search + notifications + avatar */}
+      {/* Right: notifications + avatar */}
       <div className="flex items-center gap-3.5">
-        {/* Search (decorative) */}
-        <div className="flex w-48 items-center gap-2 rounded-[10px] border border-[#E6EBE6] px-3.5 py-2 text-[13px] text-[#9aa89f]">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <circle cx="6" cy="6" r="4.5" stroke="#9aa89f" strokeWidth="1.4" />
-            <line x1="9.5" y1="9.5" x2="12.5" y2="12.5" stroke="#9aa89f" strokeWidth="1.4" strokeLinecap="round" />
-          </svg>
-          Search
-        </div>
-
         {/* Notifications */}
         <div className="relative">
           <button
