@@ -85,7 +85,7 @@ Ordered by *unblocks-others*, then by effort. **M1 is the answer to "what next".
 | **M2** | Drop referral management | — | XS |
 | **M3** | Provider recommendations | 🚫 **blocked — spend decision** | L |
 | **M4** | Patient self-pay — finish | M1.3 | S |
-| **M5** | Notification coverage | M1.1 | S |
+| **M5** | Notification coverage ✅ | M1.1 | S |
 | **M6** | Patient page data gaps | M1.1 | M–L |
 | **M7** | Mobile parity | M1.3 | L |
 
@@ -266,19 +266,32 @@ Recorded 2026-08-31 so the spend conversation does not have to be re-researched.
 
 ### M5 — Notification coverage *(depends on M1.1)*
 
-Cheap, and it is what makes the June features actually reach users. Today
-`notification_type` holds only `consent_request, visit_update, no_show_alert,
-sponsorship_accepted, coordination_note` — and no follow-up or status-update route calls
-`createNotification` at all.
+✅ **Done (2026-08-31).** `notification_type` now also holds `follow_up_due`,
+`follow_up_overdue`, `patient_status_update`, and both `follow-ups.ts` and
+`patient-status-updates.ts` call `createNotification`.
 
-- **M5.1 — Migration `00037_notification_types.sql`** (next free number):
+- ~~**M5.1 — Migration `00037_notification_types.sql`**~~ ✅ Done —
   `alter type public.notification_type add value if not exists` for `follow_up_due`,
   `follow_up_overdue`, `patient_status_update`.
-- **M5.2 — Extend the `NotificationType` union** in `api/src/lib/notifications.ts:3-9`.
-- **M5.3 — Fire the notifications.** From `api/src/routes/follow-ups.ts` on create and when
-  due; from `api/src/routes/patient-status-updates.ts` to the patient and linked sponsors,
-  respecting the row's `visibility`. Reuse `notifySponsorsOfPatient` — its type parameter
-  needs widening past `"visit_update" | "no_show_alert"`.
+- ~~**M5.2 — Extend the `NotificationType` union**~~ ✅ Done — now exported from
+  `api/src/lib/notifications.ts:3-11`, and `notifySponsorsOfPatient` was widened from
+  `"visit_update" | "no_show_alert"` to the full union, plus an optional `referenceId`.
+- ~~**M5.3 — Fire the notifications.**~~ ✅ Done, with two decisions made along the way:
+  - **Follow-up creation notifies the patient only** (`follow_up_due`), not sponsors — a
+    follow-up is a clinical task scoped to the patient. Both creation paths fire it:
+    `createFollowUp` in `follow-ups.ts` and the `flag_for_follow_up` auto-create in
+    `appointments.ts`.
+  - **Status updates fan out by `visibility`**: `all`/`patient_only` notify the patient,
+    `all`/`sponsor_only` notify active sponsors via `notifySponsorsOfPatient`.
+  - **Overdue needed a trigger the API didn't have.** `00033` deliberately makes "overdue"
+    derived, and there is no scheduler anywhere in `api/` (no cron, pg_cron, `setInterval`).
+    Added `POST /api/jobs/follow-up-reminders` (not behind `authMiddleware`; guarded by an
+    `x-cron-secret` header matched against `CRON_SECRET`, 503 if unset) that scans pending
+    follow-ups daily and notifies the patient (`follow_up_due`, due today) or the owning
+    clinician (`follow_up_overdue`, past due). Idempotent per day via the new
+    `createNotificationOnce` helper. **Outstanding deploy step:** nothing calls this endpoint
+    yet — wire Supabase `pg_cron` (or any external scheduler) to hit it daily with the secret
+    header.
 
 ---
 

@@ -55,6 +55,12 @@ const PORT = process.env.PORT ?? 4001;
 // Health
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
+// Scheduled job (no auth middleware — authenticated via CRON_SECRET header instead of a
+// user token, since the caller is an external scheduler, not a signed-in user).
+app.post("/api/jobs/follow-up-reminders", (req, res, next) =>
+  followUps.runFollowUpReminders(req, res).catch(next),
+);
+
 // Auth (no auth middleware)
 app.post("/api/auth/sign-in", (req, res, next) =>
   auth.signIn(req, res).catch(next),

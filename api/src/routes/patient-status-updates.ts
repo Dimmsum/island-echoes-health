@@ -1,5 +1,6 @@
 import { Response } from "express";
 import { createSupabaseForUser, createClientAdmin } from "../lib/supabase.js";
+import { createNotification, notifySponsorsOfPatient } from "../lib/notifications.js";
 import type { AuthRequest } from "../middleware/auth.js";
 
 const VISIBILITIES = ["all", "sponsor_only", "patient_only"] as const;
@@ -41,7 +42,7 @@ export async function createStatusUpdate(
   res: Response,
 ): Promise<void> {
   const userId = req.user.id;
-  const patientId = req.params.id;
+  const patientId = req.params.id as string;
   const { statusText, visibility } = req.body as {
     statusText?: string;
     visibility?: string;
@@ -88,6 +89,28 @@ export async function createStatusUpdate(
   if (error || !statusUpdate) {
     res.status(500).json({ error: "Failed to create status update." });
     return;
+  }
+
+  const notifyBody = statusUpdate.status_text.slice(0, 200);
+  const resolvedVisibility = statusUpdate.visibility;
+
+  if (resolvedVisibility === "all" || resolvedVisibility === "patient_only") {
+    await createNotification(
+      patientId,
+      "patient_status_update",
+      "Care update",
+      notifyBody,
+      statusUpdate.id,
+    );
+  }
+  if (resolvedVisibility === "all" || resolvedVisibility === "sponsor_only") {
+    await notifySponsorsOfPatient(
+      patientId,
+      "patient_status_update",
+      "Care update",
+      notifyBody,
+      statusUpdate.id,
+    );
   }
 
   res

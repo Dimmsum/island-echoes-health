@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { createSupabaseForUser, createClientAdmin } from "../lib/supabase.js";
-import { notifyAdmins, notifySponsorsOfPatient } from "../lib/notifications.js";
+import { notifyAdmins, notifySponsorsOfPatient, createNotification } from "../lib/notifications.js";
+import { followUpScheduledMessage } from "./follow-ups.js";
 import type { AuthRequest } from "../middleware/auth.js";
 
 const SERVICE_TYPES = ["vitals", "chronic_lab", "wellness_check", "follow_up", "coordination"] as const;
@@ -193,13 +194,27 @@ export async function addNote(req: AuthRequest, res: Response): Promise<void> {
       ? followUpDueDate.slice(0, 10)
       : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-    await admin.from("follow_ups").insert({
-      patient_id: apt.patient_id,
-      clinician_id: userId,
-      appointment_id: appointmentId,
-      due_date: dueDate,
-      status: "pending",
-    });
+    const { data: autoFollowUp } = await admin
+      .from("follow_ups")
+      .insert({
+        patient_id: apt.patient_id,
+        clinician_id: userId,
+        appointment_id: appointmentId,
+        due_date: dueDate,
+        status: "pending",
+      })
+      .select("id, due_date")
+      .single();
+
+    if (autoFollowUp) {
+      await createNotification(
+        apt.patient_id,
+        "follow_up_due",
+        "Follow-up scheduled",
+        followUpScheduledMessage(autoFollowUp.due_date),
+        autoFollowUp.id,
+      );
+    }
   }
 
   // Notify admins when a coordination note is posted.

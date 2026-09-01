@@ -1,5 +1,6 @@
-import { Response } from "express";
+import { Response, Request } from "express";
 import { createSupabaseForUser, createClientAdmin } from "../lib/supabase.js";
+import { createNotification, createNotificationOnce } from "../lib/notifications.js";
 import type { AuthRequest } from "../middleware/auth.js";
 
 const FOLLOW_UP_STATUSES = ["pending", "completed", "cancelled"] as const;
@@ -24,6 +25,15 @@ const ROW_COLUMNS =
 // Today as YYYY-MM-DD for comparing against the DATE column.
 function todayDateString(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+// Shared with the auto-create path in appointments.ts (flag_for_follow_up) so both routes
+// notify the patient with identical copy.
+export function followUpScheduledMessage(dueDate: string, notes?: string | null): string {
+  return (
+    `A follow-up has been scheduled for ${dueDate}.` +
+    (notes && notes.trim() ? ` ${notes.trim()}` : "")
+  );
 }
 
 function mapFollowUp(row: FollowUpRow) {
@@ -119,6 +129,14 @@ export async function createFollowUp(
     res.status(500).json({ error: "Failed to create follow-up." });
     return;
   }
+
+  await createNotification(
+    patientId,
+    "follow_up_due",
+    "Follow-up scheduled",
+    followUpScheduledMessage(followUp.due_date, followUp.notes),
+    followUp.id,
+  );
 
   res.status(201).json({ followUp: mapFollowUp(followUp as FollowUpRow) });
 }
@@ -237,4 +255,81 @@ export async function updateFollowUp(
   }
 
   res.json({ followUp: mapFollowUp(updated as FollowUpRow) });
+}
+
+const REMINDER_SCAN_LIMIT = 500;
+
+/**
+ * POST /api/jobs/follow-up-reminders
+ * Not behind authMiddleware — meant to be called by an external scheduler (e.g. Supabase
+ * pg_cron) once daily, authenticated via a shared secret header instead of a user token.
+ *
+ * Scans all pending follow-ups and notifies:
+ *   - the patient, once, the day a follow-up becomes due (follow_up_due)
+ *   - the owning clinician, once per day, for every day it stays open past due (follow_up_overdue)
+ *
+ * "Overdue" stays derived (never stored, per 00033) — this job only decides who to notify and
+ * when, using createNotificationOnce to stay idempotent within a single day so repeat/retried
+ * runs don't spam recipients.
+ */
+export async function runFollowUpReminders(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    res.status(503).json({ error: "CRON_SECRET is not configured." });
+    return;
+  }
+  if (req.header("x-cron-secret") !== cronSecret) {
+    res.status(401).json({ error: "Unauthorized." });
+    return;
+  }
+
+  const admin = createClientAdmin();
+  const today = todayDateString();
+
+  const { data: pending, error } = await admin
+    .from("follow_ups")
+    .select("id, patient_id, clinician_id, due_date")
+    .eq("status", "pending")
+    .lte("due_date", today)
+    .order("due_date", { ascending: true })
+    .limit(REMINDER_SCAN_LIMIT);
+
+  if (error) {
+    res.status(500).json({ error: "Failed to load pending follow-ups." });
+    return;
+  }
+
+  let dueNotified = 0;
+  let overdueNotified = 0;
+
+  for (const row of pending ?? []) {
+    if (row.due_date === today) {
+      const sent = await createNotificationOnce(
+        row.patient_id,
+        "follow_up_due",
+        "Follow-up due today",
+        `You have a follow-up due today (${row.due_date}).`,
+        row.id,
+      );
+      if (sent) dueNotified += 1;
+    } else {
+      const sent = await createNotificationOnce(
+        row.clinician_id,
+        "follow_up_overdue",
+        "Follow-up overdue",
+        `A follow-up for a patient was due on ${row.due_date} and is still open.`,
+        row.id,
+      );
+      if (sent) overdueNotified += 1;
+    }
+  }
+
+  res.json({
+    scanned: pending?.length ?? 0,
+    dueNotified,
+    overdueNotified,
+  });
 }
