@@ -236,6 +236,8 @@ export async function recordPatientMetrics(params: {
   weightKg?: number;
   a1c?: number;
   medicationAdherence?: "good" | "fair" | "poor";
+  heartRateBpm?: number;
+  temperatureC?: number;
 }): Promise<ClinicianActionResult> {
   const { error, userId } = await ensureClinicianOrAdmin();
   if (error || !userId) return { error: error ?? "Not signed in." };
@@ -250,6 +252,8 @@ export async function recordPatientMetrics(params: {
     weight_kg: params.weightKg ?? null,
     a1c: params.a1c ?? null,
     medication_adherence: params.medicationAdherence ?? null,
+    heart_rate_bpm: params.heartRateBpm ?? null,
+    temperature_c: params.temperatureC ?? null,
   });
 
   if (insertError) {

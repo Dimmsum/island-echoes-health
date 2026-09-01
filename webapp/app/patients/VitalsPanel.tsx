@@ -66,6 +66,8 @@ export function VitalsPanel({ metrics }: Props) {
   const systolicValues = filtered.map((m) => m.blood_pressure_systolic).filter((v): v is number => v != null);
   const diastolicValues = filtered.map((m) => m.blood_pressure_diastolic).filter((v): v is number => v != null);
   const weightValues = filtered.map((m) => m.weight_kg).filter((v): v is number => v != null);
+  const heartRateValues = filtered.map((m) => m.heart_rate_bpm).filter((v): v is number => v != null);
+  const temperatureValues = filtered.map((m) => m.temperature_c).filter((v): v is number => v != null);
 
   const avgSystolic = systolicValues.length
     ? Math.round(systolicValues.reduce((a, b) => a + b, 0) / systolicValues.length)
@@ -81,6 +83,14 @@ export function VitalsPanel({ metrics }: Props) {
   const weightDelta =
     latest?.weight_kg != null && previous?.weight_kg != null ? latest.weight_kg - previous.weight_kg : null;
   const a1cDelta = latest?.a1c != null && previous?.a1c != null ? latest.a1c - previous.a1c : null;
+  const heartRateDelta =
+    latest?.heart_rate_bpm != null && previous?.heart_rate_bpm != null
+      ? latest.heart_rate_bpm - previous.heart_rate_bpm
+      : null;
+  const temperatureDelta =
+    latest?.temperature_c != null && previous?.temperature_c != null
+      ? latest.temperature_c - previous.temperature_c
+      : null;
 
   const recentAdherence = metrics.slice(0, 9).filter((m) => m.medication_adherence != null).reverse();
 
@@ -189,20 +199,56 @@ export function VitalsPanel({ metrics }: Props) {
           </div>
         </div>
 
-        <div className="rounded-[14px] border border-dashed border-[#DCE4DD] bg-[#FAFBFA] p-4">
-          <div style={monoStyle} className="text-[9.5px] uppercase tracking-[.1em] text-[#b4bdb6]">
+        <div className="rounded-[14px] border border-[#E9EEE9] bg-white p-4">
+          <div style={monoStyle} className="text-[9.5px] uppercase tracking-[.1em] text-[#8C9A91]">
             Heart rate
           </div>
-          <div className="mt-2.5 text-[20px] font-semibold text-[#c7cfc8]">—</div>
-          <div className="mt-1 text-[10.5px] text-[#b4bdb6]">Not yet tracked</div>
+          <div className="mt-2.5 text-[20px] font-semibold text-[#14251c]">
+            {latest?.heart_rate_bpm ?? "—"}
+            <span className="text-[12px] text-[#8C9A91]"> bpm</span>
+          </div>
+          {heartRateValues.length > 0 ? (
+            <svg viewBox="0 0 150 36" className="mt-1 h-9 w-full">
+              <polyline fill="none" stroke="#c9cec9" strokeWidth="2" points={sparklinePoints(heartRateValues)} />
+            </svg>
+          ) : (
+            <div className="mt-1 h-9" />
+          )}
+          <div style={monoStyle} className="text-[9.5px] text-[#9aa8a0]">
+            {latest?.heart_rate_bpm == null
+              ? "No heart rate recorded yet"
+              : heartRateDelta == null
+                ? "—"
+                : heartRateDelta === 0
+                  ? "No change"
+                  : `${heartRateDelta > 0 ? "↑" : "↓"} ${Math.abs(heartRateDelta)} bpm`}
+          </div>
         </div>
 
-        <div className="rounded-[14px] border border-dashed border-[#DCE4DD] bg-[#FAFBFA] p-4">
-          <div style={monoStyle} className="text-[9.5px] uppercase tracking-[.1em] text-[#b4bdb6]">
+        <div className="rounded-[14px] border border-[#E9EEE9] bg-white p-4">
+          <div style={monoStyle} className="text-[9.5px] uppercase tracking-[.1em] text-[#8C9A91]">
             Temperature
           </div>
-          <div className="mt-2.5 text-[20px] font-semibold text-[#c7cfc8]">—</div>
-          <div className="mt-1 text-[10.5px] text-[#b4bdb6]">Not yet tracked</div>
+          <div className="mt-2.5 text-[20px] font-semibold text-[#14251c]">
+            {latest?.temperature_c ?? "—"}
+            <span className="text-[12px] text-[#8C9A91]"> °C</span>
+          </div>
+          {temperatureValues.length > 0 ? (
+            <svg viewBox="0 0 150 36" className="mt-1 h-9 w-full">
+              <polyline fill="none" stroke="#c9cec9" strokeWidth="2" points={sparklinePoints(temperatureValues)} />
+            </svg>
+          ) : (
+            <div className="mt-1 h-9" />
+          )}
+          <div style={monoStyle} className="text-[9.5px] text-[#9aa8a0]">
+            {latest?.temperature_c == null
+              ? "No temperature recorded yet"
+              : temperatureDelta == null
+                ? "—"
+                : temperatureDelta === 0
+                  ? "No change"
+                  : `${temperatureDelta > 0 ? "↑" : "↓"} ${Math.abs(temperatureDelta).toFixed(1)} °C`}
+          </div>
         </div>
       </div>
 

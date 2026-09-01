@@ -20,6 +20,8 @@ type PreviousMetric = {
   weight_kg: number | null;
   a1c: number | null;
   medication_adherence: string | null;
+  heart_rate_bpm: number | null;
+  temperature_c: number | null;
 };
 
 type Props = {
@@ -65,6 +67,8 @@ function formatMetricRow(m: PreviousMetric) {
   }
   if (m.weight_kg != null) parts.push(`${m.weight_kg} kg`);
   if (m.a1c != null) parts.push(`A1C ${m.a1c}`);
+  if (m.heart_rate_bpm != null) parts.push(`${m.heart_rate_bpm} bpm`);
+  if (m.temperature_c != null) parts.push(`${m.temperature_c}°C`);
   if (m.medication_adherence) parts.push(m.medication_adherence);
   return parts.length ? parts.join(" · ") : "—";
 }

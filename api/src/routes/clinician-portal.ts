@@ -141,7 +141,9 @@ export async function getClinicianPortalAppointmentById(req: AuthRequest, res: R
     supabase.from("appointment_services").select("id, service_type, details, created_at").eq("appointment_id", appointmentId).order("created_at", { ascending: false }),
     supabase
       .from("patient_metrics")
-      .select("id, recorded_at, blood_pressure_systolic, blood_pressure_diastolic, weight_kg, a1c, medication_adherence")
+      .select(
+        "id, recorded_at, blood_pressure_systolic, blood_pressure_diastolic, weight_kg, a1c, medication_adherence, heart_rate_bpm, temperature_c"
+      )
       .eq("patient_id", appointment.patient_id)
       .order("recorded_at", { ascending: false })
       .limit(10),

@@ -243,7 +243,9 @@ export async function getSponsoredPatient(req: AuthRequest, res: Response): Prom
     supabase.from("care_plans").select("id, name, slug, price_cents").eq("id", link.care_plan_id).single(),
     supabase
       .from("patient_metrics")
-      .select("id, recorded_at, blood_pressure_systolic, blood_pressure_diastolic, weight_kg, a1c, medication_adherence")
+      .select(
+        "id, recorded_at, blood_pressure_systolic, blood_pressure_diastolic, weight_kg, a1c, medication_adherence, heart_rate_bpm, temperature_c"
+      )
       .eq("patient_id", link.patient_id)
       .order("recorded_at", { ascending: false })
       .limit(20),
@@ -415,7 +417,9 @@ export async function getHomeAppointmentById(req: AuthRequest, res: Response): P
     isStaff
       ? supabase
           .from("patient_metrics")
-          .select("id, recorded_at, blood_pressure_systolic, blood_pressure_diastolic, weight_kg, a1c, medication_adherence")
+          .select(
+            "id, recorded_at, blood_pressure_systolic, blood_pressure_diastolic, weight_kg, a1c, medication_adherence, heart_rate_bpm, temperature_c"
+          )
           .eq("patient_id", appointment.patient_id)
           .order("recorded_at", { ascending: false })
           .limit(10)
@@ -452,7 +456,9 @@ export async function getPatientMetrics(req: AuthRequest, res: Response): Promis
 
   const { data, error } = await supabase
     .from("patient_metrics")
-    .select("id, recorded_at, blood_pressure_systolic, blood_pressure_diastolic, weight_kg, a1c, medication_adherence")
+    .select(
+      "id, recorded_at, blood_pressure_systolic, blood_pressure_diastolic, weight_kg, a1c, medication_adherence, heart_rate_bpm, temperature_c"
+    )
     .eq("patient_id", patientId)
     .order("recorded_at", { ascending: false })
     .limit(5);

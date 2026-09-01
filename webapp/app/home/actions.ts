@@ -345,6 +345,8 @@ export type PatientMetric = {
   weight_kg: number | null;
   a1c: number | null;
   medication_adherence: "good" | "fair" | "poor" | null;
+  heart_rate_bpm: number | null;
+  temperature_c: number | null;
 };
 
 /** Fetches the 5 most recent clinician-recorded metrics for a patient. */

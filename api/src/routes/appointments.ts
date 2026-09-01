@@ -269,6 +269,8 @@ export async function recordMetrics(req: AuthRequest, res: Response): Promise<vo
     weightKg?: number;
     a1c?: number;
     medicationAdherence?: "good" | "fair" | "poor";
+    heartRateBpm?: number;
+    temperatureC?: number;
   };
   if (!body.patientId) {
     res.status(400).json({ error: "patientId is required." });
@@ -284,6 +286,8 @@ export async function recordMetrics(req: AuthRequest, res: Response): Promise<vo
     weight_kg: body.weightKg ?? null,
     a1c: body.a1c ?? null,
     medication_adherence: body.medicationAdherence ?? null,
+    heart_rate_bpm: body.heartRateBpm ?? null,
+    temperature_c: body.temperatureC ?? null,
   });
 
   if (error) {

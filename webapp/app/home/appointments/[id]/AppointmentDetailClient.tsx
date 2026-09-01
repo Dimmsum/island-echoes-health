@@ -80,6 +80,8 @@ export function AppointmentDetailClient({
   const [bpDiastolic, setBpDiastolic] = useState("");
   const [weightKg, setWeightKg] = useState("");
   const [a1c, setA1c] = useState("");
+  const [heartRateBpm, setHeartRateBpm] = useState("");
+  const [temperatureC, setTemperatureC] = useState("");
   const [adherence, setAdherence] = useState<"good" | "fair" | "poor" | "">("");
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -129,6 +131,8 @@ export function AppointmentDetailClient({
       bloodPressureDiastolic: bpDiastolic ? parseInt(bpDiastolic, 10) : undefined,
       weightKg: weightKg ? parseFloat(weightKg) : undefined,
       a1c: a1c ? parseFloat(a1c) : undefined,
+      heartRateBpm: heartRateBpm ? parseInt(heartRateBpm, 10) : undefined,
+      temperatureC: temperatureC ? parseFloat(temperatureC) : undefined,
       medicationAdherence: adherence || undefined,
     });
     setPending(null);
@@ -138,6 +142,8 @@ export function AppointmentDetailClient({
       setBpDiastolic("");
       setWeightKg("");
       setA1c("");
+      setHeartRateBpm("");
+      setTemperatureC("");
       setAdherence("");
       router.refresh();
     }
@@ -286,7 +292,7 @@ export function AppointmentDetailClient({
           </div>
         )}
         <form onSubmit={handleRecordMetrics} className="mt-6">
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
             <CustomInput
               label="BP systolic"
               type="number"
@@ -320,6 +326,25 @@ export function AppointmentDetailClient({
               value={a1c}
               onChange={(e) => setA1c(e.target.value)}
               placeholder="5.7"
+            />
+            <CustomInput
+              label="Heart rate (bpm)"
+              type="number"
+              value={heartRateBpm}
+              onChange={(e) => setHeartRateBpm(e.target.value)}
+              placeholder="72"
+              min={1}
+              max={300}
+            />
+            <CustomInput
+              label="Temperature (°C)"
+              type="number"
+              step="0.1"
+              value={temperatureC}
+              onChange={(e) => setTemperatureC(e.target.value)}
+              placeholder="37.0"
+              min={30}
+              max={45}
             />
             <div className="sm:col-span-2 lg:col-span-1">
               <CustomSelect
