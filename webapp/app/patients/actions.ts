@@ -6,11 +6,13 @@ import {
   fetchPatientWalletData,
   fetchPatientStatusUpdates,
   fetchPatientFollowUps,
+  fetchPatientConditions,
   type PatientMetric,
   type FollowUp,
 } from "@/app/home/actions";
 import type { WalletTransaction } from "@/app/home/WalletCard";
 import type { StatusUpdate } from "@/app/clinician-portal/status-update-types";
+import type { PatientCondition } from "@/app/clinician-portal/condition-types";
 import type { TimelineAppointment } from "./PatientTimelineTabs";
 
 export type SponsoredPatientDetail = {
@@ -30,6 +32,7 @@ export type SponsoredPatientDetail = {
   transactions: WalletTransaction[];
   statusUpdates: StatusUpdate[];
   followUps: FollowUp[];
+  conditions: PatientCondition[];
   error?: string;
 };
 
@@ -44,6 +47,7 @@ const EMPTY: SponsoredPatientDetail = {
   transactions: [],
   statusUpdates: [],
   followUps: [],
+  conditions: [],
 };
 
 /** Fetches everything the patient-detail view on /patients needs for one linked patient. */
@@ -54,7 +58,10 @@ export async function fetchSponsoredPatientDetail(linkId: string): Promise<Spons
   } = await supabase.auth.getSession();
   if (!session?.access_token) return { ...EMPTY, error: "Not signed in." };
 
-  type BaseData = Omit<SponsoredPatientDetail, "wallet" | "transactions" | "statusUpdates" | "followUps" | "error">;
+  type BaseData = Omit<
+    SponsoredPatientDetail,
+    "wallet" | "transactions" | "statusUpdates" | "followUps" | "conditions" | "error"
+  >;
   let base: BaseData;
   try {
     base = await fetchApiJson<BaseData>(session.access_token, `/api/home/sponsored/${linkId}`);
@@ -66,12 +73,14 @@ export async function fetchSponsoredPatientDetail(linkId: string): Promise<Spons
   let transactions: WalletTransaction[] = [];
   let statusUpdates: StatusUpdate[] = [];
   let followUps: FollowUp[] = [];
+  let conditions: PatientCondition[] = [];
 
   if (base.patient?.id) {
-    const [walletRes, statusRes, followUpsRes] = await Promise.allSettled([
+    const [walletRes, statusRes, followUpsRes, conditionsRes] = await Promise.allSettled([
       fetchPatientWalletData(base.patient.id),
       fetchPatientStatusUpdates(base.patient.id),
       fetchPatientFollowUps(base.patient.id),
+      fetchPatientConditions(base.patient.id),
     ]);
     if (walletRes.status === "fulfilled") {
       wallet = walletRes.value.wallet;
@@ -79,9 +88,10 @@ export async function fetchSponsoredPatientDetail(linkId: string): Promise<Spons
     }
     if (statusRes.status === "fulfilled") statusUpdates = statusRes.value;
     if (followUpsRes.status === "fulfilled") followUps = followUpsRes.value;
+    if (conditionsRes.status === "fulfilled") conditions = conditionsRes.value;
   }
 
-  return { ...base, wallet, transactions, statusUpdates, followUps };
+  return { ...base, wallet, transactions, statusUpdates, followUps, conditions };
 }
 
 type HomeAppointment = {
@@ -110,12 +120,13 @@ export async function fetchSelfPatientDetail(): Promise<SponsoredPatientDetail> 
     .eq("id", user.id)
     .single();
 
-  const [walletRes, statusRes, metricsRes, followUpsRes, appointmentsRes] = await Promise.allSettled([
+  const [walletRes, statusRes, metricsRes, followUpsRes, appointmentsRes, conditionsRes] = await Promise.allSettled([
     fetchPatientWalletData(user.id),
     fetchPatientStatusUpdates(user.id),
     fetchApiJson<{ metrics: PatientMetric[] }>(session.access_token, `/api/patients/${user.id}/metrics`),
     fetchPatientFollowUps(),
     fetchApiJson<{ appointments: HomeAppointment[] }>(session.access_token, "/api/home/appointments"),
+    fetchPatientConditions(user.id),
   ]);
 
   let wallet: SponsoredPatientDetail["wallet"] = null;
@@ -128,6 +139,7 @@ export async function fetchSelfPatientDetail(): Promise<SponsoredPatientDetail> 
   const metrics = metricsRes.status === "fulfilled" ? (metricsRes.value.metrics ?? []) : [];
   const followUps = followUpsRes.status === "fulfilled" ? followUpsRes.value : [];
   const allAppointments = appointmentsRes.status === "fulfilled" ? (appointmentsRes.value.appointments ?? []) : [];
+  const conditions = conditionsRes.status === "fulfilled" ? conditionsRes.value : [];
   const appointments: TimelineAppointment[] = allAppointments
     .filter((a) => a.is_self)
     .map((a) => ({
@@ -172,5 +184,6 @@ export async function fetchSelfPatientDetail(): Promise<SponsoredPatientDetail> 
     transactions,
     statusUpdates,
     followUps,
+    conditions,
   };
 }

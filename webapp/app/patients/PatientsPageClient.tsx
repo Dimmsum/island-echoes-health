@@ -102,8 +102,19 @@ export function PatientsPageClient({
     };
   }, [selectedLinkId]);
 
-  const { link, patient, carePlan, metrics, appointments, careSummary, statusUpdates, followUps, wallet, transactions } =
-    detail;
+  const {
+    link,
+    patient,
+    carePlan,
+    metrics,
+    appointments,
+    careSummary,
+    statusUpdates,
+    followUps,
+    wallet,
+    transactions,
+    conditions,
+  } = detail;
 
   const isSelf = selectedLinkId === SELF;
   const now = new Date();
@@ -227,9 +238,25 @@ export function PatientsPageClient({
                       : `${carePlan?.name ?? "Care plan"}${startedDate ? ` · Sponsored since ${startedDate}` : ""}`}
                   </div>
                   <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                    <span className="rounded-full border border-dashed border-[#DCE4DD] px-2.5 py-1 text-[11px] font-medium text-[#9aa89f]">
-                      Conditions &amp; allergies — not yet tracked
-                    </span>
+                    {conditions.length > 0 ? (
+                      conditions.map((c) => (
+                        <span
+                          key={c.id}
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                            c.type === "allergy"
+                              ? "bg-[#FCEFE1] text-[#8a5a1f]"
+                              : "bg-[#F4F7F3] text-[#5a6a60]"
+                          }`}
+                        >
+                          {c.label}
+                          {c.severity ? ` · ${c.severity}` : ""}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="rounded-full border border-dashed border-[#DCE4DD] px-2.5 py-1 text-[11px] font-medium text-[#9aa89f]">
+                        No conditions or allergies recorded
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-8 border-t border-[#EEF2EE] pt-4 sm:border-t-0 sm:border-l sm:pl-6 sm:pt-0">

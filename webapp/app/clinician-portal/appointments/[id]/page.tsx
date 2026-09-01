@@ -6,6 +6,7 @@ import { fetchApiJson } from "@/lib/api";
 import { ClinicianAppointmentDetailClient } from "./AppointmentDetailClient";
 import type { FollowUp } from "../../follow-up-types";
 import type { StatusUpdate } from "../../status-update-types";
+import type { PatientCondition } from "../../condition-types";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -39,6 +40,8 @@ export default async function ClinicianPortalAppointmentDetailPage({ params }: P
   let followUps: FollowUp[] = [];
   // Status updates are patient-level (not appointment-scoped); show the full feed.
   let statusUpdates: StatusUpdate[] = [];
+  // Conditions & allergies are also patient-level, not appointment-scoped.
+  let conditions: PatientCondition[] = [];
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -60,6 +63,15 @@ export default async function ClinicianPortalAppointmentDetailPage({ params }: P
       statusUpdates = data.statusUpdates;
     } catch {
       statusUpdates = [];
+    }
+    try {
+      const data = await fetchApiJson<{ conditions: PatientCondition[] }>(
+        session.access_token,
+        `/api/patients/${appointment.patient_id}/conditions`,
+      );
+      conditions = data.conditions;
+    } catch {
+      conditions = [];
     }
   }
 
@@ -134,6 +146,7 @@ export default async function ClinicianPortalAppointmentDetailPage({ params }: P
           services={services ?? []}
           followUps={followUps}
           statusUpdates={statusUpdates}
+          conditions={conditions}
         />
       </main>
     </div>

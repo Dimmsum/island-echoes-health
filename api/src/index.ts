@@ -22,6 +22,7 @@ import * as stripe from "./routes/stripe.js";
 import * as wallet from "./routes/wallet.js";
 import * as followUps from "./routes/follow-ups.js";
 import * as patientStatusUpdates from "./routes/patient-status-updates.js";
+import * as patientConditions from "./routes/patient-conditions.js";
 
 const app = express();
 const upload = multer({ dest: path.join(process.cwd(), "tmp-uploads") });
@@ -519,6 +520,31 @@ app.get(
     patientStatusUpdates
       .listStatusUpdates(
         req as Parameters<typeof patientStatusUpdates.listStatusUpdates>[0],
+        res,
+      )
+      .catch(next),
+);
+
+// Patient conditions & allergies
+app.post(
+  "/api/patients/:id/conditions",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) =>
+    patientConditions
+      .createCondition(
+        req as Parameters<typeof patientConditions.createCondition>[0],
+        res,
+      )
+      .catch(next),
+);
+app.get(
+  "/api/patients/:id/conditions",
+  authMiddleware,
+  (req, res, next) =>
+    patientConditions
+      .listConditions(
+        req as Parameters<typeof patientConditions.listConditions>[0],
         res,
       )
       .catch(next),

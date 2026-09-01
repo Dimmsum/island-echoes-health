@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { WalletTransaction } from "./WalletCard";
 import type { StatusUpdate } from "@/app/clinician-portal/status-update-types";
+import type { PatientCondition } from "@/app/clinician-portal/condition-types";
 
 export type HomeActionResult = { error: string | null };
 
@@ -415,6 +416,26 @@ export async function fetchPatientStatusUpdates(patientId: string): Promise<Stat
     if (!res.ok) return [];
     const data = await res.json().catch(() => ({}));
     return data.statusUpdates ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Fetches conditions & allergies for a linked patient the viewer has access to. */
+export async function fetchPatientConditions(patientId: string): Promise<PatientCondition[]> {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) return [];
+
+  try {
+    const res = await fetch(`${API_BASE}/api/patients/${patientId}/conditions`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => ({}));
+    return data.conditions ?? [];
   } catch {
     return [];
   }
