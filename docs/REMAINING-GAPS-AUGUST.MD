@@ -86,7 +86,7 @@ Ordered by *unblocks-others*, then by effort. **M1 is the answer to "what next".
 | **M3** | Provider recommendations | 🚫 **blocked — spend decision** | L |
 | **M4** | Patient self-pay — finish | M1.3 | S |
 | **M5** | Notification coverage ✅ | M1.1 | S |
-| **M6** | Patient page data gaps | M1.1 | M–L |
+| **M6** | Patient page data gaps (M6.1 ✅, M6.2 ✅) | M1.1 | M–L |
 | **M7** | Mobile parity | M1.3 | L |
 
 ---
@@ -305,72 +305,74 @@ number. Each item below is one of those placeholders.
 Per `CLAUDE.md`: skeletons while loading, and a rendered container with an explicit empty
 message rather than a hidden card.
 
-#### M6.1 — Heart rate & temperature
+**Status: M6.1 ✅, M6.2 ✅ (both shipped 2026-08-31) — M6.3–M6.5 remain; M6.6/M6.7 not scheduled.**
 
-Moved to the front of this milestone: it is the only item that is a *metric* (two nullable
-columns on the existing per-visit `patient_metrics` row) rather than a new entity. No new
-table, no new RLS policy, no new route file — the smallest blast radius on the list.
+#### M6.1 — Heart rate & temperature ✅ Done (2026-08-31)
 
-**Where it shows today:** `webapp/app/patients/VitalsPanel.tsx:192-206` — two greyed,
-dashed-border tiles next to the real BP/Weight/Adherence/A1c tiles.
+Shipped as the front of this milestone: the only item that was a *metric* (two nullable
+columns on the existing per-visit `patient_metrics` row) rather than a new entity — no new
+table, no new RLS policy, no new route file, the smallest blast radius on the list.
 
-1. **Migration `00038_patient_metrics_hr_temp.sql`** — note the renumber: the original plan
-   said `00036`, which is taken by `appointment_booking_fields`, and `00037` is claimed by M5.1.
+Real tiles now render in `webapp/app/patients/VitalsPanel.tsx` (latest value, sparkline,
+delta vs. prior), replacing the two greyed dashed-border placeholders. A patient with zero
+readings renders the tile with "No heart rate recorded yet" / "No temperature recorded yet".
 
-   ```sql
-   alter table public.patient_metrics
-     add column if not exists heart_rate_bpm integer,
-     add column if not exists temperature_c numeric(4,1);
-   ```
+1. **Migration `00038_patient_metrics_hr_temp.sql`** — `alter table patient_metrics add
+   column if not exists heart_rate_bpm integer, add column if not exists temperature_c
+   numeric(4,1)`, both nullable. No RLS change (`patient_metrics` RLS is row-scoped).
+2. **Two write paths, both updated** — the original plan named only
+   `api/src/routes/appointments.ts`'s `recordMetrics` (mobile's write path, actual line 261
+   not the estimated 246). Implementation found the web clinician UI doesn't call that API
+   route at all: `webapp/app/home/appointments/[id]/AppointmentDetailClient.tsx` calls the
+   Next.js server action `recordPatientMetrics` in `webapp/app/home/clinician-actions.ts`,
+   which does its own direct Supabase insert. Both were extended with `heartRateBpm`/
+   `temperatureC`.
+3. **Read paths** — the two new columns were appended to five selects sharing the same
+   column list (one more than originally scoped, found during implementation):
+   `api/src/routes/clinician-portal.ts` (`getClinicianPortalAppointmentById`),
+   `api/src/routes/home.ts` (`getSponsoredPatient`, the appointment-detail handler,
+   `getPatientMetrics`), and `webapp/app/clinician-portal/appointments/[id]/page.tsx` — a
+   direct-Supabase legacy read feeding the clinician-portal's own appointment detail page
+   that the original plan missed.
+4. **Capture form** — `AppointmentDetailClient.tsx` (web) gained heart-rate/temperature
+   inputs in the metrics form; `PatientMetric` type in `webapp/app/home/actions.ts` and the
+   `PreviousMetric` type in the clinician-portal's `AppointmentDetailClient.tsx` both extended
+   so TypeScript catches every call site.
 
-   `integer` for BPM matches `blood_pressure_systolic`/`diastolic`. `numeric(4,1)` for
-   temperature mirrors `weight_kg numeric(5,2)`'s fixed-precision approach — Celsius, one
-   decimal. Both nullable, so a visit can still record only some metrics. No RLS change:
-   `patient_metrics` RLS in `00011_…` is row-scoped, not column-scoped.
+#### M6.2 — Conditions & allergies ✅ Done (2026-08-31)
 
-2. **Write path** — `api/src/routes/appointments.ts`, `recordMetrics` (~line 246): extend the
-   request body type with `heartRateBpm?: number` / `temperatureC?: number` and add
-   `heart_rate_bpm: body.heartRateBpm ?? null` / `temperature_c: body.temperatureC ?? null`
-   to the insert.
+**Was:** `webapp/app/patients/PatientsPageClient.tsx:231` — a single dashed pill,
+"Conditions & allergies — not yet tracked." **Now:** a real tag list, styled to distinguish
+allergies (warning tone) from conditions (neutral tone), with "No conditions or allergies
+recorded" for a patient with zero entries. The "not asked yet" vs. "asked, none" distinction
+this item raised was deliberately left out — the schema has no such flag, and the doc only
+asked to "consider" it.
 
-3. **Read paths** — four select lists currently share the identical column list
-   `id, recorded_at, blood_pressure_systolic, blood_pressure_diastolic, weight_kg, a1c, medication_adherence`.
-   Append `, heart_rate_bpm, temperature_c` to each:
-   - `api/src/routes/clinician-portal.ts` — `getClinicianPortalAppointmentById` (~line 144)
-   - `api/src/routes/home.ts` — `getSponsoredPatientDetail` (~line 246)
-   - `api/src/routes/home.ts` — appointment detail handler (~line 418)
-   - `api/src/routes/home.ts` — `getPatientMetrics` (~line 455)
+Unlike M6.1, this was a genuinely new resource, so it followed the newest RLS/table
+precedent in the codebase (`follow_ups`/`patient_status_updates`, 00033/00034) rather than
+the older `patient_metrics` (00011) pattern: **no authenticated write policy** — all writes
+go through the API's service-role client, with `clinician`/`admin` enforced entirely by
+Express middleware, not in SQL.
 
-   No new endpoint — these are existing authorized reads and the columns ride along.
-
-4. **Capture form** — `webapp/app/home/appointments/[id]/AppointmentDetailClient.tsx`: state
-   alongside the existing `weightKg`/`a1c` (~line 81-82), two inputs next to Weight/A1c
-   (~line 312-320), and both fields in the `recordMetrics` payload (~line 128-132). Check
-   `webapp/app/home/clinician-actions.ts` and `webapp/app/patients/actions.ts` for duplicated
-   metrics type defs and extend those too, so TypeScript catches every call site.
-
-5. **Display** — replace the two placeholder tiles in `VitalsPanel.tsx` with real tiles
-   mirroring the Weight tile (latest value, sparkline over `previousMetrics`, delta vs. prior).
-   A patient with zero readings still renders the tile, with "No heart rate recorded yet".
-
-**Rollout:** migration → read paths → write path → UI. Each step is independently deployable
-and backward compatible; no big-bang cutover.
-
-#### M6.2 — Conditions & allergies
-
-**Where:** `webapp/app/patients/PatientsPageClient.tsx:231` — a single dashed pill,
-"Conditions & allergies — not yet tracked."
-
-No structured field exists on `profiles` or anywhere else. This is safety-relevant data
-(allergies in particular), so it should not live as freetext in a notes field.
-
-- New `patient_conditions` table: `id, patient_id, label, type ('condition'|'allergy'),
-  severity (nullable, for allergies), created_by, created_at`. A table rather than a single
-  text column, so the UI can render tag pills ("Hypertension", "Type 2 diabetes",
-  "Penicillin allergy").
-- `GET /api/patients/:id/conditions`, clinician/admin-only write.
-- Replace the placeholder pill with a real tag list; keep the placeholder at zero entries.
-  Consider whether the UI needs to distinguish "not asked yet" from "asked, none".
+- **Migration `00039_patient_conditions.sql`** (renumbered from the original `00038` guess,
+  since M6.1's metrics migration claimed that slot) — new `patient_conditions` table
+  (`id, patient_id, label, type` enum `'condition'|'allergy', severity` nullable text,
+  `created_by, created_at`), RLS: patient reads own, sponsor reads linked, clinician **and
+  admin** read all (the doc's precedent, `follow_ups`, only granted `clinician`; admin was
+  added explicitly since the doc calls for clinician/admin write), service-role-only writes.
+- **API** — new `api/src/routes/patient-conditions.ts` (`listConditions` via RLS-scoped
+  read, `createCondition` via service-role client with a patient-role guard, mirroring
+  `patient-status-updates.ts`), mounted as `GET`/`POST /api/patients/:id/conditions` in
+  `api/src/index.ts` (`POST` gated by `requireClinicianOrAdmin`).
+- **Web write UI** — the doc didn't specify where clinicians would add this data; there is
+  no standalone clinician-facing patient-detail page outside of appointments, so a new
+  `ConditionsSection.tsx` was added to `webapp/app/clinician-portal/appointments/[id]/`
+  alongside the existing `FollowUpsSection`/`StatusUpdatesSection` (list + add form), backed
+  by new `condition-types.ts` and `condition-actions.ts` files mirroring the status-update
+  three-file pattern.
+- **Web read wiring** — `fetchPatientConditions` added to `webapp/app/home/actions.ts`;
+  `webapp/app/patients/actions.ts`'s `SponsoredPatientDetail` type now carries `conditions`
+  for both the sponsor and self-view paths.
 
 #### M6.3 — Medications
 
