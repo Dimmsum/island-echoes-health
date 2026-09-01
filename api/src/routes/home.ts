@@ -51,7 +51,7 @@ export async function getHome(req: AuthRequest, res: Response): Promise<void> {
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(20),
-    supabase.from("care_plans").select("id, slug, name, price_cents, features").order("price_cents", { ascending: true }),
+    supabase.from("care_plans").select("id, slug, name, price_cents").order("price_cents", { ascending: true }),
   ]);
 
   const linkedPlans = linkedPlansRes.data ?? [];

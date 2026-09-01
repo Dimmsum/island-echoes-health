@@ -20,12 +20,15 @@ web features back to back.
 
 **5 of the 7 remaining roadmap priorities are complete on web.**
 
-Two remain: **provider recommendations** (not started) and **patient self-pay**
-(backend + web are actually done — only mobile is left). Referral management, previously
-counted as an eighth, is **out of scope** — see below.
+Two remain: **provider recommendations** (not started, and now 🚫 **blocked on a spend
+decision** — every data source that gives us the experience we want costs money, see M3) and
+**patient self-pay** (backend + web are actually done — only mobile is left). Referral
+management, previously counted as an eighth, is **out of scope** — see below.
 
-Separately, the mobile app is **four features behind web**, and there are **two live bugs**
-plus an **unverified migration state** that gate production readiness.
+Separately, the mobile app is **four features behind web**. Of the three production-readiness
+blockers, two are cleared as of 2026-08-31 — migrations `00033`–`00036` are confirmed applied
+(M1.1) and the `/api/home` care-plan bug is fixed (M1.2). **One live bug remains**: mobile
+sponsorship still calls a deleted route (M1.3).
 
 | | Web | Mobile |
 |---|---|---|
@@ -36,7 +39,7 @@ plus an **unverified migration state** that gate production readiness.
 | Care continuity dashboard | ✅ | ❌ |
 | Structured clinic notes | ✅ | ❌ |
 | Patient self-pay | ✅ | ❌ |
-| Provider recommendations | ❌ | ❌ |
+| Provider recommendations | 🚫 blocked | 🚫 blocked |
 
 ---
 
@@ -78,9 +81,9 @@ Ordered by *unblocks-others*, then by effort. **M1 is the answer to "what next".
 
 | # | Milestone | Depends on | Size |
 |---|---|---|---|
-| **M1** | Production readiness gate | — | S |
+| **M1** | Production readiness gate (M1.1 ✅, M1.2 ✅, M1.5 ⏸️) | — | S |
 | **M2** | Drop referral management | — | XS |
-| **M3** | Provider recommendations (Google Places) | M1.5 | L |
+| **M3** | Provider recommendations | 🚫 **blocked — spend decision** | L |
 | **M4** | Patient self-pay — finish | M1.3 | S |
 | **M5** | Notification coverage | M1.1 | S |
 | **M6** | Patient page data gaps | M1.1 | M–L |
@@ -91,17 +94,22 @@ Ordered by *unblocks-others*, then by effort. **M1 is the answer to "what next".
 ### M1 — Production readiness gate
 
 Nothing below is trustworthy until this is green. Two of these are live bugs.
+**Status: M1.1 ✅, M1.2 ✅ — M1.3, M1.4, M1.5 remain.**
 
-- **M1.1 — Verify/apply migrations `00033`, `00034`, `00035`, `00036` in Supabase.**
-  The retired `PROGRESS.md` flagged 00033/00034/00035 as "must be applied" and never
-  recorded that they were. This cannot be checked from the repo. Every milestone below
-  assumes these are live. **Do this first.**
+- ~~**M1.1 — Verify/apply migrations `00033`, `00034`, `00035`, `00036` in Supabase.**~~
+  ✅ **Done (2026-08-31).** Migrations confirmed applied in Supabase. The milestones below
+  can now assume `follow_ups`, `patient_status_updates`, `appointment_notes` and the
+  appointment booking fields are live.
 
-- **M1.2 — Fix `api/src/routes/home.ts:54`.** It selects `care_plans.features`, a column
-  dropped by `00030_simplify_care_plans_and_add_wallet.sql`. PostgREST rejects the unknown
-  column, so `carePlansRes` errors and silently falls back to `[]` at line 60 — every
-  `care_plan` object on `GET /api/home` resolves to `null`. Fix: drop `features` from the
-  select list.
+- ~~**M1.2 — Fix `api/src/routes/home.ts:54`.**~~
+  ✅ **Done (2026-08-31).** It selected `care_plans.features`, a column dropped by
+  `00030_simplify_care_plans_and_add_wallet.sql`. PostgREST rejected the unknown column, so
+  `carePlansRes` errored and silently fell back to `[]` at line 60 — every `care_plan`
+  object on `GET /api/home` resolved to `null`. The select is now
+  `id, slug, name, price_cents`, matching the other `care_plans` reads in the file.
+  Note: `mobile/lib/userHome.ts:37` still declares an optional `features` field and
+  `mobile/components/user/LinkPatientScreen.tsx:103` still reads it — that plan picker is
+  removed as part of **M1.3**, so it is left alone here.
 
 - **M1.3 — Fix mobile sponsorship (404 today).** `mobile/lib/sponsorship.ts:16`
   (`createPaymentForPlanMobile`) posts to `/api/sponsorship/create-payment`, a route deleted
@@ -115,8 +123,11 @@ Nothing below is trustworthy until this is green. Two of these are live bugs.
   `handleStripeWebhook`. `POST /api/wallet/topup/confirm` exists as a fallback added because
   webhooks never reached localhost — confirm production is not silently depending on it.
 
-- **M1.5 — Provision `GOOGLE_PLACES_API_KEY`.** Google Cloud project, Places API enabled,
-  billing attached. It is consumed in M3 but has procurement lead time, so start it here.
+- **M1.5 — Provider API key — ⏸️ on hold, folded into the M3 blocker.** Previously
+  "provision `GOOGLE_PLACES_API_KEY`", justified by procurement lead time. That rationale is
+  gone: the preferred source is now Geoapify (`GEOAPIFY_API_KEY`), which is self-serve with no
+  lead time, and the vendor choice is part of the unresolved M3 spend decision. Nothing to
+  procure until M3 is unblocked — **M3 no longer depends on M1.5.**
 
 ---
 
@@ -128,27 +139,113 @@ care-continuity endpoint's missing referral count reads as intentional to the ne
 
 ---
 
-### M3 — Provider recommendations *(depends on M1.5)*
+### M3 — Provider recommendations — 🚫 **BLOCKED: needs a spend decision**
 
 The one remaining major user-facing feature. Zero implementation exists today — the only
 repo-wide hit for "recommendation" is a string in mobile mock data.
 
-**Direction (settled 2026-06-23):** providers are fetched **live from Google Places**, never
-stored in an owned catalog — we don't want to imply we endorse a hand-picked list. Ratings
-and reviews stay **off-platform on Google**; we surface each provider's Google rating and a
-"view / rate on Google" link (`googleMapsUri`). No in-app feedback. **No migration.**
+**Blocked as of 2026-08-31.** Not blocked on engineering — the build is well understood and
+small. Blocked because every source that delivers the experience we actually want carries a
+recurring per-search cost, and nobody has approved a budget line for it. **Do not start M3
+until the spend question below is answered.** Research backing this is recorded in
+[Provider data source options](#provider-data-source-options).
 
-- **M3.1 — `api/src/lib/googlePlaces.ts`.** Native `fetch`, mirroring the module shape of
-  `api/src/lib/stripe.ts`. Healthcare-category → Places query/type map (clinic, mental_health,
-  specialist, pharmacy, diagnostic, wellness). Return 503 when the key is unset.
+**Scope note (2026-08-31):** the app is **not** Jamaica-specific and must not be designed as
+if it were. The current `profiles.parish` dropdown reflects one launch market, not the
+product's reach. Provider search must be **country-agnostic** — driven by coordinates and
+radius, with no hardcoded country — or M3 becomes a rewrite the first time a second market
+opens. This rules out the otherwise attractive option of seeding a catalog from a national
+health-ministry facility registry, which does not generalize.
+
+**Original direction (settled 2026-06-23), now in question:** providers fetched **live from
+Google Places**, never stored in an owned catalog — we don't want to imply we endorse a
+hand-picked list. Ratings and reviews stay **off-platform on Google**; we surface each
+provider's Google rating and a "view / rate on Google" link (`googleMapsUri`). No in-app
+feedback. **No migration.**
+
+The cost problem is that this direction, as written, lands on Google's **most expensive**
+configuration and forbids the one optimization that would contain it:
+
+- Places API (New) bills at the **highest SKU tier among the fields you request**. Text
+  Search / Nearby Search alone is Pro at **$32 per 1,000 calls**. Asking for `rating` — which
+  the spec above explicitly does — promotes the call to **Enterprise, $35 per 1,000**; adding
+  reviews or other atmosphere fields makes it **$40 per 1,000**.
+- Free allowance is **per SKU and small**: 10,000 calls/month for Essentials, 5,000 for Pro,
+  **1,000 for Enterprise**. The old flat $200/month credit was withdrawn and no longer exists.
+- **Results may not be cached or stored.** Only `place_id` may be retained indefinitely; every
+  name, phone, address and rating must be re-fetched live on each view. So the bill scales
+  linearly with usage forever and there is **no engineering fix** — we cannot cache our way out.
+
+Indicative monthly cost at the specced Enterprise tier, search traffic only, before any
+detail-view calls:
+
+| Searches / month | Billable | Google (rating field, no caching allowed) |
+|---|---|---|
+| 10,000 | 9,000 | **~$315** |
+| 50,000 | 49,000 | **~$1,715** |
+| 100,000 | 99,000 | **~$3,465** |
+
+**The decision needed.** The feature splits cleanly into a part that is free and a part that
+is not, and they can be shipped separately:
+
+| Piece | Cost | Status |
+|---|---|---|
+| Provider discovery — search, categories, address, phone, website, map location | **~$0–59/mo** | Fundable, see options below |
+| "View / rate on Google" link-out | **$0** | Google Maps URLs (`api=1` deep links) need no API key, no quota, no billing |
+| **Numeric Google rating shown in-app** | **$35 per 1,000 searches, uncacheable** | 🚫 **This is the blocker** |
+
+Only the third row requires Google money. The link-out that the 2026-06-23 direction actually
+cares about — keeping ratings and reviews off-platform and sending users to Google to read and
+leave them — **is free**, and works against a provider record from any source.
+
+**Recommendation to put to whoever owns the budget:** ship discovery + free Google link-out,
+and treat the in-app numeric rating badge as a paid enhancement to switch on later behind a
+flag. That delivers essentially the specced UX for roughly $59/month instead of hundreds to
+thousands, and keeps the door open. If the numeric rating is judged essential to launch, that
+is a legitimate call — it just needs an approved budget line, and it should be understood as a
+permanent recurring cost that grows with adoption, not a one-off.
+
+**Preferred approach once unblocked** (chosen 2026-08-31, pending the cost decision above):
+a live third-party places API — **Geoapify** as primary. It is country-agnostic, and unlike
+Google it **permits storing and caching results**, so repeat searches cost nothing. Free tier
+is 3,000 credits/day but is limited-commercial; the first commercial tier is **$59/month flat**
+for 10,000 credits/day (~300,000/month). HERE is the fallback if volume outgrows that — a
+larger 250,000/month free tier, but its terms cap retention at 30 days and forbid building a
+repository, so it is the weaker licence.
+
+Implementation sketch, unchanged in shape from the original plan — swap the vendor, keep the
+structure:
+
+- **M3.1 — `api/src/lib/geoapify.ts`** (was `googlePlaces.ts`). Native `fetch`, mirroring the
+  module shape of `api/src/lib/stripe.ts` (`isGeoapifyConfigured()` / throw-on-missing-key, per
+  `getStripe`/`isStripeConfigured`). Map our healthcare categories onto Geoapify's
+  `healthcare.hospital`, `healthcare.clinic_or_praxis`, `healthcare.pharmacy`,
+  `healthcare.dentist`. Return 503 when the key is unset. Add a small in-process TTL cache —
+  permitted by the licence, and what keeps the bill flat.
 - **M3.2 — Routes.** `GET /api/recommendations/search` (`lat`, `lng`, `category`/`q`, `radius`
-  → normalized providers: name, address, location, rating, `googleMapsUri`, phone, website)
-  and `GET /api/recommendations/:placeId` (Place Details passthrough). Mount both in
-  `api/src/index.ts` behind `authMiddleware`.
+  → normalized providers: name, address, location, phone, website, plus a **generated** free
+  Google Maps deep link) and `GET /api/recommendations/:placeId`. Mount both in
+  `api/src/index.ts` behind `authMiddleware`, following the existing
+  `app.get("/api/…", authMiddleware, …)` pattern. No migration.
 - **M3.3 — Web.** `/recommendations` (search + category filter chips + location) and
-  `/recommendations/[id]` (detail, Google rating, link out).
+  `/recommendations/[id]` (detail, link out to Google). Skeletons while loading and rendered
+  containers with explicit empty messages, per `CLAUDE.md`.
 - **M3.4 — Mobile.** Recommendations tab in `UserTabsNavigator` + provider detail screen.
   May ship with M7 if mobile is sequenced later.
+
+#### Provider data source options
+
+Recorded 2026-08-31 so the spend conversation does not have to be re-researched.
+
+| Source | Global? | Cost | Storable? | Ratings | Notes |
+|---|---|---|---|---|---|
+| **Google Places (New)** | ✅ | $32–40 / 1,000, tiny free tier | ❌ **No** (`place_id` only) | ✅ Best | The specced option. Uncacheable, so cost is permanent and grows with use. |
+| **Geoapify** *(preferred)* | ✅ | Free 3k/day (limited commercial); **$59/mo** commercial | ✅ Yes | ❌ | OSM-derived, 800+ categories. Permissive licence is the point. |
+| **HERE** | ✅ | 250k/mo free | ⚠️ 30 days, no repository | ❌ | Bigger free tier, weaker licence. Fallback. |
+| **Overture Maps** | ✅ | **Free** bulk data | ✅ Yes | ❌ | **4,580,186** healthcare places worldwide (Aug 2026), CDLA Permissive 2.0 / Apache 2.0, monthly Parquet on S3. Zero marginal cost, but needs a DuckDB pipeline, PostGIS (not currently enabled) and a refresh job. The cheapest long-run answer if volume ever justifies the build. |
+| **Foursquare OS Places** | ✅ | **Free** | ✅ Yes | ❌ | 100M+ POIs, Apache 2.0. Largely subsumed by Overture, which ingests it. |
+| **OSM / Overpass live** | ✅ | Free | ✅ Yes | ❌ | Not production-safe on public instances (rate limits), and metadata is thin — a live probe of one market returned 339 healthcare POIs with phone on 14% and website on 2%. |
+| National health-ministry registries | ❌ | Free | ✅ Yes | ❌ | Authoritative and complete for public facilities, but per-country sourcing does not scale. **Rejected on the scope note above.** |
 
 ---
 
@@ -346,7 +443,8 @@ in mock data.
   ("not seen in 30+ days", overdue follow-ups); Care Summary card per linked patient on user home.
 - **M7.4 — Structured clinic notes** — note type selector (general / coordination /
   clinical_summary / discharge) and "flag for follow-up" toggle in the note creation UI.
-- Plus **M3.4** (recommendations tab) and **M4.1** (wallet top-up) if not already taken.
+- Plus **M4.1** (wallet top-up) if not already taken. **M3.4** (recommendations tab) only if
+  M3 has been unblocked by then.
 
 ---
 
@@ -360,9 +458,9 @@ Claims in the retired docs that this audit disproved:
 | "6.4 — Patient self-view on `/home` deferred" | Done. `webapp/app/home/page.tsx:75` fetches status updates, metrics and follow-ups for the signed-in patient. |
 | `PROGRESS.md` "Completed: Nothing completed yet" | Five roadmap priorities shipped on web. |
 | HR/temp migration numbered `00036` | `00036` is taken by `appointment_booking_fields`. Renumbered to `00038` (M6.1); `00037` goes to M5.1. |
-| Care plan tiers fully removed | Removed on web and in the DB, but mobile still renders the picker and calls a deleted route (M1.3), and `home.ts:54` still selects a dropped column (M1.2). |
+| Care plan tiers fully removed | Removed on web and in the DB. `home.ts:54`'s dropped-column select is now fixed (M1.2 ✅); mobile still renders the picker and calls a deleted route (M1.3). |
 | Referral management is roadmap priority 5 / upcoming #3 | **Out of scope.** Roadmap count is 5 / 7. |
-| Recommendations "re-scoped, next: 2.2 backend" | Still zero implementation two months later. |
+| Recommendations "re-scoped, next: 2.2 backend" | Still zero implementation two months later — and now **blocked on a spend decision** (M3), not on engineering. |
 
 ---
 
