@@ -20,10 +20,10 @@ web features back to back.
 
 **5 of the 7 remaining roadmap priorities are complete on web.**
 
-Two remain: **provider recommendations** (not started, and now 🚫 **blocked on a spend
-decision** — every data source that gives us the experience we want costs money, see M3) and
-**patient self-pay** (backend + web are actually done — only mobile is left). Referral
-management, previously counted as an eighth, is **out of scope** — see below.
+Two remain: **provider recommendations** (not started, but the spend decision that was
+blocking it is now resolved — see M3) and **patient self-pay** (backend + web are actually
+done — only mobile is left). Referral management, previously counted as an eighth, is
+**out of scope** — see below.
 
 Separately, the mobile app is **four features behind web**. Of the three production-readiness
 blockers, two are cleared as of 2026-08-31 — migrations `00033`–`00036` are confirmed applied
@@ -39,7 +39,7 @@ sponsorship still calls a deleted route (M1.3).
 | Care continuity dashboard | ✅ | ❌ |
 | Structured clinic notes | ✅ | ❌ |
 | Patient self-pay | ✅ | ❌ |
-| Provider recommendations | 🚫 blocked | 🚫 blocked |
+| Provider recommendations | ⏳ not started (unblocked) | ⏳ not started (unblocked) |
 
 ---
 
@@ -83,7 +83,7 @@ Ordered by *unblocks-others*, then by effort. **M1 is the answer to "what next".
 |---|---|---|---|
 | **M1** | Production readiness gate (M1.1 ✅, M1.2 ✅, M1.5 ⏸️) | — | S |
 | **M2** | Drop referral management | — | XS |
-| **M3** | Provider recommendations | 🚫 **blocked — spend decision** | L |
+| **M3** | Provider recommendations | — (unblocked 2026-09-03) | L |
 | **M4** | Patient self-pay — finish | M1.3 | S |
 | **M5** | Notification coverage ✅ | M1.1 | S |
 | **M6** | Patient page data gaps (M6.1 ✅, M6.2 ✅) | M1.1 | M–L |
@@ -123,11 +123,9 @@ Nothing below is trustworthy until this is green. Two of these are live bugs.
   `handleStripeWebhook`. `POST /api/wallet/topup/confirm` exists as a fallback added because
   webhooks never reached localhost — confirm production is not silently depending on it.
 
-- **M1.5 — Provider API key — ⏸️ on hold, folded into the M3 blocker.** Previously
-  "provision `GOOGLE_PLACES_API_KEY`", justified by procurement lead time. That rationale is
-  gone: the preferred source is now Geoapify (`GEOAPIFY_API_KEY`), which is self-serve with no
-  lead time, and the vendor choice is part of the unresolved M3 spend decision. Nothing to
-  procure until M3 is unblocked — **M3 no longer depends on M1.5.**
+- **M1.5 — Provider API key.** Provision `GOOGLE_PLACES_API_KEY` (Places API (New),
+  Enterprise-tier fields enabled so `rating`/`userRatingCount` can be requested). Self-serve
+  via Google Cloud Console, no procurement lead time. Needed before M3.1 can be implemented.
 
 ---
 
@@ -139,15 +137,17 @@ care-continuity endpoint's missing referral count reads as intentional to the ne
 
 ---
 
-### M3 — Provider recommendations — 🚫 **BLOCKED: needs a spend decision**
+### M3 — Provider recommendations — ✅ **UNBLOCKED (2026-09-03): spend approved**
 
 The one remaining major user-facing feature. Zero implementation exists today — the only
 repo-wide hit for "recommendation" is a string in mobile mock data.
 
-**Blocked as of 2026-08-31.** Not blocked on engineering — the build is well understood and
-small. Blocked because every source that delivers the experience we actually want carries a
-recurring per-search cost, and nobody has approved a budget line for it. **Do not start M3
-until the spend question below is answered.** Research backing this is recorded in
+**Unblocked 2026-09-03.** The product requirement is to recommend nearby healthcare providers
+factoring in **both** location and quality (rating) — a rating-less discovery list doesn't
+meet that bar, so the free-tier-only path considered on 2026-08-31 was rejected. Decision:
+**accept Google's recurring per-search cost as an approved budget line** and build against
+**Google Places (New), Enterprise tier**, which is the only source in the table below with
+Google-quality ratings. Research backing this is recorded in
 [Provider data source options](#provider-data-source-options).
 
 **Scope note (2026-08-31):** the app is **not** Jamaica-specific and must not be designed as
@@ -168,10 +168,13 @@ configuration and forbids the one optimization that would contain it:
 
 - Places API (New) bills at the **highest SKU tier among the fields you request**. Text
   Search / Nearby Search alone is Pro at **$32 per 1,000 calls**. Asking for `rating` — which
-  the spec above explicitly does — promotes the call to **Enterprise, $35 per 1,000**; adding
-  reviews or other atmosphere fields makes it **$40 per 1,000**.
+  the product requirement above explicitly does — promotes the call to **Enterprise, $35 per
+  1,000**; adding reviews or other atmosphere fields makes it **$40 per 1,000**.
 - Free allowance is **per SKU and small**: 10,000 calls/month for Essentials, 5,000 for Pro,
   **1,000 for Enterprise**. The old flat $200/month credit was withdrawn and no longer exists.
+  **Note (2026-09-03):** the 10,000/mo figure is real but applies only to Essentials, which
+  has no `rating` field — it does not apply once ratings are requested, which is why this was
+  briefly (and incorrectly) assumed to already be within free budget.
 - **Results may not be cached or stored.** Only `place_id` may be retained indefinitely; every
   name, phone, address and rating must be re-fetched live on each view. So the bill scales
   linearly with usage forever and there is **no engineering fix** — we cannot cache our way out.
@@ -185,62 +188,53 @@ detail-view calls:
 | 50,000 | 49,000 | **~$1,715** |
 | 100,000 | 99,000 | **~$3,465** |
 
-**The decision needed.** The feature splits cleanly into a part that is free and a part that
-is not, and they can be shipped separately:
+**The decision that was needed (resolved 2026-09-03).** The feature could have split into a
+free discovery piece (location, categories, address, phone, website — fundable on a
+free-tier/cacheable source) and a paid piece (the numeric rating, Google Enterprise only,
+$35 per 1,000 searches, uncacheable). Since the product requirement is location **and**
+quality together, splitting vendors would mean paying for Google Enterprise *anyway* to get
+ratings, while also running a second free source for discovery — extra integration cost for
+no savings. **Decision: use Google Places Enterprise for both**, and accept the per-search
+cost as a recurring budget line. This is understood as a permanent cost that scales with
+adoption (see the cost table above), not a one-off — worth revisiting only if volume grows
+enough to justify a hybrid (free/cacheable source for discovery, Google called only for
+rating on detail-view) — see [Provider data source options](#provider-data-source-options).
 
-| Piece | Cost | Status |
-|---|---|---|
-| Provider discovery — search, categories, address, phone, website, map location | **~$0–59/mo** | Fundable, see options below |
-| "View / rate on Google" link-out | **$0** | Google Maps URLs (`api=1` deep links) need no API key, no quota, no billing |
-| **Numeric Google rating shown in-app** | **$35 per 1,000 searches, uncacheable** | 🚫 **This is the blocker** |
+**Approach** (revised 2026-09-03, supersedes the 2026-08-31 Geoapify-primary direction):
+**Google Places (New)** is the sole vendor, at Enterprise tier so `rating`/`userRatingCount`
+can be requested alongside search fields. Country-agnostic (coordinates + radius, no hardcoded
+country), consistent with the scope note above. No caching of name/address/phone/rating per
+Google's terms — only `place_id` may be retained.
 
-Only the third row requires Google money. The link-out that the 2026-06-23 direction actually
-cares about — keeping ratings and reviews off-platform and sending users to Google to read and
-leave them — **is free**, and works against a provider record from any source.
-
-**Recommendation to put to whoever owns the budget:** ship discovery + free Google link-out,
-and treat the in-app numeric rating badge as a paid enhancement to switch on later behind a
-flag. That delivers essentially the specced UX for roughly $59/month instead of hundreds to
-thousands, and keeps the door open. If the numeric rating is judged essential to launch, that
-is a legitimate call — it just needs an approved budget line, and it should be understood as a
-permanent recurring cost that grows with adoption, not a one-off.
-
-**Preferred approach once unblocked** (chosen 2026-08-31, pending the cost decision above):
-a live third-party places API — **Geoapify** as primary. It is country-agnostic, and unlike
-Google it **permits storing and caching results**, so repeat searches cost nothing. Free tier
-is 3,000 credits/day but is limited-commercial; the first commercial tier is **$59/month flat**
-for 10,000 credits/day (~300,000/month). HERE is the fallback if volume outgrows that — a
-larger 250,000/month free tier, but its terms cap retention at 30 days and forbid building a
-repository, so it is the weaker licence.
-
-Implementation sketch, unchanged in shape from the original plan — swap the vendor, keep the
-structure:
-
-- **M3.1 — `api/src/lib/geoapify.ts`** (was `googlePlaces.ts`). Native `fetch`, mirroring the
-  module shape of `api/src/lib/stripe.ts` (`isGeoapifyConfigured()` / throw-on-missing-key, per
-  `getStripe`/`isStripeConfigured`). Map our healthcare categories onto Geoapify's
-  `healthcare.hospital`, `healthcare.clinic_or_praxis`, `healthcare.pharmacy`,
-  `healthcare.dentist`. Return 503 when the key is unset. Add a small in-process TTL cache —
-  permitted by the licence, and what keeps the bill flat.
+- **M3.1 — `api/src/lib/googlePlaces.ts`.** Native `fetch` against Places API (New)
+  Text Search / Nearby Search + Place Details, mirroring the module shape of
+  `api/src/lib/stripe.ts` (`isGooglePlacesConfigured()` / throw-on-missing-key, per
+  `getStripe`/`isStripeConfigured`). Request an Enterprise-tier field mask
+  (`places.rating,places.userRatingCount,places.displayName,places.formattedAddress,places.location,places.internationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.types`)
+  and map Google's `type` taxonomy to our healthcare categories (`hospital`, `pharmacy`,
+  `doctor`, `dentist`, etc). Return 503 when `GOOGLE_PLACES_API_KEY` is unset. **No response
+  caching** — every call re-fetches live, per licence.
 - **M3.2 — Routes.** `GET /api/recommendations/search` (`lat`, `lng`, `category`/`q`, `radius`
-  → normalized providers: name, address, location, phone, website, plus a **generated** free
-  Google Maps deep link) and `GET /api/recommendations/:placeId`. Mount both in
+  → normalized providers: name, address, location, phone, website, Google rating/review count,
+  plus the `googleMapsUri` link-out) and `GET /api/recommendations/:placeId`. Mount both in
   `api/src/index.ts` behind `authMiddleware`, following the existing
-  `app.get("/api/…", authMiddleware, …)` pattern. No migration.
+  `app.get("/api/…", authMiddleware, …)` pattern. No migration — `place_id` is the only field
+  ever persisted, and only if we later add saved/favorite providers.
 - **M3.3 — Web.** `/recommendations` (search + category filter chips + location) and
-  `/recommendations/[id]` (detail, link out to Google). Skeletons while loading and rendered
-  containers with explicit empty messages, per `CLAUDE.md`.
+  `/recommendations/[id]` (detail, in-app rating badge, link out to Google). Skeletons while
+  loading and rendered containers with explicit empty messages, per `CLAUDE.md`.
 - **M3.4 — Mobile.** Recommendations tab in `UserTabsNavigator` + provider detail screen.
   May ship with M7 if mobile is sequenced later.
 
 #### Provider data source options
 
-Recorded 2026-08-31 so the spend conversation does not have to be re-researched.
+Recorded 2026-08-31, decision made 2026-09-03, so the spend conversation does not have to be
+re-researched.
 
 | Source | Global? | Cost | Storable? | Ratings | Notes |
 |---|---|---|---|---|---|
-| **Google Places (New)** | ✅ | $32–40 / 1,000, tiny free tier | ❌ **No** (`place_id` only) | ✅ Best | The specced option. Uncacheable, so cost is permanent and grows with use. |
-| **Geoapify** *(preferred)* | ✅ | Free 3k/day (limited commercial); **$59/mo** commercial | ✅ Yes | ❌ | OSM-derived, 800+ categories. Permissive licence is the point. |
+| **Google Places (New)** *(chosen)* | ✅ | $32–40 / 1,000, tiny free tier | ❌ **No** (`place_id` only) | ✅ Best | **Selected 2026-09-03** — the only option with ratings, which the product requires. Uncacheable, so cost is permanent and grows with use; accepted as a recurring budget line. |
+| **Geoapify** | ✅ | Free 3k/day (limited commercial); **$59/mo** commercial | ✅ Yes | ❌ | OSM-derived, 800+ categories. Rejected as primary — no ratings, and ratings are a hard requirement. Worth revisiting as a location-only supplement if volume ever makes an all-Google approach too costly. |
 | **HERE** | ✅ | 250k/mo free | ⚠️ 30 days, no repository | ❌ | Bigger free tier, weaker licence. Fallback. |
 | **Overture Maps** | ✅ | **Free** bulk data | ✅ Yes | ❌ | **4,580,186** healthcare places worldwide (Aug 2026), CDLA Permissive 2.0 / Apache 2.0, monthly Parquet on S3. Zero marginal cost, but needs a DuckDB pipeline, PostGIS (not currently enabled) and a refresh job. The cheapest long-run answer if volume ever justifies the build. |
 | **Foursquare OS Places** | ✅ | **Free** | ✅ Yes | ❌ | 100M+ POIs, Apache 2.0. Largely subsumed by Overture, which ingests it. |
@@ -475,7 +469,7 @@ Claims in the retired docs that this audit disproved:
 | HR/temp migration numbered `00036` | `00036` is taken by `appointment_booking_fields`. Renumbered to `00038` (M6.1); `00037` goes to M5.1. |
 | Care plan tiers fully removed | Removed on web and in the DB. `home.ts:54`'s dropped-column select is now fixed (M1.2 ✅); mobile still renders the picker and calls a deleted route (M1.3). |
 | Referral management is roadmap priority 5 / upcoming #3 | **Out of scope.** Roadmap count is 5 / 7. |
-| Recommendations "re-scoped, next: 2.2 backend" | Still zero implementation two months later — and now **blocked on a spend decision** (M3), not on engineering. |
+| Recommendations "re-scoped, next: 2.2 backend" | Still zero implementation two months later. Was briefly blocked on a spend decision (M3); **unblocked 2026-09-03** — Google Places Enterprise-tier cost approved so ratings can be included. |
 
 ---
 
