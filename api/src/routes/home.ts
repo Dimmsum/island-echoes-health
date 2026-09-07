@@ -2,6 +2,8 @@ import { Response } from "express";
 import { createSupabaseForUser } from "../lib/supabase.js";
 import type { AuthRequest } from "../middleware/auth.js";
 
+const PATIENT_METRICS_LIMIT = 200;
+
 export async function getHome(req: AuthRequest, res: Response): Promise<void> {
   const supabase = createSupabaseForUser(req.accessToken);
   const userId = req.user.id;
@@ -248,7 +250,7 @@ export async function getSponsoredPatient(req: AuthRequest, res: Response): Prom
       )
       .eq("patient_id", link.patient_id)
       .order("recorded_at", { ascending: false })
-      .limit(20),
+      .limit(PATIENT_METRICS_LIMIT),
     supabase
       .from("appointments")
       .select("id, scheduled_at, status, clinician_id")
@@ -461,7 +463,7 @@ export async function getPatientMetrics(req: AuthRequest, res: Response): Promis
     )
     .eq("patient_id", patientId)
     .order("recorded_at", { ascending: false })
-    .limit(5);
+    .limit(PATIENT_METRICS_LIMIT);
 
   if (error) {
     res.status(500).json({ error: "Failed to load metrics." });
