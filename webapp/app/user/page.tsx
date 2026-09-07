@@ -3,17 +3,33 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { PhotoPlaceholder } from "@/app/components/landing/PhotoPlaceholder";
 import { handleUserAuth } from "./actions";
+
+const CHECKLIST = [
+  "Invite family with a link — no app store trip needed.",
+  "Plain-language summaries after every visit.",
+  "Works on low bandwidth, wherever you are.",
+];
+
+function passwordStrength(password: string) {
+  if (password.length === 0) return 0;
+  if (password.length < 8) return 1;
+  const varied = /[a-z]/.test(password) && /[A-Z0-9]/.test(password);
+  return varied && password.length >= 12 ? 3 : 2;
+}
 
 function UserAuthForm() {
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string; auth?: string }>({});
+  const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState<{ password?: string; terms?: string; auth?: string }>({});
   const [isPending, setIsPending] = useState(false);
 
   const message = searchParams.get("message");
   const errorParam = searchParams.get("error");
+  const strength = useMemo(() => passwordStrength(password), [password]);
 
   const validatePassword = (value: string) => {
     if (value.length < 8) return "Password must be at least 8 characters";
@@ -24,15 +40,13 @@ function UserAuthForm() {
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form);
-    const password = formData.get("password") as string;
-    const confirmPassword = formData.get("confirmPassword") as string | null;
+    const pwd = formData.get("password") as string;
+    const agreed = formData.get("terms") === "on";
 
-    const newErrors: { password?: string; confirmPassword?: string } = {};
-    const pwdError = validatePassword(password);
+    const newErrors: { password?: string; terms?: string } = {};
+    const pwdError = validatePassword(pwd);
     if (pwdError) newErrors.password = pwdError;
-    if (confirmPassword !== password) {
-      newErrors.confirmPassword = "Passwords do not match";
-    }
+    if (!agreed) newErrors.terms = "Please agree to the Terms and Privacy Notice";
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
 
@@ -46,232 +60,216 @@ function UserAuthForm() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-white">
-      {/* Background hotspots */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-40 top-0 h-80 w-80 rounded-full bg-[#E6E15A]/25 blur-3xl" />
-        <div className="absolute right-[-10rem] bottom-[-10rem] h-[26rem] w-[40rem] rounded-full bg-[#9CCB4A]/30 blur-3xl" />
-        <div className="absolute -left-32 bottom-[-8rem] h-72 w-[36rem] rounded-full bg-[#9CCB4A]/18 blur-3xl" />
-        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#1F5F2E]/5 to-transparent" />
-      </div>
-
-      <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-6 sm:px-8 sm:py-8">
-        {/* Navbar */}
-        <header className="flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
+    <div className="grid h-screen grid-cols-1 overflow-hidden bg-[#F3F6EA] sm:grid-cols-2">
+      {/* Left panel: photo / brand */}
+      <div className="relative hidden overflow-hidden bg-[#0C3B1E] sm:flex">
+        <div className="absolute inset-0">
+          <PhotoPlaceholder tone="dark" />
+        </div>
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(160deg, rgba(9,45,23,.9) 0%, rgba(10,50,26,.56) 46%, rgba(12,59,30,.9) 100%)",
+          }}
+        />
+        <div className="relative z-10 flex h-full w-full flex-col items-start justify-between gap-11 p-8 lg:p-12">
+          <Link href="/" className="flex w-max items-center">
             <Image
-              src="/island-echoes-health.svg"
+              src="/island-echoes-icon.svg"
               alt="Island Echoes Health"
-              width={140}
-              height={50}
-              priority
+              width={64}
+              height={64}
+              className="brightness-0 invert"
             />
           </Link>
 
-          <nav className="flex items-center gap-4 text-sm font-medium text-slate-900 sm:gap-6">
-            <Link href="/about" className="hover:text-[#1F5F2E]">
-              About
-            </Link>
-            <Link href="/pricing" className="hover:text-[#1F5F2E]">
-              Pricing
-            </Link>
-            <div className="hidden h-6 w-px bg-slate-300/70 sm:block" />
-            <Link href="/" className="text-slate-800 hover:text-[#1F5F2E]">
-              Back to home
-            </Link>
-          </nav>
-        </header>
+          <div className="max-w-[430px]">
+            <p
+              className="mb-1 text-3xl leading-tight text-[#B8DE6F] lg:text-4xl"
+              style={{ fontFamily: "var(--font-kaushan), cursive" }}
+            >
+              Better Care.
+            </p>
+            <h2 className="mb-5 text-3xl font-bold leading-tight tracking-tight text-[#F7FBF0] lg:text-4xl">
+              Together.
+            </h2>
+            <p className="mb-6 text-[15.5px] leading-relaxed text-[#F2F7EAD9]">
+              Join your care circle in a couple of minutes. One private
+              thread for the whole family and the team looking after them.
+            </p>
+            <div className="grid gap-3.5">
+              {CHECKLIST.map((item) => (
+                <div key={item} className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full bg-[#B8DE6F33] text-[11px] text-[#B8DE6F]">
+                    ✓
+                  </span>
+                  <p className="text-[14.5px] leading-relaxed text-[#F2F7EAE0]">
+                    {item}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
 
-        {/* Card */}
-        <section className="flex flex-1 items-center justify-center py-8">
-          <div className="flex w-full max-w-5xl overflow-hidden rounded-3xl shadow-2xl">
-            {/* ─── Left panel: Form ─── */}
-            <div className="flex w-full flex-col justify-center bg-white px-8 py-12 sm:w-1/2 sm:px-12 sm:py-16">
-
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-            Create Account
+      {/* Right panel: form */}
+      <div className="flex h-full items-start justify-center overflow-y-auto px-6 py-10 sm:px-10 lg:px-14">
+        <div className="w-full max-w-[420px]">
+          <p className="mb-3.5 inline-flex rounded-full bg-[#E7EDDA] px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#4C7A32]">
+            Patients &amp; families
+          </p>
+          <h1 className="mb-2.5 text-3xl font-bold tracking-tight text-[#0C3B1E] sm:text-4xl">
+            Start your care circle.
           </h1>
+          <p className="mb-8 text-[15px] leading-relaxed text-[#4A5A44]">
+            Two minutes now, and the whole family stays in the loop.
+          </p>
 
           {message === "check_email" && (
-            <p className="mt-4 rounded-lg bg-[#E6E15A]/20 p-3 text-sm text-[#1F5F2E]">
+            <p className="mb-6 rounded-lg bg-[#E6E15A]/20 p-3 text-sm text-[#0C3B1E]">
               Check your email for a confirmation link to complete sign up.
             </p>
           )}
           {errorParam === "invalid_confirmation" && (
-            <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+            <p className="mb-6 rounded-lg bg-red-50 p-3 text-sm text-red-600">
               Invalid or expired confirmation link. Please try signing up again.
             </p>
           )}
           {errors.auth && (
-            <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+            <p className="mb-6 rounded-lg bg-red-50 p-3 text-sm text-red-600">
               {errors.auth}
             </p>
           )}
 
-          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-slate-700">
+          <form className="grid gap-4" onSubmit={handleSubmit}>
+            <label className="block">
+              <span className="mb-2 block text-[12.5px] font-semibold tracking-[0.04em] text-[#3C4F3C]">
                 Full name
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                autoComplete="name"
-                placeholder="Jane Doe"
-                className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
-              />
-            </div>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700">
-                Password <span className="text-slate-400">(min 8 characters)</span>
-              </label>
-              <input
-                id="password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                autoComplete="new-password"
-                placeholder="••••••••"
-                minLength={8}
-                className={`mt-1.5 w-full rounded-lg border bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 ${
-                  errors.password
-                    ? "border-red-400 focus:border-red-500 focus:ring-red-500"
-                    : "border-slate-200 focus:border-[#1F5F2E] focus:ring-[#1F5F2E]"
+              </span>
+              <span className="flex items-center gap-2.5 rounded-2xl border-[1.5px] border-[#0C3B1E29] bg-white px-4 transition focus-within:border-[#4C7A32] focus-within:shadow-[0_0_0_4px_rgba(184,222,111,.32)]">
+                <input
+                  name="name"
+                  type="text"
+                  required
+                  autoComplete="name"
+                  placeholder="Marisol Alvarez"
+                  className="min-w-0 flex-1 border-0 bg-transparent py-[15px] text-[15px] text-[#0C3B1E] outline-none placeholder:text-[#0C3B1E80]"
+                />
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-[12.5px] font-semibold tracking-[0.04em] text-[#3C4F3C]">
+                Email
+              </span>
+              <span className="flex items-center gap-2.5 rounded-2xl border-[1.5px] border-[#0C3B1E29] bg-white px-4 transition focus-within:border-[#4C7A32] focus-within:shadow-[0_0_0_4px_rgba(184,222,111,.32)]">
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  className="min-w-0 flex-1 border-0 bg-transparent py-[15px] text-[15px] text-[#0C3B1E] outline-none placeholder:text-[#0C3B1E80]"
+                />
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-[12.5px] font-semibold tracking-[0.04em] text-[#3C4F3C]">
+                Password
+              </span>
+              <span
+                className={`flex items-center gap-2.5 rounded-2xl border-[1.5px] bg-white px-4 transition focus-within:border-[#4C7A32] focus-within:shadow-[0_0_0_4px_rgba(184,222,111,.32)] ${
+                  errors.password ? "border-red-400" : "border-[#0C3B1E29]"
                 }`}
-              />
-              {errors.password && (
-                <p className="mt-1 text-xs text-red-600">{errors.password}</p>
-              )}
-            </div>
-            <div>
-              <label
-                htmlFor="confirmPassword"
-                className="block text-sm font-medium text-slate-700"
               >
-                Confirm password
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type={showPassword ? "text" : "password"}
-                autoComplete="new-password"
-                placeholder="••••••••"
-                className={`mt-1.5 w-full rounded-lg border bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 ${
-                  errors.confirmPassword
-                    ? "border-red-400 focus:border-red-500 focus:ring-red-500"
-                    : "border-slate-200 focus:border-[#1F5F2E] focus:ring-[#1F5F2E]"
-                }`}
-              />
-              {errors.confirmPassword && (
-                <p className="mt-1 text-xs text-red-600">{errors.confirmPassword}</p>
+                <input
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  autoComplete="new-password"
+                  placeholder="At least 10 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="min-w-0 flex-1 border-0 bg-transparent py-[15px] text-[15px] text-[#0C3B1E] outline-none placeholder:text-[#0C3B1E80]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="flex-none rounded-md px-2 py-1.5 text-[12.5px] font-semibold text-[#4C7A32]"
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </span>
+              {errors.password && (
+                <p className="mt-1.5 text-xs text-red-600">{errors.password}</p>
               )}
-            </div>
-            <label className="flex cursor-pointer items-center gap-3">
+              <span className="mt-2.5 flex gap-1.5">
+                {[1, 2, 3].map((i) => (
+                  <span
+                    key={i}
+                    className="h-1 flex-1 rounded-full"
+                    style={{
+                      background: i <= strength ? "#4C7A32" : "rgba(12,59,30,.14)",
+                    }}
+                  />
+                ))}
+              </span>
+            </label>
+
+            <label className="my-1 flex cursor-pointer items-start gap-2.5">
               <input
                 type="checkbox"
-                checked={showPassword}
-                onChange={(e) => setShowPassword(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-[#1F5F2E] focus:ring-[#1F5F2E]"
+                name="terms"
+                className="mt-0.5 h-[17px] w-[17px] flex-none accent-[#0C3B1E]"
               />
-              <span className="text-sm text-slate-600">Show password</span>
+              <span className="text-[13.5px] leading-relaxed text-[#4A5A44]">
+                I agree to the <a href="#">Terms</a> and the{" "}
+                <a href="#">Privacy Notice</a>, including how my health
+                information is shared with my care team.
+              </span>
             </label>
+            {errors.terms && (
+              <p className="-mt-2.5 text-xs text-red-600">{errors.terms}</p>
+            )}
 
             <button
               type="submit"
               disabled={isPending}
-              className="w-full rounded-full bg-[#1F5F2E] py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#174622] disabled:opacity-70"
+              className="flex w-full items-center justify-center gap-2.5 rounded-full bg-[#0C3B1E] py-4 text-[15.5px] font-semibold text-[#F7FBF0] shadow-[0_18px_34px_-18px_rgba(12,59,30,.8)] transition hover:-translate-y-0.5 hover:bg-[#12482A] disabled:opacity-70 disabled:hover:translate-y-0"
             >
-              {isPending ? "Please wait..." : "Create Account"}
+              {isPending ? "Creating account…" : (
+                <>
+                  Create account <span className="text-base">&rarr;</span>
+                </>
+              )}
             </button>
           </form>
 
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200" />
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="bg-white px-3 text-slate-400">or</span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="flex w-full items-center justify-center gap-3 rounded-full border border-slate-200 bg-white py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
-          >
-            <svg className="h-5 w-5" viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-              />
-            </svg>
-            Sign up with Google
-          </button>
-
-          {/* Mobile-only link */}
-          <p className="mt-6 text-center text-sm text-slate-600 sm:hidden">
+          <p className="mt-7 text-sm text-[#4A5A44]">
             Already have an account?{" "}
-            <Link href="/login" className="font-semibold text-[#1F5F2E]">
-              Sign In
+            <Link href="/login" className="font-semibold text-[#3C6B2A] hover:text-[#0C3B1E]">
+              Log in
             </Link>
           </p>
-        </div>
-
-        {/* ─── Right panel: CTA ─── */}
-        <div className="relative hidden w-1/2 flex-col items-center justify-center overflow-hidden bg-[#1F5F2E] px-12 py-16 text-center sm:flex">
-          {/* Decorative shapes */}
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-[#9CCB4A]/20 blur-2xl" />
-            <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-[#E6E15A]/15 blur-2xl" />
-          </div>
-
-          <div className="relative z-10">
-            <h2 className="text-3xl font-semibold text-white">Welcome Back!</h2>
-            <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/80">
-              Already have an account? Sign in to pick up right where you left off.
-            </p>
-            <Link
-              href="/login"
-              className="mt-8 inline-block rounded-full border border-white/60 px-10 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-            >
-              Sign In
+          <p className="mt-3.5 text-[12.5px] leading-relaxed text-[#7A8B72]">
+            Are you a clinician or staff member?{" "}
+            <Link href="/clinician" className="font-semibold text-[#3C6B2A] hover:text-[#0C3B1E]">
+              Register in the staff portal
             </Link>
-          </div>
+            .
+          </p>
         </div>
-          </div>
-        </section>
-      </main>
+      </div>
     </div>
   );
 }
 
 export default function UserAuthPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#F3F6EA]" />}>
       <UserAuthForm />
     </Suspense>
   );
