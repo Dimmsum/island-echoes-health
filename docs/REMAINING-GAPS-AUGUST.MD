@@ -86,7 +86,7 @@ Ordered by *unblocks-others*, then by effort. **M1 is the answer to "what next".
 | **M3** | Provider recommendations | — (unblocked 2026-09-03) | L |
 | **M4** | Patient self-pay — finish | M1.3 | S |
 | **M5** | Notification coverage ✅ | M1.1 | S |
-| **M6** | Patient page data gaps ✅ (M6.6/M6.7 not scheduled) | M1.1 | M–L |
+| **M6** | Patient page data gaps ✅ | M1.1 | M–L |
 | **M7** | Mobile parity | M1.3 | L |
 
 ---
@@ -315,7 +315,9 @@ number. Each item below is one of those placeholders.
 Per `CLAUDE.md`: skeletons while loading, and a rendered container with an explicit empty
 message rather than a hidden card.
 
-**Status: M6.1 ✅, M6.2 ✅ (both shipped 2026-08-31), M6.3 ✅, M6.4 ✅, M6.5 ✅ (all shipped 2026-09-03) — M6.6/M6.7 not scheduled.**
+**Status: M6 fully closed out.** M6.1 ✅, M6.2 ✅ (both shipped 2026-08-31), M6.3 ✅, M6.4 ✅,
+M6.5 ✅ (all shipped 2026-09-03), M6.7 ✅ dropped (2026-09-06), M6.6 ✅ (2026-09-06, "clinicians
+who've seen this patient" scope).
 
 #### M6.1 — Heart rate & temperature ✅ Done (2026-08-31)
 
@@ -446,26 +448,31 @@ cross-appointment read.
 - No new clinician write UI — notes are still authored via the existing appointment-detail
   structured-notes flow; this only adds a patient-level aggregated read.
 
-#### M6.6 — MRN & care team roster — **blocked on product input, not scheduled**
+#### M6.6 — Care team roster ✅ Done (2026-09-06); MRN dropped
 
-Dropped entirely from the current implementation (not even shown as a placeholder). The
-original mockup's header showed an MRN and a "Care team: Dr. R. Osei, N. Baptiste" line.
+Scoped down per product decision: "clinicians who've seen this patient" suffices — no
+`patient_care_team` table needed. MRN was dropped entirely (patients remain identified by
+`profiles.id` UUID; no display-friendly code was requested).
 
-No MRN field exists (patients are identified by `profiles.id` UUID). "Care team" isn't
-modeled — `appointments.clinician_id` ties a clinician to a single visit only.
+**Was:** nothing — no MRN or care-team UI existed, not even a placeholder. **Now:** a "Care
+team" line in the patient header (`webapp/app/patients/PatientsPageClient.tsx`) listing the
+distinct clinicians from the patient's **completed** appointments (via the `TimelineAppointment[]`
+already fetched for the timeline tab — `appointments`), most-recently-seen first, deduplicated
+by `clinician_id`. A patient with no completed visits renders "No clinicians recorded yet"
+rather than hiding the line, per `CLAUDE.md`.
 
-Decide first whether either is actually wanted. If yes: MRN could be a display-friendly code
-derived from the profile id; care team would need a `patient_care_team` table
-(`patient_id, clinician_id, role_label, added_at`) — *unless* "clinicians who've seen this
-patient" suffices, which is derivable from distinct `appointments.clinician_id` with no new table.
+Pure client-side derivation — no migration, no new API route, no new fetch. Both
+`fetchSponsoredPatientDetail` and `fetchSelfPatientDetail` in `webapp/app/patients/actions.ts`
+already populate `appointments` with `clinician_id`/`clinician_name` for every viewing path.
 
-#### M6.7 — Billing tab — **recommend dropping**
+#### M6.7 — Billing tab ✅ Dropped (2026-09-06)
 
 The wallet ledger (`wallet_transactions`) already covers top-ups and deductions and is shown
 in the Wallet card. There is no separate billing concept, and under a wallet-based payment
-model there probably shouldn't be. **Recommendation:** fold this into the Wallet card and
-remove the placeholder tab. Revisit only if a real itemized-invoice need appears, at which
-point it piggybacks on Stripe/wallet reconciliation rather than needing its own table.
+model there shouldn't be. The placeholder "Billing" tab and its `PLACEHOLDER_TABS` scaffold
+were removed from `webapp/app/patients/PatientTimelineTabs.tsx`. Revisit only if a real
+itemized-invoice need appears, at which point it piggybacks on Stripe/wallet reconciliation
+rather than needing its own table.
 
 ---
 

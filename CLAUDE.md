@@ -13,7 +13,7 @@ api/        Express + TypeScript backend — all business logic lives here
 webapp/     Next.js 15 (App Router) web client
 mobile/     Expo / React Native mobile client
 supabase/   migrations/ — sequential numbered SQL migrations (00001…)
-docs/       API-MIGRATION.md, STRIPE.md — architecture decisions
+docs/       REMAINING-GAPS-AUGUST.MD — single source of truth for what's left to build
 ```
 
 ---
@@ -60,18 +60,25 @@ Supabase Auth is the identity source. Every client authenticates with Supabase t
 
 ### API structure (`api/src/`)
 
-- `index.ts` — Express setup, route mounting, error handlers
-- `middleware/` — `authMiddleware` (Bearer validation → `req.user`), `requireAdmin`, `requireClinicianOrAdmin`
-- `routes/` — one file per domain: `auth`, `me`, `home`, `appointments`, `sponsorship`, `stripe`, `clinician-portal`, `admin`, `clinician`, `profile`, `notifications`, `care-plans`
-- `lib/stripe.ts` — Stripe helpers (`createSetupCheckoutSession`, `getOrCreatePriceForCarePlan` — the latter is being removed as part of Priority 1)
+- `index.ts` — Express setup, route mounting (routes are wired directly onto `app` in `index.ts`, not via per-domain `Router` files), error handlers
+- `middleware/auth.ts` — `authMiddleware` (Bearer token validation → `req.user`/`req.accessToken` via the `AuthRequest` type)
+- `middleware/requireRole.ts` — `requireAdmin`, `requireClinicianOrAdmin` (both re-check role by querying `profiles` with the user's own token, so RLS applies)
+- `routes/` — one file per domain: `auth`, `me`, `home`, `appointments`, `sponsorship`, `stripe`, `wallet`, `clinician-portal`, `admin`, `clinician`, `profile`, `notifications`, `follow-ups`, `patient-status-updates`, `patient-conditions`, `medications`, `labs`, `patient-notes`
+- `lib/stripe.ts` — Stripe helpers (`createSetupCheckoutSession`, etc.)
+- `lib/supabase.ts` — `getUserFromToken`, `createSupabaseForUser` (user-scoped, RLS-enforced client) vs. a service-role client for privileged writes
+- `lib/notifications.ts` — `createNotification`, `createNotificationOnce` (idempotent-per-day, used by the cron job below), `notifySponsorsOfPatient`
 
-The API is the only process that should write to Supabase; the webapp and mobile clients read/write exclusively through the API (migration to this model is in progress — see `docs/API-MIGRATION.md`).
+The API is the only process that should write to Supabase; the webapp and mobile clients read/write exclusively through the API (migration to this model is in progress — see [Migration status](#migration-status) below).
+
+There is no scheduler inside `api/` (no cron, pg_cron, `setInterval`). `POST /api/jobs/follow-up-reminders` is mounted outside `authMiddleware` and instead gated by an `x-cron-secret` header matched against `CRON_SECRET` (503 if unset) — an external scheduler (e.g. Supabase `pg_cron`) must be wired to hit it daily.
 
 ### Webapp (`webapp/app/`)
 
 Next.js App Router. Pages use server components to get the Supabase session/token, then call the API with that token. `lib/api.ts` contains the `fetchFromApi` / `fetchApiJson` helpers. Supabase's SSR client (`@supabase/ssr`) is used **only** to retrieve the session — data fetching goes through the API.
 
-Migration status: `/home/*` pages are on the API. Clinician portal, auth flows, and server actions still use direct Supabase queries (Steps 2–4 in `docs/API-MIGRATION.md`).
+#### Migration status
+
+`/home/*` pages are on the API. Clinician portal, auth flows, and some server actions still use direct Supabase queries — e.g. `webapp/app/clinician-portal/appointments/[id]/page.tsx` reads `patient_metrics` directly rather than through an API route.
 
 ### Mobile (`mobile/`)
 
@@ -83,11 +90,11 @@ Four roles enforced at both RLS and API middleware level: `patient`, `sponsor`, 
 
 ### Payment model
 
-The original 3-tier Stripe subscription model (Core Wellness / Chronic Care / Premium Coordination) is being replaced with a **wallet model**: each patient has a `patient_wallets` row; any user can top up the wallet via `wallet_transactions`. The single `sponsorship` row in `care_plans` exists only as an FK anchor during the transition. The `stripe_price_id`, `visits_per_month`, `features`, etc. columns have been dropped.
+The original 3-tier Stripe subscription model (Core Wellness / Chronic Care / Premium Coordination) has been replaced with a **wallet model** on both backend and web: each patient has a `patient_wallets` row; any user — including the patient themself, not just sponsors — can top up the wallet via `wallet_transactions` (`api/src/routes/wallet.ts` is role-agnostic). The single `sponsorship` row in `care_plans` exists only as an FK anchor. The `stripe_price_id`, `visits_per_month`, `features`, etc. columns have been dropped from `care_plans`. Mobile still calls a deleted sponsorship route and renders a stale 3-tier plan picker — see `docs/REMAINING-GAPS-AUGUST.MD` M1.3.
 
 ### Stripe
 
-Setup-then-subscribe: Stripe Checkout in setup mode captures a payment method; on patient consent acceptance the API creates a subscription. Webhooks are verified by raw body + signature and deduplicated via `stripe_webhook_events`. See `docs/STRIPE.md` for the full flow.
+Setup-then-subscribe: Stripe Checkout in setup mode captures a payment method; on patient consent acceptance the API creates a subscription. Webhooks are verified by raw body + signature and deduplicated via `stripe_webhook_events`. `POST /api/wallet/topup/confirm` exists as a fallback for environments (e.g. localhost) where webhooks can't reach the API — don't assume production doesn't silently depend on it too.
 
 ---
 
@@ -107,16 +114,7 @@ Each app has its own `.env`. Key variables:
 
 ## Product direction
 
-Active work is tracked in `webapp/PROGRESS.md`. Priority order:
-
-1. **Remove care plan tiers / simplify payment** (DB done, backend + UI pending)
-2. **Healthcare provider recommendations directory** (not yet started)
-3. **Follow-up tracking** (standalone tasks, not appointment tags)
-4. **Patient self-pay** (currently only sponsors can pay)
-5. **Referral management** (depends on provider directory)
-6. **Patient status updates** (clinician → family view)
-7. **Care continuity dashboard** (depends on 3 + 6)
-8. **Structured clinic notes** (coordination workflows)
+Active work is tracked in `docs/REMAINING-GAPS-AUGUST.MD` — read it before picking up any feature work; it is the single source of truth and supersedes any priority list previously kept elsewhere. In short: most web-side roadmap priorities are shipped; **referral management is explicitly out of scope** (do not plan or build it); the milestone ladder there (M1–M7) covers what's left, led by a production-readiness gate (mobile sponsorship pointing at a deleted route, Clerk auth migration, etc.) and a mobile-parity gap (four web-shipped features — follow-ups, status updates, care continuity, structured notes — have no mobile UI yet).
 
 ## Additional Rules
 

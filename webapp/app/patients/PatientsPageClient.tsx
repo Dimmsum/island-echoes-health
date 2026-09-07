@@ -119,6 +119,19 @@ export function PatientsPageClient({
     notes,
   } = detail;
 
+  const careTeam = Array.from(
+    appointments
+      .filter((a) => a.status === "completed" && a.clinician_id)
+      .reduce((byClinicianId, a) => {
+        const existing = byClinicianId.get(a.clinician_id);
+        if (!existing || new Date(a.scheduled_at) > new Date(existing.lastVisit)) {
+          byClinicianId.set(a.clinician_id, { name: a.clinician_name, lastVisit: a.scheduled_at });
+        }
+        return byClinicianId;
+      }, new Map<string, { name: string | null; lastVisit: string }>())
+      .values(),
+  ).sort((a, b) => new Date(b.lastVisit).getTime() - new Date(a.lastVisit).getTime());
+
   const activeMedications = medications.filter((m) => m.active);
   const findLatestLab = (testName: string) =>
     labs
@@ -247,6 +260,14 @@ export function PatientsPageClient({
                     {isSelf
                       ? "Your own health record"
                       : `${carePlan?.name ?? "Care plan"}${startedDate ? ` · Sponsored since ${startedDate}` : ""}`}
+                  </div>
+                  <div className="mt-1 text-[12.5px] text-[#7a8a80]">
+                    <span className="font-medium text-[#5a6a60]">Care team: </span>
+                    {careTeam.length > 0 ? (
+                      careTeam.map((c) => c.name ?? "Unnamed clinician").join(", ")
+                    ) : (
+                      <span className="text-[#94a298]">No clinicians recorded yet</span>
+                    )}
                   </div>
                   <div className="mt-2.5 flex flex-wrap items-center gap-2">
                     {conditions.length > 0 ? (

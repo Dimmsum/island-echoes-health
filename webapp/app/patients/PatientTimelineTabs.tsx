@@ -24,9 +24,8 @@ type Props = {
   notes: PatientNote[];
 };
 
-const TABS = ["Timeline", "Vitals log", "Status updates", "Medications", "Care notes", "Billing"] as const;
+const TABS = ["Timeline", "Vitals log", "Status updates", "Medications", "Care notes"] as const;
 type Tab = (typeof TABS)[number];
-const PLACEHOLDER_TABS: Tab[] = ["Billing"];
 
 function noteTypeBadge(type: NoteType) {
   switch (type) {
@@ -245,12 +244,6 @@ export function PatientTimelineTabs({ appointments, statusUpdates, followUps, me
               ))}
             </ul>
           ))}
-
-        {PLACEHOLDER_TABS.includes(tab) && (
-          <div className="py-8 text-center text-[13px] text-[#94a298]">
-            {tab} isn&apos;t tracked yet.
-          </div>
-        )}
       </div>
     </div>
   );
