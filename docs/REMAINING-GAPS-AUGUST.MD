@@ -81,7 +81,7 @@ Ordered by *unblocks-others*, then by effort. **M1 is the answer to "what next".
 
 | # | Milestone | Depends on | Size |
 |---|---|---|---|
-| **M1** | Production readiness gate (M1.1 ✅, M1.2 ✅, M1.5 ⏸️) | — | S |
+| **M1** | Production readiness gate (M1.1 ✅, M1.2 ✅, M1.5 ⏸️, M1.6 ⏸️) | — | S–M |
 | **M2** | Drop referral management | — | XS |
 | **M3** | Provider recommendations | — (unblocked 2026-09-03) | L |
 | **M4** | Patient self-pay — finish | M1.3 | S |
@@ -126,6 +126,22 @@ Nothing below is trustworthy until this is green. Two of these are live bugs.
 - **M1.5 — Provider API key.** Provision `GOOGLE_PLACES_API_KEY` (Places API (New),
   Enterprise-tier fields enabled so `rating`/`userRatingCount` can be requested). Self-serve
   via Google Cloud Console, no procurement lead time. Needed before M3.1 can be implemented.
+
+- **M1.6 — Migrate authentication to Clerk.** Current auth model (Supabase Auth issuing a
+  JWT, validated by the API against Supabase with the service role key — see
+  [Auth model](#architecture) in `CLAUDE.md`) needs to be replaced with Clerk for production
+  readiness. Scope not yet broken down; at minimum touches:
+  - `api/src/middleware/authMiddleware.ts` (and `requireAdmin`/`requireClinicianOrAdmin`) —
+    swap Supabase JWT validation for Clerk session/token verification.
+  - `webapp/` — `@supabase/ssr` is currently used *only* to retrieve the session (per
+    `CLAUDE.md`); replace with Clerk's Next.js SDK for sign-in/session retrieval, keeping
+    Supabase as the data layer only.
+  - `mobile/lib/auth.ts` — swap the Supabase auth token retrieval for Clerk's Expo SDK.
+  - Role model (`patient`/`sponsor`/`clinician`/`admin`) currently enforced at both RLS
+    (`auth.uid()`) and API middleware — needs a decision on how Clerk user IDs map into
+    existing `profiles`/RLS policies (e.g. syncing Clerk user ID into `profiles.id` or a new
+    mapping column via webhook).
+  - Migration path for existing users (Supabase Auth → Clerk) not yet designed.
 
 ---
 
