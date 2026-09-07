@@ -17,6 +17,14 @@ const ibmMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Island Echoes Health",
   description: "A calm, modern landing experience for Island Echoes Health.",
+  icons: {
+    icon: [
+      { url: "/island-echoes-icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({
