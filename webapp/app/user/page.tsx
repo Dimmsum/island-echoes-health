@@ -8,7 +8,6 @@ import { handleUserAuth } from "./actions";
 
 function UserAuthForm() {
   const searchParams = useSearchParams();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string; auth?: string }>({});
   const [isPending, setIsPending] = useState(false);
@@ -31,14 +30,13 @@ function UserAuthForm() {
     const newErrors: { password?: string; confirmPassword?: string } = {};
     const pwdError = validatePassword(password);
     if (pwdError) newErrors.password = pwdError;
-    if (mode === "signup" && confirmPassword !== password) {
+    if (confirmPassword !== password) {
       newErrors.confirmPassword = "Passwords do not match";
     }
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
 
     setIsPending(true);
-    formData.set("mode", mode);
 
     const authError = await handleUserAuth(formData);
     if (authError) {
@@ -91,7 +89,7 @@ function UserAuthForm() {
             <div className="flex w-full flex-col justify-center bg-white px-8 py-12 sm:w-1/2 sm:px-12 sm:py-16">
 
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-            {mode === "signin" ? "Sign In" : "Create Account"}
+            Create Account
           </h1>
 
           {message === "check_email" && (
@@ -111,21 +109,19 @@ function UserAuthForm() {
           )}
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-            {mode === "signup" && (
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-slate-700">
-                  Full name
-                </label>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  autoComplete="name"
-                  placeholder="Jane Doe"
-                  className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
-                />
-              </div>
-            )}
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-slate-700">
+                Full name
+              </label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                autoComplete="name"
+                placeholder="Jane Doe"
+                className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
+              />
+            </div>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700">
                 Email address
@@ -141,16 +137,13 @@ function UserAuthForm() {
             </div>
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-slate-700">
-                Password{" "}
-                {mode === "signup" && (
-                  <span className="text-slate-400">(min 8 characters)</span>
-                )}
+                Password <span className="text-slate-400">(min 8 characters)</span>
               </label>
               <input
                 id="password"
                 name="password"
                 type={showPassword ? "text" : "password"}
-                autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                autoComplete="new-password"
                 placeholder="••••••••"
                 minLength={8}
                 className={`mt-1.5 w-full rounded-lg border bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 ${
@@ -162,42 +155,30 @@ function UserAuthForm() {
               {errors.password && (
                 <p className="mt-1 text-xs text-red-600">{errors.password}</p>
               )}
-              {mode === "signin" && (
-                <p className="mt-1">
-                  <Link
-                    href="/auth/forgot-password?from=user"
-                    className="text-sm text-[#1F5F2E] hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
-                </p>
+            </div>
+            <div>
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-slate-700"
+              >
+                Confirm password
+              </label>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                placeholder="••••••••"
+                className={`mt-1.5 w-full rounded-lg border bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 ${
+                  errors.confirmPassword
+                    ? "border-red-400 focus:border-red-500 focus:ring-red-500"
+                    : "border-slate-200 focus:border-[#1F5F2E] focus:ring-[#1F5F2E]"
+                }`}
+              />
+              {errors.confirmPassword && (
+                <p className="mt-1 text-xs text-red-600">{errors.confirmPassword}</p>
               )}
             </div>
-            {mode === "signup" && (
-              <div>
-                <label
-                  htmlFor="confirmPassword"
-                  className="block text-sm font-medium text-slate-700"
-                >
-                  Confirm password
-                </label>
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  placeholder="••••••••"
-                  className={`mt-1.5 w-full rounded-lg border bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 ${
-                    errors.confirmPassword
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-500"
-                      : "border-slate-200 focus:border-[#1F5F2E] focus:ring-[#1F5F2E]"
-                  }`}
-                />
-                {errors.confirmPassword && (
-                  <p className="mt-1 text-xs text-red-600">{errors.confirmPassword}</p>
-                )}
-              </div>
-            )}
             <label className="flex cursor-pointer items-center gap-3">
               <input
                 type="checkbox"
@@ -213,7 +194,7 @@ function UserAuthForm() {
               disabled={isPending}
               className="w-full rounded-full bg-[#1F5F2E] py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#174622] disabled:opacity-70"
             >
-              {isPending ? "Please wait..." : mode === "signin" ? "Sign In" : "Create Account"}
+              {isPending ? "Please wait..." : "Create Account"}
             </button>
           </form>
 
@@ -248,22 +229,15 @@ function UserAuthForm() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            {mode === "signin" ? "Sign in with Google" : "Sign up with Google"}
+            Sign up with Google
           </button>
 
-          {/* Mobile-only toggle */}
+          {/* Mobile-only link */}
           <p className="mt-6 text-center text-sm text-slate-600 sm:hidden">
-            {mode === "signin" ? "Don\u2019t have an account?" : "Already have an account?"}{" "}
-            <button
-              type="button"
-              onClick={() => {
-                setMode(mode === "signin" ? "signup" : "signin");
-                setErrors({});
-              }}
-              className="font-semibold text-[#1F5F2E]"
-            >
-              {mode === "signin" ? "Sign Up" : "Sign In"}
-            </button>
+            Already have an account?{" "}
+            <Link href="/login" className="font-semibold text-[#1F5F2E]">
+              Sign In
+            </Link>
           </p>
         </div>
 
@@ -276,24 +250,16 @@ function UserAuthForm() {
           </div>
 
           <div className="relative z-10">
-            <h2 className="text-3xl font-semibold text-white">
-              {mode === "signin" ? "Hello, Friend!" : "Welcome Back!"}
-            </h2>
+            <h2 className="text-3xl font-semibold text-white">Welcome Back!</h2>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/80">
-              {mode === "signin"
-                ? "Create your account and start your journey with Island Echoes Health."
-                : "Already have an account? Sign in to pick up right where you left off."}
+              Already have an account? Sign in to pick up right where you left off.
             </p>
-            <button
-              type="button"
-              onClick={() => {
-                setMode(mode === "signin" ? "signup" : "signin");
-                setErrors({});
-              }}
-              className="mt-8 rounded-full border border-white/60 px-10 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+            <Link
+              href="/login"
+              className="mt-8 inline-block rounded-full border border-white/60 px-10 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
             >
-              {mode === "signin" ? "Sign Up" : "Sign In"}
-            </button>
+              Sign In
+            </Link>
           </div>
         </div>
           </div>

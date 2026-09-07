@@ -34,46 +34,8 @@ export async function signUp(formData: FormData): Promise<AuthError | null> {
   redirect("/user?message=check_email");
 }
 
-export async function signIn(formData: FormData): Promise<AuthError | null> {
-  const supabase = await createClient();
-
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    return { message: error.message };
-  }
-
-  const userId = data.user?.id;
-  if (userId) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", userId)
-      .single();
-
-    if (profile?.role === "admin") {
-      revalidatePath("/", "layout");
-      redirect("/admin");
-    }
-  }
-
-  revalidatePath("/", "layout");
-  redirect("/home");
-}
-
 export async function handleUserAuth(
   formData: FormData
 ): Promise<AuthError | null> {
-  const mode = formData.get("mode") as string;
-
-  if (mode === "signup") {
-    return signUp(formData);
-  }
-  return signIn(formData);
+  return signUp(formData);
 }

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Hanken_Grotesk, IBM_Plex_Mono } from "next/font/google";
+import { Hanken_Grotesk, IBM_Plex_Mono, Kaushan_Script } from "next/font/google";
 import "./globals.css";
 
 const hanken = Hanken_Grotesk({
@@ -12,6 +12,12 @@ const ibmMono = IBM_Plex_Mono({
   variable: "--font-ibm-mono",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
+});
+
+const kaushan = Kaushan_Script({
+  variable: "--font-kaushan",
+  subsets: ["latin"],
+  weight: ["400"],
 });
 
 export const metadata: Metadata = {
@@ -34,7 +40,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${hanken.variable} ${ibmMono.variable} antialiased`}>
+      <body className={`${hanken.variable} ${ibmMono.variable} ${kaushan.variable} antialiased`}>
         {children}
       </body>
     </html>

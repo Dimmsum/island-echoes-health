@@ -4,52 +4,23 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { handleClinicianAuth, submitClinicianRequest } from "./actions";
+import { submitClinicianRequest } from "./actions";
 
 function ClinicianAuthForm() {
   const searchParams = useSearchParams();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{
-    password?: string;
-    confirmPassword?: string;
-    auth?: string;
-  }>({});
+  const [errors, setErrors] = useState<{ auth?: string }>({});
   const [isPending, setIsPending] = useState(false);
 
   const message = searchParams.get("message");
   const errorParam = searchParams.get("error");
-
-  const validatePassword = (value: string) => {
-    if (value.length < 8) return "Password must be at least 8 characters";
-    return "";
-  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form);
 
-    if (mode === "signup") {
-      setIsPending(true);
-      const authError = await submitClinicianRequest(formData);
-      if (authError) {
-        setErrors({ auth: authError.message });
-        setIsPending(false);
-      }
-      return;
-    }
-
-    const password = formData.get("password") as string;
-    const newErrors: { password?: string; confirmPassword?: string } = {};
-    const pwdError = validatePassword(password);
-    if (pwdError) newErrors.password = pwdError;
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) return;
-
     setIsPending(true);
-    formData.set("mode", mode);
-    const authError = await handleClinicianAuth(formData);
+    const authError = await submitClinicianRequest(formData);
     if (authError) {
       setErrors({ auth: authError.message });
       setIsPending(false);
@@ -102,12 +73,10 @@ function ClinicianAuthForm() {
                 Clinician &amp; Staff Portal
               </p>
               <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-                {mode === "signin" ? "Sign In" : "Create Account"}
+                Create Account
               </h1>
               <p className="mt-2 text-sm text-slate-600">
-                {mode === "signin"
-                  ? "Access the clinical dashboard with your organization credentials."
-                  : "Register for the clinician and staff portal."}
+                Register for the clinician and staff portal.
               </p>
 
               {message === "request_submitted" && (
@@ -128,93 +97,89 @@ function ClinicianAuthForm() {
               )}
 
               <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
-                {mode === "signup" && (
-                  <>
-                    <div>
-                      <label
-                        htmlFor="name"
-                        className="block text-sm font-medium text-slate-700"
-                      >
-                        Full name
-                      </label>
-                      <input
-                        id="name"
-                        name="name"
-                        type="text"
-                        autoComplete="name"
-                        placeholder="Jane Doe"
-                        className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="license_number"
-                        className="block text-sm font-medium text-slate-700"
-                      >
-                        License number <span className="text-slate-400">*</span>
-                      </label>
-                      <input
-                        id="license_number"
-                        name="license_number"
-                        type="text"
-                        placeholder="e.g. MD-12345"
-                        className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="specialty"
-                        className="block text-sm font-medium text-slate-700"
-                      >
-                        Specialty <span className="text-slate-400">*</span>
-                      </label>
-                      <input
-                        id="specialty"
-                        name="specialty"
-                        type="text"
-                        placeholder="e.g. Family Medicine, Psychiatry"
-                        className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="institution_or_clinic_name"
-                        className="block text-sm font-medium text-slate-700"
-                      >
-                        Institution / clinic name
-                      </label>
-                      <input
-                        id="institution_or_clinic_name"
-                        name="institution_or_clinic_name"
-                        type="text"
-                        placeholder="Optional"
-                        className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="license_image"
-                        className="block text-sm font-medium text-slate-700"
-                      >
-                        Medical license image <span className="text-slate-400">*</span>
-                      </label>
-                      <input
-                        id="license_image"
-                        name="license_image"
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,application/pdf"
-                        required
-                        className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 file:mr-3 file:rounded-lg file:border-0 file:bg-[#1F5F2E]/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-[#1F5F2E] focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
-                      />
-                      <p className="mt-1 text-xs text-slate-500">
-                        JPEG, PNG, WebP or PDF, max 5 MB
-                      </p>
-                    </div>
-                    <p className="text-sm text-slate-600">
-                      You&apos;ll set your password after your account is approved.
-                    </p>
-                  </>
-                )}
+                <div>
+                  <label
+                    htmlFor="name"
+                    className="block text-sm font-medium text-slate-700"
+                  >
+                    Full name
+                  </label>
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    autoComplete="name"
+                    placeholder="Jane Doe"
+                    className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="license_number"
+                    className="block text-sm font-medium text-slate-700"
+                  >
+                    License number <span className="text-slate-400">*</span>
+                  </label>
+                  <input
+                    id="license_number"
+                    name="license_number"
+                    type="text"
+                    placeholder="e.g. MD-12345"
+                    className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="specialty"
+                    className="block text-sm font-medium text-slate-700"
+                  >
+                    Specialty <span className="text-slate-400">*</span>
+                  </label>
+                  <input
+                    id="specialty"
+                    name="specialty"
+                    type="text"
+                    placeholder="e.g. Family Medicine, Psychiatry"
+                    className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="institution_or_clinic_name"
+                    className="block text-sm font-medium text-slate-700"
+                  >
+                    Institution / clinic name
+                  </label>
+                  <input
+                    id="institution_or_clinic_name"
+                    name="institution_or_clinic_name"
+                    type="text"
+                    placeholder="Optional"
+                    className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="license_image"
+                    className="block text-sm font-medium text-slate-700"
+                  >
+                    Medical license image <span className="text-slate-400">*</span>
+                  </label>
+                  <input
+                    id="license_image"
+                    name="license_image"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    required
+                    className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 file:mr-3 file:rounded-lg file:border-0 file:bg-[#1F5F2E]/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-[#1F5F2E] focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    JPEG, PNG, WebP or PDF, max 5 MB
+                  </p>
+                </div>
+                <p className="text-sm text-slate-600">
+                  You&apos;ll set your password after your account is approved.
+                </p>
                 <div>
                   <label
                     htmlFor="email"
@@ -231,65 +196,13 @@ function ClinicianAuthForm() {
                     className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1F5F2E] focus:outline-none focus:ring-1 focus:ring-[#1F5F2E]"
                   />
                 </div>
-                {mode === "signin" && (
-                  <div>
-                    <label
-                      htmlFor="password"
-                      className="block text-sm font-medium text-slate-700"
-                    >
-                      Password
-                    </label>
-                    <input
-                      id="password"
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      placeholder="••••••••"
-                      minLength={8}
-                      className={`mt-1.5 w-full rounded-lg border bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 ${
-                        errors.password
-                          ? "border-red-400 focus:border-red-500 focus:ring-red-500"
-                          : "border-slate-200 focus:border-[#1F5F2E] focus:ring-[#1F5F2E]"
-                      }`}
-                    />
-                    {errors.password && (
-                      <p className="mt-1 text-xs text-red-600">{errors.password}</p>
-                    )}
-                    <p className="mt-1">
-                      <Link
-                        href="/auth/forgot-password?from=clinician"
-                        className="text-sm text-[#1F5F2E] hover:underline"
-                      >
-                        Forgot password?
-                      </Link>
-                    </p>
-                  </div>
-                )}
-
-                {mode === "signin" && (
-                  <>
-                    <label className="flex cursor-pointer items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={showPassword}
-                        onChange={(e) => setShowPassword(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 text-[#1F5F2E] focus:ring-[#1F5F2E]"
-                      />
-                      <span className="text-sm text-slate-600">Show password</span>
-                    </label>
-                  </>
-                )}
 
                 <button
                   type="submit"
                   disabled={isPending}
                   className="w-full rounded-full bg-[#1F5F2E] py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#174622] disabled:opacity-70"
                 >
-                  {isPending
-                    ? "Please wait..."
-                    : mode === "signin"
-                      ? "Sign In"
-                      : "Create Account"}
+                  {isPending ? "Please wait..." : "Create Account"}
                 </button>
               </form>
 
@@ -324,25 +237,14 @@ function ClinicianAuthForm() {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                {mode === "signin"
-                  ? "Sign in with Google"
-                  : "Sign up with Google"}
+                Sign up with Google
               </button>
 
               <p className="mt-6 text-center text-sm text-slate-600">
-                {mode === "signin"
-                  ? "Don't have an account?"
-                  : "Already have an account?"}{" "}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode(mode === "signin" ? "signup" : "signin");
-                    setErrors({});
-                  }}
-                  className="font-semibold text-[#1F5F2E]"
-                >
-                  {mode === "signin" ? "Sign Up" : "Sign In"}
-                </button>
+                Already have an account?{" "}
+                <Link href="/login" className="font-semibold text-[#1F5F2E]">
+                  Sign In
+                </Link>
               </p>
             </div>
 
@@ -355,25 +257,17 @@ function ClinicianAuthForm() {
               </div>
 
               <div className="relative z-10">
-                <h2 className="text-3xl font-semibold text-white">
-                  {mode === "signin" ? "Welcome Back" : "Join the Team"}
-                </h2>
+                <h2 className="text-3xl font-semibold text-white">Join the Team</h2>
                 <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/80">
-                  {mode === "signin"
-                    ? "Sign in to access patient communication, appointment schedules, and your team's shared dashboard."
-                    : "Create your account to access the clinician and staff portal."}
+                  Create your account to access the clinician and staff portal.
                 </p>
                 <div className="mt-8 flex flex-col items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode(mode === "signin" ? "signup" : "signin");
-                      setErrors({});
-                    }}
+                  <Link
+                    href="/login"
                     className="rounded-full border border-white/60 px-10 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                   >
-                    {mode === "signin" ? "Sign Up" : "Sign In"}
-                  </button>
+                    Sign In
+                  </Link>
                   <Link
                     href="/user"
                     className="text-sm text-white/80 underline hover:text-white"
