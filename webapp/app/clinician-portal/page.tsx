@@ -6,6 +6,7 @@ import { fetchApiJson } from "@/lib/api";
 import { ClinicianPortalDashboard } from "./ClinicianPortalDashboard";
 import type { FollowUp } from "./follow-up-types";
 import type { CareContinuityPatient } from "./CareContinuityPanel";
+import type { AgendaItem } from "./ClinicianPortalDashboard";
 
 const STAFF_ROLES = ["admin", "clinician"] as const;
 
@@ -50,16 +51,15 @@ export default async function ClinicianPortalPage() {
     patientIds.length > 0
       ? supabase
           .from("appointments")
-          .select("id, patient_id, clinician_id, scheduled_at, status")
+          .select("id, patient_id, clinician_id, scheduled_at, status, appointment_type")
           .in("patient_id", patientIds)
           .order("scheduled_at", { ascending: true })
       : Promise.resolve({ data: [] }),
     patientIds.length > 0
       ? supabase
           .from("appointments")
-          .select("id, patient_id, scheduled_at, status")
+          .select("id, patient_id, scheduled_at, status, appointment_type")
           .in("patient_id", patientIds)
-          .eq("status", "scheduled")
           .gte("scheduled_at", new Date().toISOString().split("T")[0])
           .lt("scheduled_at", new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0])
           .order("scheduled_at", { ascending: true })
@@ -124,6 +124,18 @@ export default async function ClinicianPortalPage() {
     (a) => a.status === "scheduled" && new Date(a.scheduled_at) >= new Date()
   ).length;
   const todayAppointmentsCount = todayAppointments.length;
+
+  // Today's agenda, oldest to newest, with patient names resolved for display.
+  const todayAgenda: AgendaItem[] = todayAppointments
+    .map((a) => ({
+      id: a.id,
+      patientId: a.patient_id,
+      patientName: patientProfiles.find((p) => p.id === a.patient_id)?.full_name ?? "Patient",
+      scheduledAt: a.scheduled_at,
+      status: a.status,
+      appointmentType: a.appointment_type,
+    }))
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
   // Open follow-ups owned by this clinician, overdue surfaced first.
   let myFollowUps: FollowUp[] = [];
@@ -191,6 +203,7 @@ export default async function ClinicianPortalPage() {
       followUps={myFollowUps}
       followUpPatientNames={followUpPatientNames}
       careContinuityPatients={careContinuityPatients}
+      todayAgenda={todayAgenda}
     />
   );
 }
