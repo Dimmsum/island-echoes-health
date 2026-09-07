@@ -23,6 +23,9 @@ import * as wallet from "./routes/wallet.js";
 import * as followUps from "./routes/follow-ups.js";
 import * as patientStatusUpdates from "./routes/patient-status-updates.js";
 import * as patientConditions from "./routes/patient-conditions.js";
+import * as medications from "./routes/medications.js";
+import * as labs from "./routes/labs.js";
+import * as patientNotes from "./routes/patient-notes.js";
 
 const app = express();
 const upload = multer({ dest: path.join(process.cwd(), "tmp-uploads") });
@@ -545,6 +548,81 @@ app.get(
     patientConditions
       .listConditions(
         req as Parameters<typeof patientConditions.listConditions>[0],
+        res,
+      )
+      .catch(next),
+);
+
+// Patient medications
+app.post(
+  "/api/patients/:id/medications",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) =>
+    medications
+      .createMedication(
+        req as Parameters<typeof medications.createMedication>[0],
+        res,
+      )
+      .catch(next),
+);
+app.get(
+  "/api/patients/:id/medications",
+  authMiddleware,
+  (req, res, next) =>
+    medications
+      .listMedications(
+        req as Parameters<typeof medications.listMedications>[0],
+        res,
+      )
+      .catch(next),
+);
+app.patch(
+  "/api/patients/:id/medications/:medicationId",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) =>
+    medications
+      .updateMedication(
+        req as Parameters<typeof medications.updateMedication>[0],
+        res,
+      )
+      .catch(next),
+);
+
+// Patient lab results
+app.post(
+  "/api/patients/:id/labs",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) =>
+    labs
+      .createLabResult(
+        req as Parameters<typeof labs.createLabResult>[0],
+        res,
+      )
+      .catch(next),
+);
+app.get(
+  "/api/patients/:id/labs",
+  authMiddleware,
+  (req, res, next) =>
+    labs
+      .listLabResults(
+        req as Parameters<typeof labs.listLabResults>[0],
+        res,
+      )
+      .catch(next),
+);
+
+// Patient notes (aggregated across appointments)
+app.get(
+  "/api/patients/:id/notes",
+  authMiddleware,
+  (req, res, next) =>
+    patientNotes
+      .listPatientNotes(
+        req as Parameters<typeof patientNotes.listPatientNotes>[0],
         res,
       )
       .catch(next),

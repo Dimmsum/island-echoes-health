@@ -114,7 +114,18 @@ export function PatientsPageClient({
     wallet,
     transactions,
     conditions,
+    medications,
+    labs,
+    notes,
   } = detail;
+
+  const activeMedications = medications.filter((m) => m.active);
+  const findLatestLab = (testName: string) =>
+    labs
+      .filter((l) => l.testName.toLowerCase() === testName.toLowerCase())
+      .sort((a, b) => new Date(b.drawnAt).getTime() - new Date(a.drawnAt).getTime())[0] ?? null;
+  const ldl = findLatestLab("LDL");
+  const hdl = findLatestLab("HDL");
 
   const isSelf = selectedLinkId === SELF;
   const now = new Date();
@@ -353,22 +364,50 @@ export function PatientsPageClient({
                       )}
                       <div className="mt-1.5 text-[11px] text-[#94a298]">Target below 6.5%</div>
                     </div>
-                    <div>
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-[12.5px] font-medium text-[#3d4a43]">LDL</span>
-                        <span className="text-[13px] font-medium text-[#c7cfc8]">Not tracked</span>
+                    {[
+                      { label: "LDL", result: ldl },
+                      { label: "HDL", result: hdl },
+                    ].map(({ label, result }) => (
+                      <div key={label}>
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-[12.5px] font-medium text-[#3d4a43]">{label}</span>
+                          <span
+                            className={
+                              result
+                                ? "text-[16px] font-bold text-[#16241D]"
+                                : "text-[13px] font-medium text-[#c7cfc8]"
+                            }
+                          >
+                            {result ? `${result.value}${result.unit ? ` ${result.unit}` : ""}` : "Not tracked"}
+                          </span>
+                        </div>
+                        {result && result.referenceLow != null && result.referenceHigh != null ? (
+                          <div className="mt-2 h-1.5 rounded-full bg-[#eceae4]">
+                            <div
+                              className="h-full rounded-full bg-[#E3B341]"
+                              style={{
+                                width: `${Math.min(
+                                  100,
+                                  Math.max(
+                                    4,
+                                    ((result.value - result.referenceLow) /
+                                      (result.referenceHigh - result.referenceLow)) *
+                                      100,
+                                  ),
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="mt-2 h-1.5 rounded-full bg-[#F0F4F0]" />
+                        )}
+                        <div className={`mt-1.5 text-[11px] ${result ? "text-[#94a298]" : "text-[#c7cfc8]"}`}>
+                          {result
+                            ? `Drawn ${new Date(result.drawnAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                            : "No lab panel data recorded yet"}
+                        </div>
                       </div>
-                      <div className="mt-2 h-1.5 rounded-full bg-[#F0F4F0]" />
-                      <div className="mt-1.5 text-[11px] text-[#c7cfc8]">No lab panel data recorded yet</div>
-                    </div>
-                    <div>
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-[12.5px] font-medium text-[#3d4a43]">HDL</span>
-                        <span className="text-[13px] font-medium text-[#c7cfc8]">Not tracked</span>
-                      </div>
-                      <div className="mt-2 h-1.5 rounded-full bg-[#F0F4F0]" />
-                      <div className="mt-1.5 text-[11px] text-[#c7cfc8]">No lab panel data recorded yet</div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -378,9 +417,22 @@ export function PatientsPageClient({
                   <span style={monoStyle} className="text-[10px] uppercase tracking-[.14em] text-[#8a988f]">
                     Medications
                   </span>
-                  <div className="mt-6 py-4 text-center text-[13px] text-[#94a298]">
-                    Medications aren&apos;t tracked yet.
-                  </div>
+                  {activeMedications.length === 0 ? (
+                    <div className="mt-6 py-4 text-center text-[13px] text-[#94a298]">
+                      No active medications.
+                    </div>
+                  ) : (
+                    <ul className="mt-4 space-y-3">
+                      {activeMedications.map((m) => (
+                        <li key={m.id} className="border-b border-[#F4F7F3] pb-3 last:border-b-0 last:pb-0">
+                          <div className="text-[13.5px] font-semibold text-[#16241D]">{m.name}</div>
+                          <div className="mt-0.5 text-[12px] text-[#7a8a80]">
+                            {[m.dosage, m.frequency].filter(Boolean).join(" · ") || "—"}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
                 {wallet && patient?.id && (
                   <CompactWallet
@@ -401,6 +453,8 @@ export function PatientsPageClient({
                 statusUpdates={statusUpdates}
                 followUps={followUps}
                 metrics={metrics}
+                medications={medications}
+                notes={notes}
               />
             </div>
           </>

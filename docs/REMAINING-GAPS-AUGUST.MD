@@ -86,7 +86,7 @@ Ordered by *unblocks-others*, then by effort. **M1 is the answer to "what next".
 | **M3** | Provider recommendations | — (unblocked 2026-09-03) | L |
 | **M4** | Patient self-pay — finish | M1.3 | S |
 | **M5** | Notification coverage ✅ | M1.1 | S |
-| **M6** | Patient page data gaps (M6.1 ✅, M6.2 ✅) | M1.1 | M–L |
+| **M6** | Patient page data gaps ✅ (M6.6/M6.7 not scheduled) | M1.1 | M–L |
 | **M7** | Mobile parity | M1.3 | L |
 
 ---
@@ -299,7 +299,7 @@ number. Each item below is one of those placeholders.
 Per `CLAUDE.md`: skeletons while loading, and a rendered container with an explicit empty
 message rather than a hidden card.
 
-**Status: M6.1 ✅, M6.2 ✅ (both shipped 2026-08-31) — M6.3–M6.5 remain; M6.6/M6.7 not scheduled.**
+**Status: M6.1 ✅, M6.2 ✅ (both shipped 2026-08-31), M6.3 ✅, M6.4 ✅, M6.5 ✅ (all shipped 2026-09-03) — M6.6/M6.7 not scheduled.**
 
 #### M6.1 — Heart rate & temperature ✅ Done (2026-08-31)
 
@@ -368,51 +368,67 @@ Express middleware, not in SQL.
   `webapp/app/patients/actions.ts`'s `SponsoredPatientDetail` type now carries `conditions`
   for both the sponsor and self-view paths.
 
-#### M6.3 — Medications
+#### M6.3 — Medications ✅ Done (2026-09-03)
 
-**Where:** `PatientsPageClient.tsx` "Medications" card ("Medications aren't tracked yet") and
-the "Medications" tab in `PatientTimelineTabs.tsx`.
+**Was:** `PatientsPageClient.tsx` "Medications" card ("Medications aren't tracked yet") and
+the "Medications" tab in `PatientTimelineTabs.tsx`. **Now:** a real card of active medications
+(name/dosage/frequency) and a real tab listing every medication with an Active/Ended badge.
 
-`patient_metrics.medication_adherence` is a single qualitative enum (`good`/`fair`/`poor`)
-per visit — a proxy for *how well* a patient takes their meds, not a record of *what* they take.
-No medications table exists.
+- **Migration `00040_medications.sql`** — new `medications` table (`id, patient_id, name,
+  dosage, frequency, prescribed_by, started_at, ended_at` nullable — active if null, `notes,
+  created_by, created_at`), RLS following the `patient_conditions`/M6.2 precedent (patient
+  reads own, sponsor reads linked, clinician/admin read all, service-role-only writes).
+- **API** — new `api/src/routes/medications.ts` (`createMedication`, `listMedications`, and
+  `updateMedication` — the latter mirrors `follow-ups.ts`'s `updateFollowUp` ownership-guard
+  pattern and is mainly used to set `endedAt`), mounted as `GET`/`POST /api/patients/:id/medications`
+  and `PATCH /api/patients/:id/medications/:medicationId` (`POST`/`PATCH` gated by
+  `requireClinicianOrAdmin`).
+- **Web write UI** — `MedicationsSection.tsx` added to
+  `webapp/app/clinician-portal/appointments/[id]/`, alongside `ConditionsSection`, backed by
+  `medication-actions.ts` and `medication-types.ts`.
+- **Web read wiring** — `fetchPatientMedications` added to `webapp/app/home/actions.ts`;
+  `SponsoredPatientDetail` carries `medications` for both the sponsor and self-view paths.
 
-- New `medications` table: `id, patient_id, name, dosage, frequency, prescribed_by,
-  started_at, ended_at (nullable — active if null), notes`.
-- `GET /api/patients/:id/medications`, `POST`/`PATCH` for clinician/admin to prescribe/discontinue.
-- Real card: active meds (name, dosage, frequency). The original mockup's per-med adherence
-  pill would need adherence tracked *per medication* rather than per visit — a bigger lift,
-  scoped as a fast-follow once the list exists.
+#### M6.4 — Lab panel (LDL / HDL, generalized) ✅ Done (2026-09-03)
 
-#### M6.4 — Lab panel (LDL / HDL, generalized)
+**Was:** `PatientsPageClient.tsx` "Labs" card — a real HbA1c bar (backed by
+`patient_metrics.a1c`) alongside two hardcoded greyed LDL/HDL rows. **Now:** LDL/HDL are looked
+up from real lab results by test name; a test with no recorded result still shows the original
+per-test "Not tracked" treatment (card container never hidden).
 
-**Where:** `PatientsPageClient.tsx` "Labs" card — a real HbA1c bar (backed by
-`patient_metrics.a1c`) alongside two greyed LDL/HDL rows.
+- **Migration `00041_lab_results.sql`** — new `lab_results` table (`id, patient_id, panel_type`
+  enum `'lipid_panel'|'metabolic_panel'|'other'`, `test_name` free text so new lab types never
+  need a migration, `value, unit, reference_low, reference_high, drawn_at, created_by,
+  created_at`), same RLS shape as conditions/medications. Indexed and ordered by `drawn_at`
+  (clinically relevant time), not entry time.
+- **API** — new `api/src/routes/labs.ts` (`createLabResult`, `listLabResults`). **No PATCH**
+  — lab results are immutable; corrections are new entries, per the original scope.
+- **Web write UI** — `LabResultsSection.tsx` (test name/panel/value/unit/reference range/drawn
+  date form + list, no edit affordance), backed by `lab-actions.ts` and `lab-result-types.ts`.
+- **Web read wiring** — `fetchPatientLabs` added to `home/actions.ts`; `SponsoredPatientDetail`
+  carries `labs`.
 
-No lab-panel table exists. `a1c` is a single column on `patient_metrics`, not a labs entity —
-no independent draw date, no reference ranges, no arbitrary test types.
+#### M6.5 — Care notes tab ✅ Done (2026-09-03)
 
-- New `lab_results` table: `id, patient_id, panel_type, test_name, value, unit,
-  reference_low, reference_high, drawn_at, recorded_by, created_at`. Generalizes past LDL/HDL
-  to any future lab type without further migrations.
-- `GET /api/patients/:id/labs` — RLS-scoped read, mirroring `patient-status-updates.ts`'s
-  pattern; `POST` for clinician/admin.
-- Replace the hardcoded LDL/HDL rows with a mapped list; keep the "not tracked" treatment for
-  any test type not yet recorded for that patient.
+**Was:** `PatientTimelineTabs.tsx` — `PLACEHOLDER_TABS` rendered the generic "isn't tracked
+yet" message for "Care notes". **Now:** a chronological feed of the patient's notes across all
+their appointments, each with a color-coded `note_type` badge.
 
-#### M6.5 — Care notes tab
+Pure wiring, as scoped — no migration. `appointment_notes` already existed (visit-scoped,
+`note_type`: general/coordination/clinical_summary/discharge, from `00035`) with RLS that
+already excludes `coordination` notes from sponsors; this milestone only added the
+cross-appointment read.
 
-**Where:** `PatientTimelineTabs.tsx:25` — `PLACEHOLDER_TABS` renders the generic
-"isn't tracked yet" message.
-
-Mostly wiring. `appointment_notes` already exists and is visit-scoped (`note_type`:
-general/coordination/clinical_summary/discharge, from `00035`), but no endpoint returns a
-patient's notes across all their appointments in one call.
-
-- `GET /api/patients/:id/notes` — joins `appointment_notes` across the patient's appointments,
-  respecting existing RLS (sponsors remain blocked from `coordination` notes by design).
-- Render chronologically (date, note_type badge, content), reusing the note_type styling the
-  clinician portal already has.
+- **API** — new `api/src/routes/patient-notes.ts` (`listPatientNotes`, `GET
+  /api/patients/:id/notes`), using the user-context Supabase client for a two-step query:
+  first the patient's appointment IDs (RLS-scoped), then `appointment_notes` filtered to those
+  IDs (RLS-scoped) — the second query is what actually enforces the coordination-note
+  exclusion for sponsors. Bare `authMiddleware`, no `requireClinicianOrAdmin` — RLS does the
+  scoping, matching the GET pattern for conditions/status-updates/follow-ups.
+- **Web read wiring** — `fetchPatientNotes` added to `home/actions.ts`; `SponsoredPatientDetail`
+  carries `notes`; new `patient-note-types.ts` for the dedicated `PatientNote` shape.
+- No new clinician write UI — notes are still authored via the existing appointment-detail
+  structured-notes flow; this only adds a patient-level aggregated read.
 
 #### M6.6 — MRN & care team roster — **blocked on product input, not scheduled**
 

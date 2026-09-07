@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import type { WalletTransaction } from "./WalletCard";
 import type { StatusUpdate } from "@/app/clinician-portal/status-update-types";
 import type { PatientCondition } from "@/app/clinician-portal/condition-types";
+import type { Medication } from "@/app/clinician-portal/medication-types";
+import type { LabResult } from "@/app/clinician-portal/lab-result-types";
+import type { PatientNote } from "@/app/clinician-portal/patient-note-types";
 
 export type HomeActionResult = { error: string | null };
 
@@ -436,6 +439,66 @@ export async function fetchPatientConditions(patientId: string): Promise<Patient
     if (!res.ok) return [];
     const data = await res.json().catch(() => ({}));
     return data.conditions ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Fetches medications for a linked patient the viewer has access to. */
+export async function fetchPatientMedications(patientId: string): Promise<Medication[]> {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) return [];
+
+  try {
+    const res = await fetch(`${API_BASE}/api/patients/${patientId}/medications`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => ({}));
+    return data.medications ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Fetches lab results for a linked patient the viewer has access to. */
+export async function fetchPatientLabs(patientId: string): Promise<LabResult[]> {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) return [];
+
+  try {
+    const res = await fetch(`${API_BASE}/api/patients/${patientId}/labs`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => ({}));
+    return data.labResults ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Fetches care notes aggregated across a patient's appointments. */
+export async function fetchPatientNotes(patientId: string): Promise<PatientNote[]> {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) return [];
+
+  try {
+    const res = await fetch(`${API_BASE}/api/patients/${patientId}/notes`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => ({}));
+    return data.notes ?? [];
   } catch {
     return [];
   }

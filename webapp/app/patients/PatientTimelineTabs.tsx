@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import type { PatientMetric, FollowUp } from "@/app/home/actions";
 import type { StatusUpdate } from "@/app/clinician-portal/status-update-types";
+import type { Medication } from "@/app/clinician-portal/medication-types";
+import type { NoteType, PatientNote } from "@/app/clinician-portal/patient-note-types";
 
 export type TimelineAppointment = {
   id: string;
@@ -18,11 +20,39 @@ type Props = {
   statusUpdates: StatusUpdate[];
   followUps: FollowUp[];
   metrics: PatientMetric[];
+  medications: Medication[];
+  notes: PatientNote[];
 };
 
 const TABS = ["Timeline", "Vitals log", "Status updates", "Medications", "Care notes", "Billing"] as const;
 type Tab = (typeof TABS)[number];
-const PLACEHOLDER_TABS: Tab[] = ["Medications", "Care notes", "Billing"];
+const PLACEHOLDER_TABS: Tab[] = ["Billing"];
+
+function noteTypeBadge(type: NoteType) {
+  switch (type) {
+    case "clinical_summary":
+      return "bg-blue-50 text-blue-700 ring-1 ring-blue-600/20";
+    case "discharge":
+      return "bg-amber-50 text-amber-700 ring-1 ring-amber-600/20";
+    case "coordination":
+      return "bg-purple-50 text-purple-700 ring-1 ring-purple-600/20";
+    default:
+      return "bg-slate-100 text-slate-600 ring-1 ring-slate-500/10";
+  }
+}
+
+function noteTypeLabel(type: NoteType) {
+  switch (type) {
+    case "clinical_summary":
+      return "Clinical summary";
+    case "discharge":
+      return "Discharge";
+    case "coordination":
+      return "Coordination";
+    default:
+      return "General";
+  }
+}
 
 const monoStyle = { fontFamily: "var(--font-ibm-mono, 'IBM Plex Mono', monospace)" };
 
@@ -38,7 +68,7 @@ function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toUpperCase();
 }
 
-export function PatientTimelineTabs({ appointments, statusUpdates, followUps, metrics }: Props) {
+export function PatientTimelineTabs({ appointments, statusUpdates, followUps, metrics, medications, notes }: Props) {
   const [tab, setTab] = useState<Tab>("Timeline");
 
   const timeline = useMemo<TimelineEntry[]>(() => {
@@ -160,6 +190,57 @@ export function PatientTimelineTabs({ appointments, statusUpdates, followUps, me
                     {fmtDate(u.createdAt)}
                   </span>
                   <p className="mt-1.5 whitespace-pre-wrap text-[13px] text-[#3d4a43]">{u.statusText}</p>
+                </li>
+              ))}
+            </ul>
+          ))}
+
+        {tab === "Medications" &&
+          (medications.length === 0 ? (
+            <div className="py-8 text-center text-[13px] text-[#94a298]">No medications recorded yet.</div>
+          ) : (
+            <ul className="space-y-3">
+              {medications.map((m) => (
+                <li key={m.id} className="rounded-xl bg-[#F4F7F3] px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[13.5px] font-semibold text-[#16241D]">{m.name}</span>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                        m.active ? "bg-[#DCEFE3] text-[#13643F]" : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {m.active ? "Active" : "Ended"}
+                    </span>
+                  </div>
+                  <div style={monoStyle} className="mt-1.5 text-[10.5px] text-[#9aa8a0]">
+                    {[m.dosage, m.frequency].filter(Boolean).join(" · ") || "—"}
+                  </div>
+                  <div className="mt-1 text-[12px] text-[#7a8a80]">
+                    Started {fmtDate(m.startedAt)}
+                    {m.endedAt ? ` · Ended ${fmtDate(m.endedAt)}` : ""}
+                  </div>
+                  {m.notes && <p className="mt-1.5 whitespace-pre-wrap text-[12.5px] text-[#3d4a43]">{m.notes}</p>}
+                </li>
+              ))}
+            </ul>
+          ))}
+
+        {tab === "Care notes" &&
+          (notes.length === 0 ? (
+            <div className="py-8 text-center text-[13px] text-[#94a298]">No care notes yet.</div>
+          ) : (
+            <ul className="space-y-3">
+              {notes.map((n) => (
+                <li key={n.id} className="rounded-xl bg-[#F4F7F3] px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span style={monoStyle} className="text-[10.5px] text-[#9aa8a0]">
+                      {fmtDate(n.createdAt)}
+                    </span>
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${noteTypeBadge(n.noteType)}`}>
+                      {noteTypeLabel(n.noteType)}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 whitespace-pre-wrap text-[13px] text-[#3d4a43]">{n.content}</p>
                 </li>
               ))}
             </ul>

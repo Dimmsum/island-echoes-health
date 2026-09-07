@@ -7,9 +7,13 @@ import { AppointmentDetailClient as SharedDetailClient } from "../../../home/app
 import { FollowUpsSection } from "./FollowUpsSection";
 import { StatusUpdatesSection } from "./StatusUpdatesSection";
 import { ConditionsSection } from "./ConditionsSection";
+import { MedicationsSection } from "./MedicationsSection";
+import { LabResultsSection } from "./LabResultsSection";
 import type { FollowUp } from "../../follow-up-types";
 import type { StatusUpdate } from "../../status-update-types";
 import type { PatientCondition } from "../../condition-types";
+import type { Medication } from "../../medication-types";
+import type { LabResult } from "../../lab-result-types";
 
 type Note = { id: string; content: string; note_type: string; flag_for_follow_up: boolean; created_at: string };
 type Service = { id: string; service_type: string; details: string | null; created_at: string };
@@ -41,6 +45,8 @@ type Props = {
   followUps: FollowUp[];
   statusUpdates: StatusUpdate[];
   conditions: PatientCondition[];
+  medications: Medication[];
+  labResults: LabResult[];
 };
 
 function getStatusLabel(status: string) {
@@ -118,6 +124,8 @@ export function ClinicianAppointmentDetailClient({
   followUps,
   statusUpdates,
   conditions,
+  medications,
+  labResults,
 }: Props) {
   const router = useRouter();
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
@@ -254,6 +262,16 @@ export function ClinicianAppointmentDetailClient({
       <ConditionsSection
         patientId={patientId}
         conditions={conditions}
+      />
+
+      <MedicationsSection
+        patientId={patientId}
+        medications={medications}
+      />
+
+      <LabResultsSection
+        patientId={patientId}
+        labResults={labResults}
       />
     </div>
   );

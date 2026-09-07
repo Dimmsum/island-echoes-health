@@ -7,12 +7,18 @@ import {
   fetchPatientStatusUpdates,
   fetchPatientFollowUps,
   fetchPatientConditions,
+  fetchPatientMedications,
+  fetchPatientLabs,
+  fetchPatientNotes,
   type PatientMetric,
   type FollowUp,
 } from "@/app/home/actions";
 import type { WalletTransaction } from "@/app/home/WalletCard";
 import type { StatusUpdate } from "@/app/clinician-portal/status-update-types";
 import type { PatientCondition } from "@/app/clinician-portal/condition-types";
+import type { Medication } from "@/app/clinician-portal/medication-types";
+import type { LabResult } from "@/app/clinician-portal/lab-result-types";
+import type { PatientNote } from "@/app/clinician-portal/patient-note-types";
 import type { TimelineAppointment } from "./PatientTimelineTabs";
 
 export type SponsoredPatientDetail = {
@@ -33,6 +39,9 @@ export type SponsoredPatientDetail = {
   statusUpdates: StatusUpdate[];
   followUps: FollowUp[];
   conditions: PatientCondition[];
+  medications: Medication[];
+  labs: LabResult[];
+  notes: PatientNote[];
   error?: string;
 };
 
@@ -48,6 +57,9 @@ const EMPTY: SponsoredPatientDetail = {
   statusUpdates: [],
   followUps: [],
   conditions: [],
+  medications: [],
+  labs: [],
+  notes: [],
 };
 
 /** Fetches everything the patient-detail view on /patients needs for one linked patient. */
@@ -60,7 +72,7 @@ export async function fetchSponsoredPatientDetail(linkId: string): Promise<Spons
 
   type BaseData = Omit<
     SponsoredPatientDetail,
-    "wallet" | "transactions" | "statusUpdates" | "followUps" | "conditions" | "error"
+    "wallet" | "transactions" | "statusUpdates" | "followUps" | "conditions" | "medications" | "labs" | "notes" | "error"
   >;
   let base: BaseData;
   try {
@@ -74,13 +86,19 @@ export async function fetchSponsoredPatientDetail(linkId: string): Promise<Spons
   let statusUpdates: StatusUpdate[] = [];
   let followUps: FollowUp[] = [];
   let conditions: PatientCondition[] = [];
+  let medications: Medication[] = [];
+  let labs: LabResult[] = [];
+  let notes: PatientNote[] = [];
 
   if (base.patient?.id) {
-    const [walletRes, statusRes, followUpsRes, conditionsRes] = await Promise.allSettled([
+    const [walletRes, statusRes, followUpsRes, conditionsRes, medicationsRes, labsRes, notesRes] = await Promise.allSettled([
       fetchPatientWalletData(base.patient.id),
       fetchPatientStatusUpdates(base.patient.id),
       fetchPatientFollowUps(base.patient.id),
       fetchPatientConditions(base.patient.id),
+      fetchPatientMedications(base.patient.id),
+      fetchPatientLabs(base.patient.id),
+      fetchPatientNotes(base.patient.id),
     ]);
     if (walletRes.status === "fulfilled") {
       wallet = walletRes.value.wallet;
@@ -89,9 +107,12 @@ export async function fetchSponsoredPatientDetail(linkId: string): Promise<Spons
     if (statusRes.status === "fulfilled") statusUpdates = statusRes.value;
     if (followUpsRes.status === "fulfilled") followUps = followUpsRes.value;
     if (conditionsRes.status === "fulfilled") conditions = conditionsRes.value;
+    if (medicationsRes.status === "fulfilled") medications = medicationsRes.value;
+    if (labsRes.status === "fulfilled") labs = labsRes.value;
+    if (notesRes.status === "fulfilled") notes = notesRes.value;
   }
 
-  return { ...base, wallet, transactions, statusUpdates, followUps, conditions };
+  return { ...base, wallet, transactions, statusUpdates, followUps, conditions, medications, labs, notes };
 }
 
 type HomeAppointment = {
@@ -120,13 +141,16 @@ export async function fetchSelfPatientDetail(): Promise<SponsoredPatientDetail> 
     .eq("id", user.id)
     .single();
 
-  const [walletRes, statusRes, metricsRes, followUpsRes, appointmentsRes, conditionsRes] = await Promise.allSettled([
+  const [walletRes, statusRes, metricsRes, followUpsRes, appointmentsRes, conditionsRes, medicationsRes, labsRes, notesRes] = await Promise.allSettled([
     fetchPatientWalletData(user.id),
     fetchPatientStatusUpdates(user.id),
     fetchApiJson<{ metrics: PatientMetric[] }>(session.access_token, `/api/patients/${user.id}/metrics`),
     fetchPatientFollowUps(),
     fetchApiJson<{ appointments: HomeAppointment[] }>(session.access_token, "/api/home/appointments"),
     fetchPatientConditions(user.id),
+    fetchPatientMedications(user.id),
+    fetchPatientLabs(user.id),
+    fetchPatientNotes(user.id),
   ]);
 
   let wallet: SponsoredPatientDetail["wallet"] = null;
@@ -140,6 +164,9 @@ export async function fetchSelfPatientDetail(): Promise<SponsoredPatientDetail> 
   const followUps = followUpsRes.status === "fulfilled" ? followUpsRes.value : [];
   const allAppointments = appointmentsRes.status === "fulfilled" ? (appointmentsRes.value.appointments ?? []) : [];
   const conditions = conditionsRes.status === "fulfilled" ? conditionsRes.value : [];
+  const medications = medicationsRes.status === "fulfilled" ? medicationsRes.value : [];
+  const labs = labsRes.status === "fulfilled" ? labsRes.value : [];
+  const notes = notesRes.status === "fulfilled" ? notesRes.value : [];
   const appointments: TimelineAppointment[] = allAppointments
     .filter((a) => a.is_self)
     .map((a) => ({
@@ -185,5 +212,8 @@ export async function fetchSelfPatientDetail(): Promise<SponsoredPatientDetail> 
     statusUpdates,
     followUps,
     conditions,
+    medications,
+    labs,
+    notes,
   };
 }

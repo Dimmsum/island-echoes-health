@@ -7,6 +7,8 @@ import { ClinicianAppointmentDetailClient } from "./AppointmentDetailClient";
 import type { FollowUp } from "../../follow-up-types";
 import type { StatusUpdate } from "../../status-update-types";
 import type { PatientCondition } from "../../condition-types";
+import type { Medication } from "../../medication-types";
+import type { LabResult } from "../../lab-result-types";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -42,6 +44,9 @@ export default async function ClinicianPortalAppointmentDetailPage({ params }: P
   let statusUpdates: StatusUpdate[] = [];
   // Conditions & allergies are also patient-level, not appointment-scoped.
   let conditions: PatientCondition[] = [];
+  // Medications and lab results are also patient-level, not appointment-scoped.
+  let medications: Medication[] = [];
+  let labResults: LabResult[] = [];
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -72,6 +77,24 @@ export default async function ClinicianPortalAppointmentDetailPage({ params }: P
       conditions = data.conditions;
     } catch {
       conditions = [];
+    }
+    try {
+      const data = await fetchApiJson<{ medications: Medication[] }>(
+        session.access_token,
+        `/api/patients/${appointment.patient_id}/medications`,
+      );
+      medications = data.medications;
+    } catch {
+      medications = [];
+    }
+    try {
+      const data = await fetchApiJson<{ labResults: LabResult[] }>(
+        session.access_token,
+        `/api/patients/${appointment.patient_id}/labs`,
+      );
+      labResults = data.labResults;
+    } catch {
+      labResults = [];
     }
   }
 
@@ -147,6 +170,8 @@ export default async function ClinicianPortalAppointmentDetailPage({ params }: P
           followUps={followUps}
           statusUpdates={statusUpdates}
           conditions={conditions}
+          medications={medications}
+          labResults={labResults}
         />
       </main>
     </div>
