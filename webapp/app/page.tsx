@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Kaushan_Script, Poppins } from "next/font/google";
 import { Reveal } from "./components/landing/Reveal";
 import { PhotoPlaceholder } from "./components/landing/PhotoPlaceholder";
@@ -62,11 +65,27 @@ const steps = [
 ];
 
 export default function Home() {
+  const [showHeader, setShowHeader] = useState(false);
+
+  useEffect(() => {
+    const threshold = 80;
+    const handleScroll = () => {
+      setShowHeader(window.scrollY >= threshold);
+    };
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
     <div
       className={`${poppins.variable} ${kaushan.variable} relative max-w-full overflow-x-hidden bg-[#0C3B1E] font-[family-name:var(--font-poppins)] text-[#F2F7EA] antialiased`}
     >
-      <header className="sticky top-0 z-[70] border-b border-[#0C3B1E]/10 bg-white/95 backdrop-blur-xl">
+      <header
+        className={`fixed inset-x-0 top-0 z-[70] border-b border-[#0C3B1E]/10 bg-white/95 backdrop-blur-xl transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] ${
+          showHeader ? "translate-y-0" : "-translate-y-full"
+        }`}
+      >
         <div className="mx-auto flex max-w-6xl items-center gap-7 px-5 py-3 sm:px-8">
           <Link href="/" className="flex flex-none items-center">
             <Image
@@ -112,26 +131,34 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="relative flex min-h-[min(88vh,760px)] items-end overflow-hidden">
-        <Reveal variant="scale" className="absolute inset-0">
-          <PhotoPlaceholder tone="dark" />
-        </Reveal>
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,rgba(9,45,23,.95)_0%,rgba(10,50,26,.86)_38%,rgba(12,59,30,.28)_72%,rgba(12,59,30,.12)_100%)]" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[38%] bg-gradient-to-b from-[#0C3B1E]/0 to-[#0C3B1E]/[.92]" />
+      <section className="relative flex min-h-screen min-h-dvh items-end overflow-hidden">
+        <Image
+          src="/patient-doctor.png"
+          alt=""
+          fill
+          priority
+          className="object-cover object-top"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,rgba(9,45,23,.75)_0%,rgba(10,50,26,.5)_38%,rgba(12,59,30,.14)_72%,rgba(12,59,30,.05)_100%)]" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[38%] bg-gradient-to-b from-[#0C3B1E]/0 to-[#0C3B1E]/70" />
+
+        <Image
+          src="/island-echoes-icon.svg"
+          alt=""
+          width={72}
+          height={82}
+          className="pointer-events-none absolute bottom-6 right-5 h-14 w-auto brightness-0 invert sm:right-8 sm:h-16"
+        />
 
         <div className="relative mx-auto w-full max-w-6xl px-5 pb-14 pt-28 sm:px-8">
           <Reveal className="max-w-[660px]">
-            <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#B8DE6F]/40 bg-[#B8DE6F]/[.16] px-[15px] py-[7px] text-[11.5px] font-semibold uppercase tracking-[0.2em] text-[#DCEFB4]">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#B8DE6F]" />
-              Care that echoes across oceans
-            </p>
             <h1 className="mb-5 text-balance text-[clamp(38px,5.4vw,72px)] font-bold leading-[1.02] tracking-[-0.03em] text-[#F7FBF0]">
               A calm way to stay connected through{" "}
               <span className="text-[#B8DE6F]">every stage of care.</span>
             </h1>
             <p className="mb-8 max-w-[520px] text-pretty text-[17.5px] leading-[1.65] text-[#F2F7EA]/[.86]">
-              Secure messaging, clear updates, and coordinated support for patients, families,
-              and clinicians — without the noise.
+              Secure messaging, clear updates, and coordinated support for
+              patients, families, and clinicians — without the noise.
             </p>
             <div className="flex flex-wrap gap-3.5">
               <Link
@@ -148,25 +175,33 @@ export default function Home() {
               </Link>
             </div>
           </Reveal>
+        </div>
 
-          <Reveal className="mt-14 grid max-w-[820px] grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-5 border-t border-[#B8DE6F]/[.26] pt-6">
-            <div>
-              <p className="text-[28px] font-bold text-[#B8DE6F]">14</p>
-              <p className="mt-0.5 text-[13px] text-[#F2F7EA]/70">island communities</p>
-            </div>
-            <div>
-              <p className="text-[28px] font-bold text-[#B8DE6F]">3.4k</p>
-              <p className="mt-0.5 text-[13px] text-[#F2F7EA]/70">care circles active</p>
-            </div>
-            <div>
-              <p className="text-[28px] font-bold text-[#B8DE6F]">92%</p>
-              <p className="mt-0.5 text-[13px] text-[#F2F7EA]/70">families feel informed</p>
-            </div>
-          </Reveal>
+        <div className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center">
+          <div className="flex animate-[scrollHint_2s_ease-in-out_infinite] flex-col items-center gap-1.5 text-[#F2F7EA]/70">
+            <span className="text-[11px] font-medium uppercase tracking-[0.22em]">
+              Scroll to see more
+            </span>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </div>
         </div>
       </section>
 
-      <section id="care" className="relative overflow-hidden bg-[#F3F6EA] py-24">
+      <section
+        id="care"
+        className="relative overflow-hidden bg-[#F3F6EA] py-24"
+      >
         <div className="pointer-events-none absolute -right-40 -top-16 h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle,rgba(76,122,50,.14),rgba(76,122,50,0)_70%)]" />
         <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
           <Reveal className="mb-12 max-w-[640px]">
@@ -192,7 +227,9 @@ export default function Home() {
                     <h3 className="mb-3 text-xl font-semibold leading-[1.3] text-[#0C3B1E]">
                       {card.title}
                     </h3>
-                    <p className="text-[14.5px] leading-[1.7] text-[#4A5A44]">{card.body}</p>
+                    <p className="text-[14.5px] leading-[1.7] text-[#4A5A44]">
+                      {card.body}
+                    </p>
                   </div>
                 </div>
               </Reveal>
@@ -211,8 +248,8 @@ export default function Home() {
               Together.
             </h2>
             <p className="mb-7 max-w-[440px] text-[16.5px] leading-[1.7] text-[#F2F7EA]/[.84]">
-              Island Echoes Health helps care teams, patients, and families stay informed,
-              supported, and connected — no matter the distance.
+              Island Echoes Health helps care teams, patients, and families stay
+              informed, supported, and connected — no matter the distance.
             </p>
             <div className="grid max-w-[440px] gap-4">
               {[
@@ -224,7 +261,9 @@ export default function Home() {
                   <span className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-[#B8DE6F]/20 text-xs text-[#B8DE6F]">
                     ✓
                   </span>
-                  <p className="text-[15px] leading-[1.6] text-[#F2F7EA]/[.88]">{line}</p>
+                  <p className="text-[15px] leading-[1.6] text-[#F2F7EA]/[.88]">
+                    {line}
+                  </p>
                 </div>
               ))}
             </div>
@@ -247,23 +286,6 @@ export default function Home() {
                 <PhotoPlaceholder tone="dark" />
               </div>
             </div>
-          </Reveal>
-        </div>
-      </section>
-
-      <section className="relative flex min-h-[min(70vh,560px)] items-center overflow-hidden">
-        <Reveal variant="scale" className="absolute inset-0">
-          <PhotoPlaceholder tone="dark" />
-        </Reveal>
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(9,45,23,.94)_0%,rgba(10,50,26,.8)_46%,rgba(12,59,30,.22)_100%)]" />
-        <div className="relative mx-auto w-full max-w-6xl px-5 py-20 sm:px-8">
-          <Reveal className="max-w-[640px]">
-            <p className="mb-6 text-pretty text-[clamp(22px,2.8vw,34px)] font-normal leading-[1.42] text-[#F7FBF0]">
-              &ldquo;My mother was admitted while I was six thousand miles away. For the first
-              time, I knew what was happening every day — and so did she.&rdquo;
-            </p>
-            <p className="mb-0.5 text-[15px] font-semibold text-[#B8DE6F]">Marisol A.</p>
-            <p className="text-sm text-[#F2F7EA]/70">Daughter and caregiver, Saint Lucia</p>
           </Reveal>
         </div>
       </section>
@@ -295,7 +317,9 @@ export default function Home() {
                   <h3 className="mb-2.5 text-[19px] font-semibold text-[#0C3B1E]">
                     {step.title}
                   </h3>
-                  <p className="text-[14.5px] leading-[1.7] text-[#4A5A44]">{step.body}</p>
+                  <p className="text-[14.5px] leading-[1.7] text-[#4A5A44]">
+                    {step.body}
+                  </p>
                 </div>
               </Reveal>
             ))}
@@ -314,8 +338,8 @@ export default function Home() {
               Bring your care team and families onto one calm thread.
             </h2>
             <p className="max-w-[460px] text-[16.5px] leading-[1.65] text-[#F2F7EA]/[.82]">
-              Start with a single ward or clinic. We&rsquo;ll help you set it up in under a
-              week.
+              Start with a single ward or clinic. We&rsquo;ll help you set it up
+              in under a week.
             </p>
           </div>
           <div className="flex flex-wrap justify-start gap-3.5 lg:justify-end">
@@ -349,7 +373,10 @@ export default function Home() {
             <p className="mb-1 text-[11.5px] font-semibold uppercase tracking-[0.18em] text-[#B8DE6F]">
               Product
             </p>
-            <Link href="/user" className="text-[13.5px] text-[#F2F7EA]/70 hover:text-[#B8DE6F]">
+            <Link
+              href="/user"
+              className="text-[13.5px] text-[#F2F7EA]/70 hover:text-[#B8DE6F]"
+            >
               For patients
             </Link>
             <Link
@@ -358,7 +385,10 @@ export default function Home() {
             >
               For clinicians
             </Link>
-            <Link href="/about" className="text-[13.5px] text-[#F2F7EA]/70 hover:text-[#B8DE6F]">
+            <Link
+              href="/about"
+              className="text-[13.5px] text-[#F2F7EA]/70 hover:text-[#B8DE6F]"
+            >
               For organizations
             </Link>
           </div>
@@ -366,10 +396,16 @@ export default function Home() {
             <p className="mb-1 text-[11.5px] font-semibold uppercase tracking-[0.18em] text-[#B8DE6F]">
               Company
             </p>
-            <Link href="/about" className="text-[13.5px] text-[#F2F7EA]/70 hover:text-[#B8DE6F]">
+            <Link
+              href="/about"
+              className="text-[13.5px] text-[#F2F7EA]/70 hover:text-[#B8DE6F]"
+            >
               About
             </Link>
-            <Link href="#steps" className="text-[13.5px] text-[#F2F7EA]/70 hover:text-[#B8DE6F]">
+            <Link
+              href="#steps"
+              className="text-[13.5px] text-[#F2F7EA]/70 hover:text-[#B8DE6F]"
+            >
               Resources
             </Link>
             <a
@@ -389,7 +425,10 @@ export default function Home() {
             >
               Privacy
             </Link>
-            <Link href="/terms" className="text-[13.5px] text-[#F2F7EA]/70 hover:text-[#B8DE6F]">
+            <Link
+              href="/terms"
+              className="text-[13.5px] text-[#F2F7EA]/70 hover:text-[#B8DE6F]"
+            >
               Terms
             </Link>
             <Link
@@ -401,7 +440,9 @@ export default function Home() {
           </div>
         </div>
         <div className="mx-auto mt-8 flex max-w-6xl flex-wrap justify-between gap-3 border-t border-[#B8DE6F]/[.14] px-5 pt-5 sm:px-8">
-          <p className="text-[12.5px] text-[#F2F7EA]/50">&copy; 2026 Island Echoes Health</p>
+          <p className="text-[12.5px] text-[#F2F7EA]/50">
+            &copy; 2026 Island Echoes Health
+          </p>
           <p className="text-[12.5px] text-[#F2F7EA]/50">
             Built for island communities and the families who love them.
           </p>
