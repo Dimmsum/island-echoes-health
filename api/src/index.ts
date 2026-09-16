@@ -26,6 +26,7 @@ import * as patientConditions from "./routes/patient-conditions.js";
 import * as medications from "./routes/medications.js";
 import * as labs from "./routes/labs.js";
 import * as patientNotes from "./routes/patient-notes.js";
+import * as recommendations from "./routes/recommendations.js";
 
 const app = express();
 const upload = multer({ dest: path.join(process.cwd(), "tmp-uploads") });
@@ -337,6 +338,18 @@ app.get(
       )
       .catch(next),
 );
+app.get(
+  "/api/clinician-portal/patients",
+  authMiddleware,
+  requireClinicianOrAdmin,
+  (req, res, next) =>
+    clinicianPortal
+      .getPatientsRoster(
+        req as Parameters<typeof clinicianPortal.getPatientsRoster>[0],
+        res,
+      )
+      .catch(next),
+);
 
 // Clinician directory (any authenticated user)
 app.get(
@@ -623,6 +636,43 @@ app.get(
     patientNotes
       .listPatientNotes(
         req as Parameters<typeof patientNotes.listPatientNotes>[0],
+        res,
+      )
+      .catch(next),
+);
+
+// Provider recommendations (Google Places, live — nothing cached or stored)
+// /suggestions and /search must be registered before /:placeId, or Express matches
+// them as a place id.
+app.get(
+  "/api/recommendations/suggestions",
+  authMiddleware,
+  (req, res, next) =>
+    recommendations
+      .getSuggestions(
+        req as Parameters<typeof recommendations.getSuggestions>[0],
+        res,
+      )
+      .catch(next),
+);
+app.get(
+  "/api/recommendations/search",
+  authMiddleware,
+  (req, res, next) =>
+    recommendations
+      .searchProviders(
+        req as Parameters<typeof recommendations.searchProviders>[0],
+        res,
+      )
+      .catch(next),
+);
+app.get(
+  "/api/recommendations/:placeId",
+  authMiddleware,
+  (req, res, next) =>
+    recommendations
+      .getProvider(
+        req as Parameters<typeof recommendations.getProvider>[0],
         res,
       )
       .catch(next),

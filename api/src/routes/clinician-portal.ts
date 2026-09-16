@@ -218,6 +218,144 @@ export async function getCareContinuity(_req: AuthRequest, res: Response): Promi
   res.json({ patients: result });
 }
 
+type RosterBucket = "overdue" | "open" | "onTrack";
+type RosterBadge = "OVERDUE" | "IN CLINIC" | "TODAY" | null;
+
+function isSameUtcDay(a: Date, b: Date): boolean {
+  return (
+    a.getUTCFullYear() === b.getUTCFullYear() &&
+    a.getUTCMonth() === b.getUTCMonth() &&
+    a.getUTCDate() === b.getUTCDate()
+  );
+}
+
+/**
+ * GET /api/clinician-portal/patients
+ * Roster for the requesting clinician's panel (patients on an active sponsor
+ * plan), grouped for triage: who has an overdue follow-up, who has an open
+ * follow-up or something happening soon, and who is on track. Follow-ups are
+ * scoped to this clinician (their own open tasks), matching the "my panel"
+ * framing on the dashboard's follow-up list.
+ */
+export async function getPatientsRoster(req: AuthRequest, res: Response): Promise<void> {
+  const supabase = createSupabaseForUser(req.accessToken);
+  const userId = req.user.id;
+
+  const { data: plansWithPatients } = await supabase
+    .from("sponsor_patient_plans")
+    .select("patient_id")
+    .is("ended_at", null);
+
+  const patientIds = [...new Set((plansWithPatients ?? []).map((p) => p.patient_id))];
+
+  if (patientIds.length === 0) {
+    res.json({ patients: [] });
+    return;
+  }
+
+  const [profilesRes, conditionsRes, metricsRes, appointmentsRes, followUpsRes] = await Promise.all([
+    supabase.from("profiles").select("id, full_name, avatar_url, date_of_birth").in("id", patientIds),
+    supabase
+      .from("patient_conditions")
+      .select("patient_id, label")
+      .in("patient_id", patientIds)
+      .eq("type", "condition")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("patient_metrics")
+      .select("patient_id, recorded_at, blood_pressure_systolic, blood_pressure_diastolic")
+      .in("patient_id", patientIds)
+      .order("recorded_at", { ascending: false }),
+    supabase
+      .from("appointments")
+      .select("id, patient_id, scheduled_at, status")
+      .in("patient_id", patientIds)
+      .order("scheduled_at", { ascending: true }),
+    supabase
+      .from("follow_ups")
+      .select("id, patient_id, due_date, status, notes")
+      .in("patient_id", patientIds)
+      .eq("clinician_id", userId)
+      .eq("status", "pending"),
+  ]);
+
+  const profiles = profilesRes.data ?? [];
+  const conditions = conditionsRes.data ?? [];
+  const metrics = metricsRes.data ?? [];
+  const appointments = appointmentsRes.data ?? [];
+  const followUps = followUpsRes.data ?? [];
+
+  const now = new Date();
+  const todayStr = now.toISOString().split("T")[0];
+
+  const patients = patientIds.map((pid) => {
+    const profile = profiles.find((p) => p.id === pid);
+    const age = profile?.date_of_birth
+      ? Math.floor((now.getTime() - new Date(profile.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+      : null;
+
+    const patientConditions = conditions.filter((c) => c.patient_id === pid).map((c) => c.label).slice(0, 2);
+    const latestMetric = metrics.find((m) => m.patient_id === pid) ?? null;
+
+    const patientAppointments = appointments.filter((a) => a.patient_id === pid);
+    const pastAppointments = patientAppointments.filter(
+      (a) => (a.status === "completed" || a.status === "no_show") && new Date(a.scheduled_at) <= now,
+    );
+    const lastAppointment = pastAppointments.length ? pastAppointments[pastAppointments.length - 1] : null;
+    const nextAppointment =
+      patientAppointments.find((a) => a.status === "scheduled" && new Date(a.scheduled_at) >= now) ?? null;
+
+    const patientFollowUps = followUps.filter((f) => f.patient_id === pid);
+    const overdueFollowUps = patientFollowUps.filter((f) => f.due_date < todayStr);
+    const openFollowUpsCount = patientFollowUps.length;
+    const overdueFollowUpsCount = overdueFollowUps.length;
+    const topFollowUp =
+      overdueFollowUps[0] ??
+      [...patientFollowUps].sort((a, b) => a.due_date.localeCompare(b.due_date))[0] ??
+      null;
+
+    let bucket: RosterBucket = "onTrack";
+    if (overdueFollowUpsCount > 0) bucket = "overdue";
+    else if (openFollowUpsCount > 0 || (nextAppointment && isSameUtcDay(new Date(nextAppointment.scheduled_at), now)))
+      bucket = "open";
+
+    let badge: RosterBadge = null;
+    if (bucket === "overdue") badge = "OVERDUE";
+    else if (lastAppointment && isSameUtcDay(new Date(lastAppointment.scheduled_at), now)) badge = "IN CLINIC";
+    else if (nextAppointment && isSameUtcDay(new Date(nextAppointment.scheduled_at), now)) badge = "TODAY";
+
+    return {
+      patientId: pid,
+      patientName: profile?.full_name ?? "Patient",
+      patientAvatar: profile?.avatar_url ?? null,
+      age,
+      conditions: patientConditions,
+      latestBp: latestMetric?.blood_pressure_systolic && latestMetric?.blood_pressure_diastolic
+        ? {
+            systolic: latestMetric.blood_pressure_systolic,
+            diastolic: latestMetric.blood_pressure_diastolic,
+            recordedAt: latestMetric.recorded_at,
+          }
+        : null,
+      lastAppointment: lastAppointment
+        ? { scheduledAt: lastAppointment.scheduled_at, status: lastAppointment.status }
+        : null,
+      nextAppointment: nextAppointment
+        ? { scheduledAt: nextAppointment.scheduled_at, status: nextAppointment.status }
+        : null,
+      openFollowUpsCount,
+      overdueFollowUpsCount,
+      topFollowUp: topFollowUp
+        ? { dueDate: topFollowUp.due_date, notes: topFollowUp.notes, overdue: topFollowUp.due_date < todayStr }
+        : null,
+      bucket,
+      badge,
+    };
+  });
+
+  res.json({ patients });
+}
+
 export async function getClinicianProfile(req: AuthRequest, res: Response): Promise<void> {
   const supabase = createSupabaseForUser(req.accessToken);
   const userId = req.user.id;

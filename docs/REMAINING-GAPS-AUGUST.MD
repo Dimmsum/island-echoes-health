@@ -18,10 +18,10 @@ have functioning accounts; appointments are booked and managed; family members f
 patient's care through a wallet. A focused push in late June shipped four significant
 web features back to back.
 
-**5 of the 7 remaining roadmap priorities are complete on web.**
+**7 of the 7 remaining roadmap priorities are complete on web.**
 
-Two remain: **provider recommendations** (not started, but the spend decision that was
-blocking it is now resolved — see M3) and **patient self-pay** (backend + web are actually
+Both remaining priorities are now done on web: **provider recommendations** shipped 2026-09-11
+(see M3 — only mobile and the API key remain) and **patient self-pay** (backend + web were already
 done — only mobile is left). Referral management, previously counted as an eighth, is
 **out of scope** — see below.
 
@@ -39,7 +39,7 @@ sponsorship still calls a deleted route (M1.3).
 | Care continuity dashboard | ✅ | ❌ |
 | Structured clinic notes | ✅ | ❌ |
 | Patient self-pay | ✅ | ❌ |
-| Provider recommendations | ⏳ not started (unblocked) | ⏳ not started (unblocked) |
+| Provider recommendations | ✅ | ⏳ not started (M3.4 / M7) |
 
 ---
 
@@ -83,7 +83,7 @@ Ordered by *unblocks-others*, then by effort. **M1 is the answer to "what next".
 |---|---|---|---|
 | **M1** | Production readiness gate (M1.1 ✅, M1.2 ✅, M1.5 ⏸️, M1.6 ⏸️) | — | S–M |
 | **M2** | Drop referral management | — | XS |
-| **M3** | Provider recommendations | — (unblocked 2026-09-03) | L |
+| **M3** | Provider recommendations (M3.1–M3.3 ✅ web; M3.4 mobile open) | — | L |
 | **M4** | Patient self-pay — finish | M1.3 | S |
 | **M5** | Notification coverage ✅ | M1.1 | S |
 | **M6** | Patient page data gaps ✅ | M1.1 | M–L |
@@ -125,7 +125,15 @@ Nothing below is trustworthy until this is green. Two of these are live bugs.
 
 - **M1.5 — Provider API key.** Provision `GOOGLE_PLACES_API_KEY` (Places API (New),
   Enterprise-tier fields enabled so `rating`/`userRatingCount` can be requested). Self-serve
-  via Google Cloud Console, no procurement lead time. Needed before M3.1 can be implemented.
+  via Google Cloud Console, no procurement lead time. M3.1–M3.3 are built and return 503
+  until this is set. **Provision it together with its cost controls**, which are not
+  optional and are the only hard ceiling on spend:
+  - Restrict the key to the Places API only, and to the API server's IPs. It is server-side
+    only — it must never reach a browser or the mobile bundle.
+  - Set a **per-day quota cap** on each Places SKU under APIs & Services → Places API →
+    Quotas. The app-side guard (see M3's spend guard) cannot limit the key if it is used
+    from anywhere else.
+  - Set a **billing budget + alert** on the Cloud project.
 
 - **M1.6 — Migrate authentication to Clerk.** Current auth model (Supabase Auth issuing a
   JWT, validated by the API against Supabase with the service role key — see
@@ -153,10 +161,12 @@ care-continuity endpoint's missing referral count reads as intentional to the ne
 
 ---
 
-### M3 — Provider recommendations — ✅ **UNBLOCKED (2026-09-03): spend approved**
+### M3 — Provider recommendations — ✅ **WEB SHIPPED (2026-09-11)**
 
-The one remaining major user-facing feature. Zero implementation exists today — the only
-repo-wide hit for "recommendation" is a string in mobile mock data.
+**Status: M3.1 ✅, M3.2 ✅, M3.3 ✅ (all 2026-09-11). M3.4 (mobile) remains, sequenced with M7.**
+The deploy-side dependency **M1.5 (provision `GOOGLE_PLACES_API_KEY`) is still open** — without it
+the search and detail routes return 503 and the web page renders a "Provider search isn't
+configured yet" message. Suggestions do not call Google and work without the key.
 
 **Unblocked 2026-09-03.** The product requirement is to recommend nearby healthcare providers
 factoring in **both** location and quality (rating) — a rating-less discovery list doesn't
@@ -222,7 +232,7 @@ can be requested alongside search fields. Country-agnostic (coordinates + radius
 country), consistent with the scope note above. No caching of name/address/phone/rating per
 Google's terms — only `place_id` may be retained.
 
-- **M3.1 — `api/src/lib/googlePlaces.ts`.** Native `fetch` against Places API (New)
+- ~~**M3.1 — `api/src/lib/googlePlaces.ts`.**~~ ✅ **Done (2026-09-11).** Native `fetch` against Places API (New)
   Text Search / Nearby Search + Place Details, mirroring the module shape of
   `api/src/lib/stripe.ts` (`isGooglePlacesConfigured()` / throw-on-missing-key, per
   `getStripe`/`isStripeConfigured`). Request an Enterprise-tier field mask
@@ -230,17 +240,86 @@ Google's terms — only `place_id` may be retained.
   and map Google's `type` taxonomy to our healthcare categories (`hospital`, `pharmacy`,
   `doctor`, `dentist`, etc). Return 503 when `GOOGLE_PLACES_API_KEY` is unset. **No response
   caching** — every call re-fetches live, per licence.
-- **M3.2 — Routes.** `GET /api/recommendations/search` (`lat`, `lng`, `category`/`q`, `radius`
+- ~~**M3.2 — Routes.**~~ ✅ **Done (2026-09-11).** `GET /api/recommendations/search` (`lat`, `lng`, `category`/`q`, `radius`
   → normalized providers: name, address, location, phone, website, Google rating/review count,
   plus the `googleMapsUri` link-out) and `GET /api/recommendations/:placeId`. Mount both in
   `api/src/index.ts` behind `authMiddleware`, following the existing
   `app.get("/api/…", authMiddleware, …)` pattern. No migration — `place_id` is the only field
   ever persisted, and only if we later add saved/favorite providers.
-- **M3.3 — Web.** `/recommendations` (search + category filter chips + location) and
+- ~~**M3.3 — Web.**~~ ✅ **Done (2026-09-11).** `/recommendations` (search + category filter chips + location) and
   `/recommendations/[id]` (detail, in-app rating badge, link out to Google). Skeletons while
   loading and rendered containers with explicit empty messages, per `CLAUDE.md`.
 - **M3.4 — Mobile.** Recommendations tab in `UserTabsNavigator` + provider detail screen.
   May ship with M7 if mobile is sequenced later.
+
+#### What implementation found (2026-09-11)
+
+Three things the plan above did not anticipate. Recorded so they are not re-derived:
+
+1. **Google cannot rank by rating.** Places API (New) `rankPreference` accepts only `RELEVANCE`
+   or `DISTANCE`. Ranking is therefore ours, applied in `api/src/routes/recommendations.ts` to the
+   single page (~20) of results Google returns — we rank *within* a query and radius, not across the
+   market. A plain mean would put a 5.0-from-3-reviews above a 4.7-from-900, so the sort uses a
+   shrunk (Bayesian) mean, `score = (v/(v+m))·R + (m/(v+m))·C` with `m = 20`, `C = 4.0`. Unrated
+   providers sort last but are never dropped.
+2. **Google has no place type for most specialties.** `includedType` covers hospital / pharmacy /
+   doctor / dentist / physiotherapist but not pediatrician, OB-GYN, cardiologist and the rest. So
+   specialties are sent as a **`textQuery`** to `places:searchText`, not as a type filter. This also
+   made manual location entry free: `"dentist in Kingston"` resolves natively, so there is no
+   Geocoding API call and no second SKU. Country-agnostic, per the scope note.
+3. **Specialty inference is rule-based, not AI.** `api/src/lib/specialtySuggestions.ts` is a pure,
+   dependency-free function mapping `patient_conditions`, active `medications`, out-of-range
+   `lab_results` and age (from `profiles.date_of_birth`) to ranked specialties, each carrying the
+   evidence that produced it so the UI can say *why*. No PHI leaves the system and there is no new
+   vendor. `suggestSpecialties()` is the seam if this is ever swapped for an LLM — it is the only
+   thing that would need to change.
+   - **OB-GYN cannot be inferred from demographics**: the schema has no sex or gender column, so it
+     fires only on an explicit pregnancy-related condition or medication. Intentional, not an
+     oversight.
+
+`GET /api/recommendations/suggestions` reads through the user-context client, so RLS is the
+authorization — a sponsor asking about a patient they are not linked to gets empty arrays and
+therefore only the two baseline suggestions (general practitioner, pharmacy), never another
+patient's data. Verified against the seeded accounts.
+
+**Nothing is persisted.** No migration, no table, no cached field. Both web routes are
+`dynamic = "force-dynamic"` and every API fetch passes `cache: "no-store"`, per Google's licence —
+only `place_id` may ever be retained, and this milestone retains nothing at all.
+
+#### Spend guard (2026-09-11)
+
+Because Places cost scales linearly with usage and results cannot be cached, the API
+enforces a hard cap before every billable call — `api/src/lib/rateLimit.ts`, backed by
+migration `00042_api_usage_counters.sql`. Three limits, cheapest check first:
+
+| Limit | Where | Default | Env var |
+|---|---|---|---|
+| Burst, per user per minute | In memory | 10 | `GOOGLE_PLACES_USER_BURST_PER_MIN` |
+| Daily, per user | Postgres | 40 | `GOOGLE_PLACES_USER_DAILY_LIMIT` |
+| Daily, global — the bill ceiling | Postgres | 500 (~$17.50/day, ~$525/mo) | `GOOGLE_PLACES_DAILY_LIMIT` |
+
+Design points worth not re-deriving:
+
+- **The daily counters are in Postgres, not memory.** An in-memory counter resets on
+  every deploy, crash or restart and does not exist across instances — which turns a
+  daily budget cap into no cap at all. Burst stays in memory; it needs no durability.
+- **Check and increment are one atomic statement** (`increment_api_usage`, a conditional
+  `ON CONFLICT`). A select-then-update races: concurrent requests all read the same
+  under-limit value and every one proceeds, overshooting the budget. Verified — 60
+  concurrent callers against a limit of 20 let exactly 20 through.
+- **It fails closed.** If the counter cannot be read or written, the call is denied and
+  Google is never reached. An outage that let requests through unmetered is the exact
+  scenario the guard exists to prevent.
+- Denials return `429` with `Retry-After`. A counter outage reports as "briefly
+  unavailable" rather than as a reached limit, so a one-minute blip doesn't send someone
+  away for a day.
+- `GET /api/recommendations/suggestions` is not metered — it never calls Google.
+- Set `GOOGLE_PLACES_DAILY_LIMIT=0` to switch Places off entirely without pulling the key.
+- `get_api_usage_today('google_places')` shows today's usage per scope.
+
+**This guard only covers our own API.** It cannot limit the key if it is used from
+anywhere else, so per-SKU quota caps and a budget alert in Google Cloud Console remain
+required — that is the only hard ceiling. Tracked with **M1.5**.
 
 #### Provider data source options
 
@@ -508,7 +587,7 @@ Claims in the retired docs that this audit disproved:
 | HR/temp migration numbered `00036` | `00036` is taken by `appointment_booking_fields`. Renumbered to `00038` (M6.1); `00037` goes to M5.1. |
 | Care plan tiers fully removed | Removed on web and in the DB. `home.ts:54`'s dropped-column select is now fixed (M1.2 ✅); mobile still renders the picker and calls a deleted route (M1.3). |
 | Referral management is roadmap priority 5 / upcoming #3 | **Out of scope.** Roadmap count is 5 / 7. |
-| Recommendations "re-scoped, next: 2.2 backend" | Still zero implementation two months later. Was briefly blocked on a spend decision (M3); **unblocked 2026-09-03** — Google Places Enterprise-tier cost approved so ratings can be included. |
+| Recommendations "re-scoped, next: 2.2 backend" | Was blocked on a spend decision, unblocked 2026-09-03. **Web shipped 2026-09-11** (M3.1–M3.3); mobile (M3.4) and the API key (M1.5) remain. |
 
 ---
 
