@@ -80,6 +80,9 @@ export function UserNavbar({ fullName, notifications: initial, activePath = "/ho
           <Link href="/appointments" className={activePath === "/appointments" ? activeClass : inactiveClass}>
             Appointments
           </Link>
+          <Link href="/recommendations" className={activePath === "/recommendations" ? activeClass : inactiveClass}>
+            Recommendations
+          </Link>
         </nav>
       </div>
 

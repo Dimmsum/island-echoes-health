@@ -67,14 +67,6 @@ function UsersIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
-function UserIcon({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-    </svg>
-  );
-}
-
 function ShieldIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -135,9 +127,8 @@ function colorFor(id: string) {
 
 const NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", href: "/clinician-portal", icon: CalendarIcon },
-  { key: "patients", label: "Patients", href: "#patients", icon: UsersIcon },
+  { key: "patients", label: "Patients", href: "/clinician-portal/patients", icon: UsersIcon },
   { key: "appointments", label: "Appointments", href: "/clinician-portal/appointments", icon: CalendarIcon },
-  { key: "profile", label: "Profile", href: "/clinician-portal/profile", icon: UserIcon },
 ] as const;
 
 export function ClinicianPortalDashboard({
@@ -193,7 +184,10 @@ export function ClinicianPortalDashboard({
           <ChevronIcon className={`h-3.5 w-3.5 transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`} />
         </button>
 
-        <Link href="/clinician-portal" className="flex items-center gap-2.5 overflow-hidden">
+        <Link
+          href="/clinician-portal"
+          className={`flex items-center overflow-hidden ${collapsed ? "justify-center gap-0" : "gap-2.5"}`}
+        >
           <Image
             src="/island-echoes-icon.svg"
             alt="Island Echoes Health"
@@ -203,8 +197,8 @@ export function ClinicianPortalDashboard({
             className="h-7 w-7 shrink-0 brightness-0 invert"
           />
           <div
-            className={`whitespace-nowrap text-[9px] font-bold uppercase leading-tight tracking-wide text-white transition-opacity duration-200 ${
-              collapsed ? "pointer-events-none opacity-0" : "opacity-100"
+            className={`whitespace-nowrap text-[9px] font-bold uppercase leading-tight tracking-wide text-white transition-[opacity,width] duration-200 ${
+              collapsed ? "pointer-events-none w-0 opacity-0" : "w-auto opacity-100"
             }`}
           >
             Island
@@ -223,15 +217,15 @@ export function ClinicianPortalDashboard({
               <Link
                 key={item.key}
                 href={item.href}
-                className={`flex items-center gap-2.5 overflow-hidden rounded-[9px] px-2.5 py-2.5 text-[12.5px] font-medium transition ${
-                  isActive ? "bg-white/12 text-white" : "text-[#a9c6b7] hover:bg-white/8 hover:text-white"
-                }`}
+                className={`flex items-center overflow-hidden rounded-[9px] py-2.5 text-[12.5px] font-medium transition ${
+                  collapsed ? "justify-center gap-0 px-0" : "gap-2.5 px-2.5"
+                } ${isActive ? "bg-white/12 text-white" : "text-[#a9c6b7] hover:bg-white/8 hover:text-white"}`}
                 title={collapsed ? item.label : undefined}
               >
                 <Icon className="h-4.5 w-4.5 shrink-0" />
                 <span
-                  className={`whitespace-nowrap transition-opacity duration-200 ${
-                    collapsed ? "pointer-events-none opacity-0" : "opacity-100"
+                  className={`whitespace-nowrap transition-[opacity,width] duration-200 ${
+                    collapsed ? "pointer-events-none w-0 opacity-0" : "w-auto opacity-100"
                   }`}
                 >
                   {item.label}
@@ -243,7 +237,13 @@ export function ClinicianPortalDashboard({
 
         <div className="flex-1" />
 
-        <div className="flex items-center gap-2.5 overflow-hidden rounded-[11px] bg-white/8 p-2.5">
+        <Link
+          href="/clinician-portal/profile"
+          title={collapsed ? "Profile" : undefined}
+          className={`flex items-center overflow-hidden rounded-[11px] bg-white/8 p-2.5 transition hover:bg-white/12 ${
+            collapsed ? "justify-center gap-0" : "gap-2.5"
+          }`}
+        >
           {avatarUrl ? (
             <img src={avatarUrl} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
           ) : (
@@ -251,11 +251,15 @@ export function ClinicianPortalDashboard({
               {initialsFor(fullName)}
             </div>
           )}
-          <div className={`min-w-0 whitespace-nowrap transition-opacity duration-200 ${collapsed ? "pointer-events-none opacity-0" : "opacity-100"}`}>
+          <div
+            className={`min-w-0 whitespace-nowrap transition-[opacity,width] duration-200 ${
+              collapsed ? "pointer-events-none w-0 opacity-0" : "w-auto opacity-100"
+            }`}
+          >
             <div className="truncate text-[11.5px] font-semibold text-white">{fullName ?? roleLabel}</div>
             <div className="text-[10px] text-[#8fb5a0]">{roleLabel}</div>
           </div>
-        </div>
+        </Link>
       </aside>
 
       {/* Main content */}
