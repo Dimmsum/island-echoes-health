@@ -36,6 +36,28 @@ function visibilityLabel(visibility: StatusUpdateVisibility) {
   }
 }
 
+const VISIBILITY_OPTIONS: {
+  value: StatusUpdateVisibility;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "patient_only",
+    label: "Patient only",
+    description: "Visible to the patient only, not shared with sponsors.",
+  },
+  {
+    value: "all",
+    label: "Patient + sponsor",
+    description: "Visible to the patient and their family sponsors.",
+  },
+  {
+    value: "sponsor_only",
+    label: "Sponsor only",
+    description: "Visible to family sponsors, not shown to the patient.",
+  },
+];
+
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("en-US", {
     month: "short",
@@ -118,24 +140,36 @@ export function StatusUpdatesSection({ patientId, statusUpdates }: Props) {
           rows={3}
         />
         <div>
-          <label
-            htmlFor="status-update-visibility"
-            className="block text-xs font-medium uppercase tracking-wider text-slate-500"
-          >
+          <span className="block text-xs font-medium uppercase tracking-wider text-slate-500">
             Visible to
-          </label>
-          <select
-            id="status-update-visibility"
-            value={visibility}
-            onChange={(e) =>
-              setVisibility(e.target.value as StatusUpdateVisibility)
-            }
-            className="mt-1.5 block w-full min-w-0 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-colors focus:border-[#1F5F2E] focus:outline-none focus:ring-2 focus:ring-[#1F5F2E]/20"
-          >
-            <option value="all">Everyone (patient &amp; family)</option>
-            <option value="sponsor_only">Family sponsors only</option>
-            <option value="patient_only">Patient only</option>
-          </select>
+          </span>
+          <div className="mt-1.5 grid gap-2 sm:grid-cols-3">
+            {VISIBILITY_OPTIONS.map((opt) => {
+              const selected = visibility === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setVisibility(opt.value)}
+                  className={`rounded-xl border p-3 text-left transition ${
+                    selected
+                      ? "border-[#157347] bg-[#f3f9f5]"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`h-3.5 w-3.5 shrink-0 rounded-full border-2 ${
+                        selected ? "border-[4px] border-[#157347]" : "border-slate-300"
+                      }`}
+                    />
+                    <span className="text-sm font-semibold text-slate-900">{opt.label}</span>
+                  </div>
+                  <p className="mt-1.5 text-xs text-slate-500">{opt.description}</p>
+                </button>
+              );
+            })}
+          </div>
         </div>
         {error && (
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">

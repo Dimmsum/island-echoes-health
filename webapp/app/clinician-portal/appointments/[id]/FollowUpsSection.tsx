@@ -8,7 +8,7 @@ import { createFollowUp, updateFollowUp } from "../../follow-up-actions";
 import type { FollowUp } from "../../follow-up-types";
 
 type Props = {
-  appointmentId: string;
+  appointmentId?: string;
   patientId: string;
   followUps: FollowUp[];
 };
@@ -130,7 +130,7 @@ export function FollowUpsSection({ appointmentId, patientId, followUps }: Props)
         </ul>
       ) : (
         <p className="mt-2 text-sm text-slate-500">
-          No follow-ups for this appointment yet.
+          {appointmentId ? "No follow-ups for this appointment yet." : "No follow-ups yet."}
         </p>
       )}
 

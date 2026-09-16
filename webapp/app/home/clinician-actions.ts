@@ -53,7 +53,8 @@ async function notifySponsorsOfPatient(
 
 export async function createAppointment(
   patientId: string,
-  scheduledAt: string
+  scheduledAt: string,
+  appointmentType?: string
 ): Promise<ClinicianActionResult> {
   const { error, userId } = await ensureClinicianOrAdmin();
   if (error || !userId) return { error: error ?? "Not signed in." };
@@ -64,6 +65,7 @@ export async function createAppointment(
     clinician_id: userId,
     scheduled_at: scheduledAt,
     status: "scheduled",
+    appointment_type: appointmentType ?? null,
   });
 
   if (insertError) {
@@ -75,6 +77,7 @@ export async function createAppointment(
   revalidatePath("/home/appointments");
   revalidatePath("/clinician-portal");
   revalidatePath("/clinician-portal/appointments");
+  revalidatePath("/clinician-portal/patients/" + patientId);
   return { error: null };
 }
 
