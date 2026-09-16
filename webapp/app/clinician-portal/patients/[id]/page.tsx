@@ -12,6 +12,7 @@ import type {
   PatientNote,
   PatientWallet,
   SponsorLink,
+  VitalsReading,
 } from "./patient-chart-types";
 
 type Props = {
@@ -55,7 +56,9 @@ export default async function ClinicianPortalPatientChartPage({ params }: Props)
       .order("scheduled_at", { ascending: false }),
     supabase
       .from("patient_metrics")
-      .select("id, recorded_at, blood_pressure_systolic, blood_pressure_diastolic")
+      .select(
+        "id, recorded_at, blood_pressure_systolic, blood_pressure_diastolic, weight_kg, a1c, heart_rate_bpm, temperature_c",
+      )
       .eq("patient_id", id)
       .order("recorded_at", { ascending: false })
       .limit(10),
@@ -98,6 +101,21 @@ export default async function ClinicianPortalPatientChartPage({ params }: Props)
         recordedAt: latestMetricWithBp.recorded_at as string,
       }
     : null;
+
+  const vitalsHistory: VitalsReading[] = (metricRows ?? []).map((m) => ({
+    id: m.id,
+    recordedAt: m.recorded_at,
+    systolic: m.blood_pressure_systolic,
+    diastolic: m.blood_pressure_diastolic,
+    weightKg: m.weight_kg,
+    a1c: m.a1c,
+    heartRateBpm: m.heart_rate_bpm,
+    temperatureC: m.temperature_c,
+  }));
+  const latestWeightMetric = (metricRows ?? []).find((m) => m.weight_kg != null);
+  const latestA1cMetric = (metricRows ?? []).find((m) => m.a1c != null);
+  const latestWeightKg = latestWeightMetric?.weight_kg ?? null;
+  const latestA1c = latestA1cMetric?.a1c ?? null;
 
   const sponsors: SponsorLink[] = (sponsorRows ?? []).map((s) => {
     const linkedProfile = (sponsorProfiles ?? []).find((p) => p.id === s.sponsor_id);
@@ -162,6 +180,9 @@ export default async function ClinicianPortalPatientChartPage({ params }: Props)
       lastAppointment={lastAppointment}
       nextAppointment={nextAppointment}
       latestBp={latestBp}
+      latestWeightKg={latestWeightKg}
+      latestA1c={latestA1c}
+      vitalsHistory={vitalsHistory}
       sponsors={sponsors}
       followUps={followUps}
       statusUpdates={statusUpdates}

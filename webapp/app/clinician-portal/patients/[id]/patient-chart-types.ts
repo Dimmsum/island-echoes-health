@@ -33,6 +33,19 @@ export type PatientWallet = {
   updatedAt: string;
 };
 
+/** One row from `patient_metrics` (supabase/migrations/00009, 00038) — a clinician-recorded
+ * reading, not a patient-submitted one (there's no such distinction in the schema yet). */
+export type VitalsReading = {
+  id: string;
+  recordedAt: string;
+  systolic: number | null;
+  diastolic: number | null;
+  weightKg: number | null;
+  a1c: number | null;
+  heartRateBpm: number | null;
+  temperatureC: number | null;
+};
+
 export type TimelineEntryType = "visit" | "note" | "status_update" | "lab";
 
 export type TimelineEntry = {

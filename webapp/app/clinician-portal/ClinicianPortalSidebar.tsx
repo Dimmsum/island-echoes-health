@@ -76,7 +76,7 @@ export function ClinicianPortalSidebar({ fullName, avatarUrl, role, activeKey }:
 
   return (
     <aside
-      className={`relative flex flex-none flex-col gap-6 bg-[#0f3d2b] py-5 transition-[width] duration-300 ease-in-out ${
+      className={`sticky top-0 flex h-screen flex-none flex-col gap-6 overflow-y-auto bg-[#0f3d2b] py-5 transition-[width] duration-300 ease-in-out ${
         collapsed ? "w-[76px] px-3" : "w-[220px] px-4"
       }`}
       style={sans}

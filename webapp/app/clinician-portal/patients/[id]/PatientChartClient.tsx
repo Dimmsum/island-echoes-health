@@ -9,23 +9,29 @@ import type { Medication } from "../../medication-types";
 import type { LabResult } from "../../lab-result-types";
 import { FollowUpsSection } from "../../appointments/[id]/FollowUpsSection";
 import { StatusUpdatesSection } from "../../appointments/[id]/StatusUpdatesSection";
-import { ConditionsSection } from "../../appointments/[id]/ConditionsSection";
-import { MedicationsSection } from "../../appointments/[id]/MedicationsSection";
-import { LabResultsSection } from "../../appointments/[id]/LabResultsSection";
 import { QuickBookWidget } from "./QuickBookWidget";
 import { CareNoteComposer } from "./CareNoteComposer";
+import { CareNotesTab } from "./CareNotesTab";
 import { PatientTimeline } from "./PatientTimeline";
 import { AppointmentsTab } from "./AppointmentsTab";
+import { VitalsTab } from "./VitalsTab";
+import { MedicationsTab } from "./MedicationsTab";
 import { SponsorshipTab } from "./SponsorshipTab";
-import type { PatientAppointment, PatientNote, PatientWallet, SponsorLink } from "./patient-chart-types";
+import type {
+  PatientAppointment,
+  PatientNote,
+  PatientWallet,
+  SponsorLink,
+  VitalsReading,
+} from "./patient-chart-types";
 
-type Tab = "overview" | "care-notes" | "appointments" | "labs" | "medications" | "sponsorship";
+type Tab = "overview" | "care-notes" | "appointments" | "vitals" | "medications" | "sponsorship";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "care-notes", label: "Care notes" },
   { key: "appointments", label: "Appointments" },
-  { key: "labs", label: "Labs & vitals" },
+  { key: "vitals", label: "Vitals & labs" },
   { key: "medications", label: "Medications" },
   { key: "sponsorship", label: "Sponsorship" },
 ];
@@ -43,6 +49,9 @@ type Props = {
   lastAppointment: PatientAppointment | null;
   nextAppointment: PatientAppointment | null;
   latestBp: { systolic: number; diastolic: number; recordedAt: string } | null;
+  latestWeightKg: number | null;
+  latestA1c: number | null;
+  vitalsHistory: VitalsReading[];
   sponsors: SponsorLink[];
   followUps: FollowUp[];
   statusUpdates: StatusUpdate[];
@@ -74,21 +83,41 @@ function pseudoMrn(patientId: string) {
   return `MRN-${patientId.replace(/-/g, "").slice(-6).toUpperCase()}`;
 }
 
-function isChangedToday(m: Medication) {
-  const today = new Date().toISOString().slice(0, 10);
-  return m.active && m.startedAt === today;
-}
-
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-function CardLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="text-[9.5px] font-semibold uppercase tracking-[.12em] text-[#8C9A91]" style={mono}>
-      {children}
-    </div>
+function StatTile({
+  label,
+  value,
+  sub,
+  tone,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: "amber" | "red";
+  onClick?: () => void;
+}) {
+  const valueColor = tone === "red" ? "text-[#C0705A]" : tone === "amber" ? "text-[#B8860B]" : "text-[#14251c]";
+  const body = (
+    <>
+      <div className="text-[9px] font-semibold uppercase tracking-[.1em] text-[#9aa8a0]" style={mono}>
+        {label}
+      </div>
+      <div className={`mt-1.5 text-[13.5px] font-semibold ${valueColor}`}>{value}</div>
+      {sub && <div className="mt-0.5 text-[11px] text-[#8C9A91]">{sub}</div>}
+    </>
   );
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className="min-w-[120px] text-left">
+        {body}
+      </button>
+    );
+  }
+  return <div className="min-w-[120px]">{body}</div>;
 }
 
 export function PatientChartClient({
@@ -104,6 +133,9 @@ export function PatientChartClient({
   lastAppointment,
   nextAppointment,
   latestBp,
+  latestWeightKg,
+  latestA1c,
+  vitalsHistory,
   sponsors,
   followUps,
   statusUpdates,
@@ -118,7 +150,6 @@ export function PatientChartClient({
   const openFollowUps = followUps.filter((f) => f.status === "pending");
   const allergies = conditions.filter((c) => c.type === "allergy");
   const nonAllergyConditions = conditions.filter((c) => c.type === "condition");
-  const activeMedications = medications.filter((m) => m.active);
 
   const sponsorSummary =
     sponsors.length === 0
@@ -150,12 +181,12 @@ export function PatientChartClient({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2.5">
                 <span className="text-[19px] font-bold text-[#14251c]">{patientName ?? "Patient"}</span>
-                {openFollowUps.length > 0 && (
+                {allergies.length > 0 && (
                   <span
-                    className="rounded-full bg-[#fdf7e8] px-2.5 py-0.5 text-[9px] font-semibold tracking-[.08em] text-[#B8860B]"
+                    className="rounded-full bg-[#f7ebe7] px-2.5 py-0.5 text-[9.5px] font-semibold tracking-[.08em] text-[#C0705A]"
                     style={mono}
                   >
-                    {openFollowUps.length} FOLLOW-UP{openFollowUps.length === 1 ? "" : "S"}
+                    ALLERGY: {allergies[0].label.toUpperCase()}
                   </span>
                 )}
               </div>
@@ -168,34 +199,7 @@ export function PatientChartClient({
                   .filter(Boolean)
                   .join(" · ")}
               </div>
-            </div>
-            <div className="flex flex-none gap-4 pr-1.5">
-              <div>
-                <div className="text-[9px] font-semibold uppercase tracking-[.1em] text-[#9aa8a0]" style={mono}>
-                  Last visit
-                </div>
-                <div className="mt-1 whitespace-nowrap text-[12.5px] font-semibold text-[#14251c]">
-                  {lastAppointment ? formatDate(lastAppointment.scheduledAt) : "—"}
-                </div>
-              </div>
-              <div className="w-px bg-[rgba(18,61,43,.1)]" />
-              <div>
-                <div className="text-[9px] font-semibold uppercase tracking-[.1em] text-[#9aa8a0]" style={mono}>
-                  Next visit
-                </div>
-                <div className="mt-1 whitespace-nowrap text-[12.5px] font-semibold text-[#14251c]">
-                  {nextAppointment ? formatDate(nextAppointment.scheduledAt) : "—"}
-                </div>
-              </div>
-              <div className="w-px bg-[rgba(18,61,43,.1)]" />
-              <div>
-                <div className="text-[9px] font-semibold uppercase tracking-[.1em] text-[#9aa8a0]" style={mono}>
-                  Latest BP
-                </div>
-                <div className="mt-1 whitespace-nowrap text-[12.5px] font-semibold text-[#B8860B]">
-                  {latestBp ? `${latestBp.systolic}/${latestBp.diastolic}` : "—"}
-                </div>
-              </div>
+              {phone && <div className="mt-0.5 text-[11.5px] text-[#8C9A91]">{phone}</div>}
             </div>
           </div>
 
@@ -217,132 +221,78 @@ export function PatientChartClient({
           </div>
         </div>
 
-        {/* Tab content */}
-        <div className="px-6 py-6 sm:px-8 sm:py-6.5">
+        {/* Tab content — single-column stacked bands, top to bottom */}
+        <div className="flex flex-col gap-3.5 px-6 py-6 sm:px-8 sm:py-6.5">
           {tab === "overview" && (
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[268px_1fr] lg:items-start">
-              {/* Facts rail */}
-              <div className="flex flex-col gap-3.5">
-                <div className="rounded-[14px] border border-[rgba(18,61,43,.08)] bg-white p-[18px]">
-                  <CardLabel>Patient</CardLabel>
-                  <div className="mt-3.5 flex flex-col gap-2.5">
-                    <div>
-                      <div className="text-[10px] font-medium text-[#9aa8a0]" style={mono}>Date of birth</div>
-                      <div className="mt-0.5 text-xs font-medium text-[#14251c]">
-                        {dateOfBirth ? formatDate(dateOfBirth) : "—"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-medium text-[#9aa8a0]" style={mono}>Phone</div>
-                      <div className="mt-0.5 text-xs font-medium text-[#14251c]">{phone ?? "—"}</div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-medium text-[#9aa8a0]" style={mono}>Sponsor</div>
-                      <button
-                        type="button"
-                        onClick={() => setTab("sponsorship")}
-                        className="mt-0.5 block text-left text-xs font-medium text-[#14251c] underline decoration-dotted hover:text-[#0f5132]"
-                      >
-                        {sponsorSummary}
-                      </button>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-medium text-[#9aa8a0]" style={mono}>Allergies</div>
-                      {allergies.length === 0 ? (
-                        <div className="mt-0.5 text-xs font-medium text-[#14251c]">None recorded</div>
-                      ) : (
-                        <div className="mt-0.5 text-xs font-medium text-[#C0705A]">
-                          {allergies.map((a) => a.label).join(", ")}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-[14px] border border-[rgba(18,61,43,.08)] bg-white p-[18px]">
-                  <CardLabel>Current meds</CardLabel>
-                  {activeMedications.length === 0 ? (
-                    <p className="mt-3 text-xs text-[#8C9A91]">No active medications.</p>
-                  ) : (
-                    <div className="mt-3.5 flex flex-col gap-2.5">
-                      {activeMedications.map((m) => (
-                        <div key={m.id} className="flex items-baseline justify-between gap-2">
-                          <span className="text-xs font-medium text-[#14251c]">{m.name}</span>
-                          <span className="text-right text-[10.5px] font-medium text-[#8C9A91]" style={mono}>
-                            {[m.dosage, m.frequency].filter(Boolean).join(" · ") || "—"}
-                            {isChangedToday(m) && (
-                              <span className="ml-1.5 font-semibold text-[#157347]"> · CHANGED TODAY</span>
-                            )}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <FollowUpsSection patientId={patientId} followUps={openFollowUps} />
-              </div>
-
-              {/* Main column */}
-              <div className="flex flex-col gap-3.5">
-                <QuickBookWidget patientId={patientId} nextAppointment={nextAppointment} />
-                <CareNoteComposer appointments={appointments} />
-                <StatusUpdatesSection patientId={patientId} statusUpdates={statusUpdates} />
-                <PatientTimeline
-                  appointments={appointments}
-                  notes={notes}
-                  statusUpdates={statusUpdates}
-                  labResults={labResults}
+            <>
+              <div className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-[14px] border border-[rgba(18,61,43,.08)] bg-white p-5">
+                <StatTile
+                  label="Last appointment"
+                  value={lastAppointment ? formatDate(lastAppointment.scheduledAt) : "—"}
+                  sub={lastAppointment?.appointmentType?.replace(/_/g, " ")}
                 />
+                <div className="h-9 w-px self-stretch bg-[rgba(18,61,43,.1)]" />
+                <StatTile
+                  label="Next appointment"
+                  value={nextAppointment ? formatDate(nextAppointment.scheduledAt) : "Not booked"}
+                  sub={nextAppointment?.appointmentType?.replace(/_/g, " ")}
+                />
+                <div className="h-9 w-px self-stretch bg-[rgba(18,61,43,.1)]" />
+                <StatTile
+                  label="Open follow-ups"
+                  value={String(openFollowUps.length)}
+                  tone={openFollowUps.length > 0 ? "amber" : undefined}
+                />
+                <div className="h-9 w-px self-stretch bg-[rgba(18,61,43,.1)]" />
+                <StatTile
+                  label="Latest BP"
+                  value={latestBp ? `${latestBp.systolic}/${latestBp.diastolic}` : "—"}
+                  sub={latestBp ? formatDate(latestBp.recordedAt) : undefined}
+                  tone={latestBp ? "amber" : undefined}
+                />
+                <div className="h-9 w-px self-stretch bg-[rgba(18,61,43,.1)]" />
+                <StatTile label="Sponsor" value={sponsorSummary} onClick={() => setTab("sponsorship")} />
               </div>
-            </div>
-          )}
 
-          {tab === "care-notes" && (
-            <div className="flex flex-col gap-3.5">
+              <FollowUpsSection patientId={patientId} followUps={openFollowUps} />
+
+              <QuickBookWidget patientId={patientId} nextAppointment={nextAppointment} />
+
               <CareNoteComposer appointments={appointments} />
-              <div className="rounded-[14px] border border-[rgba(18,61,43,.08)] bg-white p-5">
-                <CardLabel>Note history</CardLabel>
-                {notes.length === 0 ? (
-                  <p className="mt-3 text-sm text-[#8C9A91]">No care notes yet.</p>
-                ) : (
-                  <ul className="mt-4 flex flex-col gap-3">
-                    {notes.map((n) => (
-                      <li key={n.id} className="rounded-xl bg-[#f4f6f4] px-4 py-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <span
-                            className="text-[10px] font-semibold uppercase tracking-wide text-[#8C9A91]"
-                            style={mono}
-                          >
-                            {n.noteType.replace(/_/g, " ")}
-                          </span>
-                          <span className="text-[10.5px] text-[#9aa8a0]" style={mono}>
-                            {formatDate(n.createdAt)}
-                          </span>
-                        </div>
-                        <p className="mt-1.5 whitespace-pre-wrap text-xs text-[#5a6a61]">{n.content}</p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+
+              <PatientTimeline
+                appointments={appointments}
+                notes={notes}
+                statusUpdates={statusUpdates}
+                labResults={labResults}
+              />
+
               <StatusUpdatesSection patientId={patientId} statusUpdates={statusUpdates} />
-            </div>
+            </>
           )}
 
-          {tab === "appointments" && <AppointmentsTab appointments={appointments} />}
+          {tab === "care-notes" && <CareNotesTab appointments={appointments} notes={notes} />}
 
-          {tab === "labs" && <LabResultsSection patientId={patientId} labResults={labResults} />}
+          {tab === "appointments" && (
+            <AppointmentsTab patientId={patientId} appointments={appointments} nextAppointment={nextAppointment} />
+          )}
 
-          {tab === "medications" && <MedicationsSection patientId={patientId} medications={medications} />}
+          {tab === "vitals" && (
+            <VitalsTab
+              patientId={patientId}
+              vitalsHistory={vitalsHistory}
+              latestBp={latestBp}
+              latestWeightKg={latestWeightKg}
+              latestA1c={latestA1c}
+              labResults={labResults}
+            />
+          )}
+
+          {tab === "medications" && (
+            <MedicationsTab patientId={patientId} medications={medications} conditions={conditions} />
+          )}
 
           {tab === "sponsorship" && <SponsorshipTab sponsors={sponsors} wallet={wallet} />}
-
-          {tab === "overview" && (
-            <div className="mt-3.5">
-              <ConditionsSection patientId={patientId} conditions={conditions} />
-            </div>
-          )}
         </div>
       </main>
     </div>
